@@ -1,0 +1,15 @@
+# 환경변수 - .env.example 만 커밋한다
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 로컬 전용 Claude 설정
+.claude/settings.local.json
+
+.DS_Store
