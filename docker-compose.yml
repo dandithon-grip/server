@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    # 공식 postgis 이미지는 amd64 만 있다. Apple Silicon 에서는 Docker Desktop 의 Rosetta 로 돈다
+    platform: linux/amd64
+    environment:
+      POSTGRES_USER: saetgil
+      POSTGRES_PASSWORD: saetgil
+      POSTGRES_DB: saetgil
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # 이미지의 10_postgis.sh 다음에 실행되어 테스트 DB 를 만든다 (최초 1회)
+      - ./docker/initdb/20-create-test-db.sql:/docker-entrypoint-initdb.d/20-create-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saetgil -d saetgil"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:
