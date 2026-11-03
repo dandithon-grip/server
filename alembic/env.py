@@ -11,10 +11,11 @@ from logging.config import fileConfig
 
 from alembic import context
 from geoalchemy2 import alembic_helpers
-from sqlalchemy import pool, text
+from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
+import app.domain.commute.models  # noqa: F401  (Commute, Station 을 metadata 에 등록)
 import app.domain.user.models  # noqa: F401  (User 를 metadata 에 등록)
 from app.core.config import get_settings
 from app.core.database import Base
@@ -48,10 +49,6 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    # postgis 도커 이미지는 search_path 에 tiger 스키마를 넣어 둔다. 그대로 두면 autogenerate 가
-    # tiger 의 지오코더 테이블(addr, zip_state ...)을 우리 테이블로 보고 drop 하려 한다.
-    # 이 커넥션에서만 public 으로 고정해 우리 테이블만 비교한다
-    connection.execute(text("SET search_path TO public"))
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
@@ -66,7 +63,15 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     """async 엔진으로 연결한 뒤, 동기 API 인 alembic 을 run_sync 로 실행한다."""
-    engine = create_async_engine(get_url(), poolclass=pool.NullPool)
+    # postgis 도커 이미지는 search_path 에 tiger 스키마를 넣어 둔다. 그대로 두면 autogenerate 가
+    # tiger 의 지오코더 테이블(addr, zip_state ...)을 우리 테이블로 보고 drop 하려 한다.
+    # 접속 옵션으로 public 을 고정한다. (쿼리로 SET 하면 트랜잭션이 자동으로 열려
+    # alembic 이 끝에 commit 을 건너뛰고, 마이그레이션이 통째로 롤백된다)
+    engine = create_async_engine(
+        get_url(),
+        poolclass=pool.NullPool,
+        connect_args={"server_settings": {"search_path": "public"}},
+    )
 
     async with engine.connect() as connection:
         await connection.run_sync(do_run_migrations)
