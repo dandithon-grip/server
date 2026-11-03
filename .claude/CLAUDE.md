@@ -5,15 +5,18 @@
 사용자가 출퇴근 동선을 한 번 등록하면 매일 퇴근 전 "오늘의 샛길" 카드 한 장을 받는다.
 2026 단디톤 출품작. 팀 "기회는그립감이좋다".
 
-핵심 기능:
-- Supabase Auth(이메일·비밀번호) JWT 검증 + 사용자 upsert, 게스트(둘러보기) 접근. 가입·로그인 API 는 서버에 없다
-- 출퇴근 설정 (출발·도착·시각·교통수단·정류장)
-- 샛길 생성: TMAP 보행 경로 + PostGIS 녹지 점수 + 이벤트 점수
-- 대체 로직 5단계 (샛길 없을 때)
-- 오늘의 카드: 서버가 후보를 거르고 LLM이 선택·설명
-- 기록 (사진 → 비전 계절 태그)
+핵심 기능 (docs/spec.md v3, 2026-11-03):
+- F-01 Supabase Auth(이메일·비밀번호) JWT 검증 + 사용자 upsert, 게스트(둘러보기) 접근. 가입·로그인 API 는 서버에 없다
+- F-02 출퇴근 설정 (출발·도착·시각·교통수단 walk/transit/car·정류장·기본 취향 short/full/sunset)
+- F-03·04 샛길 생성: 규칙 ①②③④로 경유지 추림(PostGIS) → TMAP 보행 경로 ≤6회 → 녹지 % + 이벤트 점수 + 태그 가중치 → 후보 ≤3개
+- F-15 대체 로직 5단계 (샛길 없을 때)
+- F-05 오늘의 카드: 서버는 후보 ≤3개와 점수까지만. LLM 1회가 선택 + 이유 + 문장 (JSON 스키마 검증, 실패 시 점수 1위 + 템플릿)
+- F-16 취향 칩(오늘만 조건값 변경) · 👍/👎 피드백 → 태그 가중치 ±0.2 (User.tag_weights)
+- F-11 기록: 사진 → 비전 AI 가 계절·단계 태그 제안 → 사용자 수정 → 저장
+- F-17 자연어 취향은 시간 되면. 임베딩·RAG·벡터 DB·파인튜닝은 쓰지 않는다
 
-기획·명세 문서가 우선한다. 명세에 없는 기능은 만들지 않는다.
+기획·명세 문서(docs/spec.md)가 우선한다. 명세에 없는 기능은 만들지 않는다.
+규칙 조건값(버퍼 600m, 우회 상한, 가중치 ±0.2)은 코드의 상수로, LLM 출력 형식·말투는 프롬프트 문자열로 둔다. 모델은 바꾸지 않는다.
 
 ## 기술 스택
 - Python 3.12 + FastAPI
@@ -23,12 +26,12 @@
 - Alembic (마이그레이션)
 - Pydantic v2 + pydantic-settings
 - PyJWT (Supabase JWT 검증, JWKS)
-- httpx (TMAP · ODsay · 기상청 · LLM API 호출)
+- httpx (TMAP · ODsay · 기상청 · 에어코리아 · LLM/비전 API 호출)
 - pytest + pytest-asyncio + httpx AsyncClient
 - Supabase (Postgres + PostGIS + Auth), Docker (로컬 Postgres/PostGIS)
 - 배포: Railway 또는 Render, GitHub Actions (CI)
 
-쓰지 않는 것: Redis, 메시지 큐, 벡터 DB, 파인튜닝, RAG, Django, Flask, 동기 SQLAlchemy.
+쓰지 않는 것: Redis, 메시지 큐, 벡터 DB, 임베딩, 파인튜닝, RAG, Django, Flask, 동기 SQLAlchemy.
 
 ## 패키지 구조 규칙
 기능(도메인)별로 폴더를 나눈다. 도메인 하나는 파일 네 개다.
@@ -42,17 +45,18 @@ app/
     security.py            JWT 검증, get_current_user / get_optional_user 의존성
     exceptions.py          AppException, ErrorCode, 전역 핸들러
   domain/
-    auth/
+    user/
       router.py            엔드포인트 + OpenAPI 명세 (summary, responses)
-      service.py           비즈니스 로직 + DB 쿼리
+      service.py           비즈니스 로직 + DB 쿼리 (JWT 사용자 조회·생성 포함. auth 도메인은 따로 두지 않는다)
       schemas.py           Request / Response 모델
       models.py            SQLAlchemy 엔티티
-    user/
-    commute/
-    route/
-    card/
-    record/
-  clients/                 외부 API 래퍼 (tmap.py, odsay.py, kma.py, llm.py)
+    commute/               Commute · Station
+    route/                 Route · Place, 녹지 %·이벤트 점수, 대체 로직
+    card/                  TodayCard (LLM 선택)
+    feedback/              Feedback, 태그 가중치 갱신
+    record/                Record (비전 태그)
+  clients/                 외부 API 래퍼 (tmap.py, odsay.py, kma.py, airkorea.py, llm.py)
+scripts/                   운영 스크립트 (seed_demo.py). 앱 런타임이 import 하지 않는다
 alembic/
 tests/
   conftest.py
@@ -72,6 +76,7 @@ tests/
 - 모든 모델은 Pydantic BaseModel. Request 는 `frozen=True`, Response 는 `from_attributes=True`
 - 유효성 검증은 Field(...) 제약으로 schemas 에 둔다. service 에서 다시 검증하지 않는다
 - Response 변환은 `UserResponse.model_validate(user)` 로 한다. from_model 같은 변환 메서드를 손으로 쓰지 않는다
+- 명세의 코드값(교통수단 walk/transit/car, 취향 short/full/sunset, 행동 유형, 태그, 계절·단계)은 `str, Enum` 으로 한 곳에 정의한다. 문자열 리터럴을 흩뿌리지 않는다
 - 엔티티를 router 밖으로 내보내지 않는다. 항상 Response 로 변환한다
 
 ```python
@@ -116,39 +121,46 @@ async def me(current_user: User = Depends(get_current_user)) -> UserResponse:
 ### service
 - 함수마다 docstring 으로 역할, 파라미터, 반환값, 예외를 명시한다
 - 비즈니스 로직의 각 단계를 `# 1.` `# 2.` 인라인 주석으로 구분한다
-- service 는 AsyncSession 을 생성자로 받는 클래스. router 에서 `Depends(get_auth_service)` 로 주입한다
+- service 는 AsyncSession 을 생성자로 받는 클래스. router 에서 `Depends(get_user_service)` 로 주입한다
 - 트랜잭션 경계는 service 메서드 하나. commit 은 메서드 끝에서 한 번
 - 쿼리는 service 안에 쓰되 `select()` 를 만드는 줄과 결과를 해석하는 줄을 분리해 읽기 쉽게 한다
 - PostGIS 함수(ST_DWithin, ST_Subdivide 등)는 GeoAlchemy2 의 `func.ST_*` 로 쓴다. 문자열 SQL 은 쓰지 않는다
 
 ```python
-class AuthService:
+class UserService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_or_create_user(self, claims: SupabaseClaims) -> User:
+    async def get_or_create_user(self, supabase_id: str, nickname: str | None) -> User:
         """
-        Supabase JWT 클레임으로 사용자를 조회하거나 최초 로그인 시 생성한다.
+        Supabase user id 로 사용자를 조회하거나, 최초 요청이면 생성한다.
 
-        :param claims: 검증이 끝난 Supabase JWT 클레임 (sub = Supabase user id)
+        :param supabase_id: 검증이 끝난 JWT 의 sub 클레임
+        :param nickname: JWT 의 user_metadata.nickname. 없으면 기본 닉네임으로 만든다
         :return: 조회 또는 생성된 User
-        :raises AppException: INVALID_TOKEN - sub 클레임이 없음
         """
-        # 1. sub 클레임 확인
-        if not claims.sub:
-            raise AppException(ErrorCode.INVALID_TOKEN)
-
-        # 2. 기존 사용자 조회
-        stmt = select(User).where(User.supabase_id == claims.sub)
+        # 1. 기존 사용자 조회
+        stmt = select(User).where(User.supabase_id == supabase_id)
         user = (await self._session.execute(stmt)).scalar_one_or_none()
-        if user:
+        if user is not None:
             return user
 
-        # 3. 최초 로그인 - 사용자 생성 (닉네임은 user_metadata.nickname, 없으면 기본값)
-        user = User(supabase_id=claims.sub, nickname=claims.nickname or "샛길러", city="daegu")
-        self._session.add(user)
+        # 2. 최초 로그인 - 생성. 도시는 DEFAULT_CITY 설정에서 읽는다 (하드코딩 금지).
+        #    같은 사용자의 첫 요청이 동시에 와도 ON CONFLICT DO NOTHING 으로 한 행만 들어간다
+        insert_stmt = (
+            insert(User)
+            .values(
+                supabase_id=supabase_id,
+                nickname=nickname or DEFAULT_NICKNAME,
+                city=get_settings().default_city,
+            )
+            .on_conflict_do_nothing(index_elements=["supabase_id"])
+        )
+        await self._session.execute(insert_stmt)
+
+        # 3. 방금 들어간 (또는 동시 요청이 넣은) 행을 읽고 commit
+        user = (await self._session.execute(stmt)).scalar_one()
         await self._session.commit()
-        await self._session.refresh(user)
         return user
 ```
 
@@ -157,7 +169,7 @@ class AuthService:
 - `__tablename__` 명시. 테이블·컬럼은 snake_case
 - 기본키는 UUID (`default=uuid4`). created_at, updated_at 은 core 의 TimestampMixin 으로
 - 좌표는 `Geometry("POINT", srid=4326)`, 경로는 `Geometry("LINESTRING", srid=4326)`
-- **집·회사 좌표는 저장하지 않는다.** Commute 에는 동 단위(area)와 정류장 id 만 저장한다. 좌표는 경로 생성 요청에서만 받고 버린다
+- 출발·도착 좌표는 Commute 에 POINT 로 저장하되 **본인 응답 외에는 내보내지 않는다** (11/3 결정). 다른 사용자 응답·로그·LLM 프롬프트에 좌표를 넣지 않는다
 
 ```python
 class User(TimestampMixin, Base):
@@ -166,7 +178,7 @@ class User(TimestampMixin, Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     supabase_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     nickname: Mapped[str] = mapped_column(String(50))
-    city: Mapped[str] = mapped_column(String(20), default="daegu")
+    city: Mapped[str] = mapped_column(String(20))  # 값은 DEFAULT_CITY 설정에서. 하드코딩 금지
     notify_on: Mapped[bool] = mapped_column(default=True)
 ```
 
@@ -239,6 +251,9 @@ uv run uvicorn app.main:app --reload
 
 # 4. 데모 계정 생성 (Supabase Admin API + users 행). 이미 있으면 건너뛴다
 uv run python -m scripts.seed_demo
+
+# 5. 데모 정류장 시드 (data/stations_daegu_line2.csv). 여러 번 실행해도 같다
+uv run python -m scripts.seed_stations
 ```
 
 ### 환경변수 (.env)
@@ -322,4 +337,4 @@ docs/#{이슈번호}   문서 작업
 - 코드를 바꾼 뒤에는 `uv run pytest` 와 `uv run ruff check .` 를 돌려 결과를 보고한다. 돌리지 않고 "통과할 것"이라고 말하지 않는다
 - 모르는 외부 API 응답 형식은 추측해서 파싱하지 않는다. 문서 링크나 실제 응답 예시를 요청한다
 - .env, alembic 자동 생성 마이그레이션의 drop 문, main 브랜치는 건드리지 않는다
-- 집·회사 좌표를 저장하는 코드, 도시 이름을 하드코딩한 코드는 작성하지 않는다. 요청받아도 이유를 말하고 대안을 제안한다
+- 좌표를 본인 외 응답·로그·프롬프트에 내보내는 코드, 도시 이름을 하드코딩한 코드는 작성하지 않는다. 요청받아도 이유를 말하고 대안을 제안한다
