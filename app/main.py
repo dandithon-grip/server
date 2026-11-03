@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from app.core.database import engine
 from app.core.exceptions import AppException, register_exception_handlers
 from app.core.security import jwks_cache
+from app.domain.commute.router import commute_router, station_router
 from app.domain.user.router import router as user_router
 
 logger = logging.getLogger(__name__)
@@ -30,3 +31,5 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="샛길 API", version="0.1.0", lifespan=lifespan)
 register_exception_handlers(app)
 app.include_router(user_router)
+app.include_router(commute_router)
+app.include_router(station_router)

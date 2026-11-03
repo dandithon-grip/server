@@ -11,6 +11,7 @@ dependencies = [
     "pydantic>=2.14.1",
     "pydantic-settings>=2.16.2",
     "pyjwt[crypto]>=2.15.1",
+    "shapely>=2.2.0",
     "sqlalchemy[asyncio]>=2.1.6",
     "uvicorn[standard]>=0.54.0",
 ]
@@ -47,7 +48,7 @@ strict = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["geoalchemy2.*"]
+module = ["geoalchemy2.*", "shapely.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
