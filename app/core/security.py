@@ -182,6 +182,18 @@ async def get_current_user(
     return await _authenticate(credentials.credentials, jwks, user_service)
 
 
+async def get_access_token(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> str:
+    """요청의 access token 원문. Storage 처럼 요청자 권한으로 외부를 부를 때 쓴다.
+
+    서명 검증은 하지 않는다. get_current_user 와 함께 쓴다.
+    """
+    if credentials is None:
+        raise AppException(ErrorCode.INVALID_TOKEN)
+    return credentials.credentials
+
+
 async def get_optional_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     jwks: JwksCache = Depends(get_jwks_cache),
