@@ -11,5 +11,10 @@ __pycache__/
 
 # 로컬 전용 Claude 설정
 .claude/settings.local.json
+# 세션용 worktree 체크아웃 (레포 안에 생긴다. ruff·mypy 도 같이 건너뛴다)
+.claude/worktrees/
 
 .DS_Store
+
+# OSM 추출 (docs/data/osm.md 절차로 받는다. 받은 파일은 커밋하지 않는다)
+data/osm/
