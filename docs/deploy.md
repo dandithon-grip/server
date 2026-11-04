@@ -39,10 +39,16 @@ main 푸시 → 자동 배포. develop 은 배포하지 않는다.
    | `SUPABASE_JWT_AUDIENCE` | `authenticated` |
    | `DEFAULT_CITY` | `daegu` |
    | `APP_ENV` | `prod` |
-   | `TMAP_APP_KEY` 외 외부 API 키 | 해당 이슈가 병합된 뒤에 넣는다 |
+   | `TMAP_APP_KEY` | #7 병합. 값은 로컬 `.env` 와 같다 |
+   | `KMA_SERVICE_KEY` | #14 병합. 공공데이터포털 인증키(Decoding) |
+   | `AIRKOREA_SERVICE_KEY` | #14 병합. 기상청과 같은 포털 키 하나를 두 변수에 넣는다 |
+   | `ODSAY_API_KEY` · `LLM_API_KEY` | 해당 이슈가 병합된 뒤에 넣는다 |
 
    `SUPABASE_SERVICE_ROLE_KEY` · `DEMO_EMAIL` · `DEMO_PASSWORD` 는 **넣지 않는다.**
    `scripts/seed_demo.py` 전용이고 앱 런타임은 읽지 않는다. 서버 프로세스에 마스터 키를 두지 않기 위해서다.
+
+   이 표에는 키 **이름만** 적는다. 값은 각자 로컬 `.env` 에 있는 것과 같다.
+   값은 문서·커밋·이슈에 쓰지 않는다.
 
 4. Networking → Generate Domain 으로 외부 URL 을 받는다
 
