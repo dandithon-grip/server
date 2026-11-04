@@ -109,6 +109,17 @@ class LegType(StrEnum):
     AFTER_ARRIVAL = "after_arrival"  # 자동차: 도착 후 반경 10분
 
 
+class ActionType(StrEnum):
+    """오늘 카드의 행동 유형. F-15 단계가 정하고 F-05 LLM 출력 스키마가 같은 값을 쓴다."""
+
+    DETOUR = "detour"  # 돌아가기
+    ALIGHT_EARLY = "alight_early"  # 한 정거장 먼저
+    DELAY = "delay"  # 늦추기 (곧 노을)
+    GLANCE = "glance"  # 고개 돌리기 (기준선에 이벤트)
+    AFTER_ARRIVAL = "after_arrival"  # 도착 후
+    NONE = "none"  # 오늘 동선엔 자연이 없다
+
+
 class Route(TimestampMixin, Base):
     """동선 하나의 걷는 구간별 경로. 기준선(최단) 1개 + 경유지 후보 ≤6개.
 

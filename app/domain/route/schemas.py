@@ -3,7 +3,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.commute.models import Preference
-from app.domain.route.models import LegType, PlaceType
+from app.domain.route.models import ActionType, LegType, PlaceType
 
 
 class PointResponse(BaseModel):
@@ -38,5 +38,7 @@ class RoutesResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     preference: Preference = Field(..., description="적용한 취향")
-    candidates: list[RouteResponse] = Field(..., description="후보 조건을 통과한 상위 3개, 점수순")
+    fallback_level: int = Field(..., ge=1, le=5, description="F-15 단계. 1 이면 샛길 후보 있음")
+    action_type: ActionType = Field(..., description="오늘 카드의 행동 유형")
+    candidates: list[RouteResponse] = Field(..., description="그 단계의 후보 ≤3, 점수순")
     shortest: list[RouteResponse] = Field(..., description="구간별 최단 경로")

@@ -94,8 +94,9 @@ class RankedRoute:
 
 @dataclass(frozen=True)
 class RankedRoutes:
-    candidates: list[RankedRoute]
-    shortest: list[RankedRoute]
+    candidates: list[RankedRoute]  # eligible 상위 MAX_CANDIDATES
+    shortest: list[RankedRoute]  # 구간별 기준선
+    eligible: list[RankedRoute]  # 후보 조건을 통과한 전부, 점수순 (F-15 가 구간별로 본다)
 
 
 def distance_m(a: LatLng, b: LatLng) -> float:
@@ -211,12 +212,14 @@ class RouteService:
         return routes
 
     async def _legs(self, commute: Commute) -> list[Leg]:
+        """걷는 구간. 도착지 반경 구간(F-15 4단계용)은 모든 교통수단에 붙인다."""
         start = LatLng(lat=commute.from_lat, lng=commute.from_lng)
         end = LatLng(lat=commute.to_lat, lng=commute.to_lng)
+        after_arrival = Leg(LegType.AFTER_ARRIVAL, end, end)
         if commute.transport_mode == TransportMode.WALK:
-            return [Leg(LegType.WALK_ALL, start, end)]
+            return [Leg(LegType.WALK_ALL, start, end), after_arrival]
         if commute.transport_mode == TransportMode.CAR:
-            return [Leg(LegType.AFTER_ARRIVAL, end, end)]
+            return [after_arrival]
 
         # transit: 앞 도보 · 뒤 도보 · 한 정거장 먼저
         stations = await self._stations(commute.station_ids)
@@ -235,6 +238,7 @@ class RouteService:
                     alight_station_id=previous.id,
                 )
             )
+        legs.append(after_arrival)
         return legs
 
     async def _stations(self, station_ids: list[UUID]) -> list[Station]:
@@ -385,7 +389,7 @@ class RouteService:
 
         # 5. 상위 3개
         ranked.sort(key=lambda r: r.score, reverse=True)
-        return RankedRoutes(candidates=ranked[:MAX_CANDIDATES], shortest=shortest)
+        return RankedRoutes(candidates=ranked[:MAX_CANDIDATES], shortest=shortest, eligible=ranked)
 
 
 def _static_of(route: Route) -> StaticScore:
@@ -402,8 +406,8 @@ def _route_name(leg: Leg, places: list[Place]) -> str:
     if not places:
         return "최단 경로"
     base = places[0].name.replace(" 진입", "").replace(" 진출", "")
-    suffix = " (한 정거장 먼저)" if leg.leg_type == LegType.ALIGHT_EARLY else ""
-    return f"{base} 샛길{suffix}"
+    suffixes = {LegType.ALIGHT_EARLY: " (한 정거장 먼저)", LegType.AFTER_ARRIVAL: " (도착 후)"}
+    return f"{base} 샛길{suffixes.get(leg.leg_type, '')}"
 
 
 def get_route_service(
