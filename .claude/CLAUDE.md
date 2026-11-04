@@ -254,6 +254,9 @@ uv run python -m scripts.seed_demo
 
 # 5. 데모 정류장 시드 (data/stations_daegu_line2.csv). 여러 번 실행해도 같다
 uv run python -m scripts.seed_stations
+
+# 6. 큐레이션 자연 지점 시드 (data/places_daegu.csv). 좌표·설명은 팀이 CSV 에 채운다
+uv run python -m scripts.seed_places
 ```
 
 ### 환경변수 (.env)
