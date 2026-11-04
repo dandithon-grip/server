@@ -1,0 +1,3122 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6304988080573,
+     35.85806418467091
+    ]
+   },
+   "properties": {
+    "totalDistance": 3997,
+    "totalTime": 3471,
+    "index": 0,
+    "pointIndex": 0,
+    "name": "",
+    "description": "보행자도로를 따라 38m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 200,
+    "pointType": "SP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6304988080573,
+      35.85806418467091
+     ],
+     [
+      128.63007384547953,
+      35.8580641768264
+     ]
+    ]
+   },
+   "properties": {
+    "index": 1,
+    "lineIndex": 0,
+    "name": "보행자도로",
+    "description": "보행자도로, 38m",
+    "distance": 38,
+    "time": 31,
+    "roadType": 0,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.63007384547953,
+     35.8580641768264
+    ]
+   },
+   "properties": {
+    "index": 2,
+    "pointIndex": 1,
+    "name": "",
+    "description": "우회전 후 보행자도로를 따라 88m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 13,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.63007384547953,
+      35.8580641768264
+     ],
+     [
+      128.6300766175972,
+      35.858258599307284
+     ],
+     [
+      128.63012938763316,
+      35.858369698812616
+     ],
+     [
+      128.63013494030122,
+      35.85845580027681
+     ],
+     [
+      128.63014327251398,
+      35.858469687747025
+     ],
+     [
+      128.63016549254735,
+      35.85847802054703
+     ],
+     [
+      128.63062100791268,
+      35.85848080641891
+     ]
+    ]
+   },
+   "properties": {
+    "index": 3,
+    "lineIndex": 1,
+    "name": "보행자도로",
+    "description": "보행자도로, 88m",
+    "distance": 88,
+    "time": 75,
+    "roadType": 0,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.63062100791268,
+     35.85848080641891
+    ]
+   },
+   "properties": {
+    "index": 4,
+    "pointIndex": 2,
+    "name": "",
+    "description": "좌회전 후 보행자도로를 따라 9m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 12,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.63062100791268,
+      35.85848080641891
+     ],
+     [
+      128.63062100566904,
+      35.85856135285401
+     ]
+    ]
+   },
+   "properties": {
+    "index": 5,
+    "lineIndex": 2,
+    "name": "보행자도로",
+    "description": "보행자도로, 9m",
+    "distance": 9,
+    "time": 7,
+    "roadType": 23,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.63062100566904,
+     35.85856135285401
+    ]
+   },
+   "properties": {
+    "index": 6,
+    "pointIndex": 3,
+    "name": "",
+    "description": "좌회전 후 달구벌대로를 따라 122m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 12,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.63062100566904,
+      35.85856135285401
+     ],
+     [
+      128.63028492423078,
+      35.8585585691868
+     ],
+     [
+      128.63004883390994,
+      35.85855856482871
+     ],
+     [
+      128.6298960695073,
+      35.85856133947207
+     ],
+     [
+      128.62982663117768,
+      35.85856133819029
+     ],
+     [
+      128.6296460911338,
+      35.85857522217408
+     ],
+     [
+      128.62924612534945,
+      35.85861132181378
+     ]
+    ]
+   },
+   "properties": {
+    "index": 7,
+    "lineIndex": 3,
+    "name": "달구벌대로",
+    "description": "달구벌대로, 122m",
+    "distance": 122,
+    "time": 119,
+    "roadType": 23,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.62924612534945,
+     35.85861132181378
+    ]
+   },
+   "properties": {
+    "index": 8,
+    "pointIndex": 4,
+    "name": "",
+    "description": "횡단보도 후 보행자도로를 따라 20m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 211,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.62924612534945,
+      35.85861132181378
+     ],
+     [
+      128.62902392215312,
+      35.85863075995516
+     ]
+    ]
+   },
+   "properties": {
+    "index": 9,
+    "lineIndex": 4,
+    "name": "보행자도로",
+    "description": "보행자도로, 20m",
+    "distance": 20,
+    "time": 14,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.62902392215312,
+     35.85863075995516
+    ]
+   },
+   "properties": {
+    "index": 10,
+    "pointIndex": 5,
+    "name": "",
+    "description": "직진 후 달구벌대로를 따라 195m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 11,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.62902392215312,
+      35.85863075995516
+     ],
+     [
+      128.62892948587015,
+      35.858636313138554
+     ],
+     [
+      128.6281406648216,
+      35.85869462530712
+     ],
+     [
+      128.6280073429194,
+      35.85870573269938
+     ],
+     [
+      128.62789346390426,
+      35.858711285523974
+     ],
+     [
+      128.62775736477835,
+      35.85871128301189
+     ],
+     [
+      128.62764626399257,
+      35.858691838718286
+     ],
+     [
+      128.62750183327285,
+      35.858655729029856
+     ],
+     [
+      128.62738795534068,
+      35.85862239736865
+     ],
+     [
+      128.62725463529517,
+      35.858566845642386
+     ],
+     [
+      128.62717964244078,
+      35.85854740201529
+     ],
+     [
+      128.62703798995037,
+      35.85848629520871
+     ],
+     [
+      128.6269074481342,
+      35.85840574636428
+     ]
+    ]
+   },
+   "properties": {
+    "index": 11,
+    "lineIndex": 5,
+    "name": "달구벌대로",
+    "description": "달구벌대로, 195m",
+    "distance": 195,
+    "time": 172,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6269074481342,
+     35.85840574636428
+    ]
+   },
+   "properties": {
+    "index": 12,
+    "pointIndex": 6,
+    "name": "",
+    "description": "우측 횡단보도 후 15m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "범어네거리",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 213,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6269074481342,
+      35.85840574636428
+     ],
+     [
+      128.62679634386748,
+      35.85851128791813
+     ]
+    ]
+   },
+   "properties": {
+    "index": 13,
+    "lineIndex": 6,
+    "name": "",
+    "description": ", 15m",
+    "distance": 15,
+    "time": 11,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.62679634386748,
+     35.85851128791813
+    ]
+   },
+   "properties": {
+    "index": 14,
+    "pointIndex": 7,
+    "name": "",
+    "description": "직진 후 46m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 11,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.62679634386748,
+      35.85851128791813
+     ],
+     [
+      128.62657413347756,
+      35.85878903014435
+     ],
+     [
+      128.62647691958423,
+      35.85879736073991
+     ]
+    ]
+   },
+   "properties": {
+    "index": 15,
+    "lineIndex": 7,
+    "name": "",
+    "description": ", 46m",
+    "distance": 46,
+    "time": 62,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.62647691958423,
+     35.85879736073991
+    ]
+   },
+   "properties": {
+    "index": 16,
+    "pointIndex": 8,
+    "name": "",
+    "description": "횡단보도 후 55m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 211,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.62647691958423,
+      35.85879736073991
+     ],
+     [
+      128.62585475068258,
+      35.858850121059
+     ]
+    ]
+   },
+   "properties": {
+    "index": 17,
+    "lineIndex": 8,
+    "name": "",
+    "description": ", 55m",
+    "distance": 55,
+    "time": 38,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.62585475068258,
+     35.858850121059
+    ]
+   },
+   "properties": {
+    "index": 18,
+    "pointIndex": 9,
+    "name": "범어역 5번출구",
+    "description": "범어역 5번출구에서 직진 후 49m 이동",
+    "direction": "",
+    "nearPoiName": "범어역 5번출구",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 11,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.62585475068258,
+      35.858850121059
+     ],
+     [
+      128.62573253960957,
+      35.85883623148707
+     ],
+     [
+      128.62543535044395,
+      35.85858903177074
+     ]
+    ]
+   },
+   "properties": {
+    "index": 19,
+    "lineIndex": 9,
+    "name": "",
+    "description": ", 49m",
+    "distance": 49,
+    "time": 65,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.62543535044395,
+     35.85858903177074
+    ]
+   },
+   "properties": {
+    "index": 20,
+    "pointIndex": 10,
+    "name": "",
+    "description": "횡단보도 후 보행자도로를 따라 15m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 211,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.62543535044395,
+      35.85858903177074
+     ],
+     [
+      128.6253103639262,
+      35.85850015063923
+     ]
+    ]
+   },
+   "properties": {
+    "index": 21,
+    "lineIndex": 10,
+    "name": "보행자도로",
+    "description": "보행자도로, 15m",
+    "distance": 15,
+    "time": 10,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6253103639262,
+     35.85850015063923
+    ]
+   },
+   "properties": {
+    "index": 22,
+    "pointIndex": 11,
+    "name": "",
+    "description": "우회전 후 동대구로를 따라 18m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "범어네거리",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 13,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6253103639262,
+      35.85850015063923
+     ],
+     [
+      128.6252187025467,
+      35.85860013762541
+     ],
+     [
+      128.6251853713751,
+      35.85862791164299
+     ]
+    ]
+   },
+   "properties": {
+    "index": 23,
+    "lineIndex": 11,
+    "name": "동대구로",
+    "description": "동대구로, 18m",
+    "distance": 18,
+    "time": 13,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6251853713751,
+      35.85862791164299
+     ],
+     [
+      128.62512426417553,
+      35.858680682317406
+     ],
+     [
+      128.62504649154485,
+      35.858741785074066
+     ],
+     [
+      128.62501316060528,
+      35.85876122670183
+     ],
+     [
+      128.6249464985715,
+      35.8588056648839
+     ],
+     [
+      128.62483539554273,
+      35.85886676702541
+     ],
+     [
+      128.62472151521288,
+      35.85891953672586
+     ],
+     [
+      128.624579859706,
+      35.85896675098714
+     ],
+     [
+      128.62442709453055,
+      35.85899730026378
+     ],
+     [
+      128.6243826539224,
+      35.85900007690688
+     ],
+     [
+      128.62404379417907,
+      35.85902506782258
+     ],
+     [
+      128.62398546582773,
+      35.859030621672666
+     ],
+     [
+      128.62365771621717,
+      35.85905561279349
+     ],
+     [
+      128.62278279141174,
+      35.859122255765605
+     ],
+     [
+      128.6227577934585,
+      35.85912781023083
+     ],
+     [
+      128.62267724484187,
+      35.85913336367091
+     ]
+    ]
+   },
+   "properties": {
+    "index": 24,
+    "lineIndex": 12,
+    "name": "달구벌대로",
+    "description": "달구벌대로, 235m",
+    "distance": 235,
+    "time": 202,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.62267724484187,
+     35.85913336367091
+    ]
+   },
+   "properties": {
+    "index": 25,
+    "pointIndex": 12,
+    "name": "",
+    "description": "횡단보도 후 보행자도로를 따라 36m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 211,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.62267724484187,
+      35.85913336367091
+     ],
+     [
+      128.6222745016814,
+      35.859163908334615
+     ]
+    ]
+   },
+   "properties": {
+    "index": 26,
+    "lineIndex": 13,
+    "name": "보행자도로",
+    "description": "보행자도로, 36m",
+    "distance": 36,
+    "time": 24,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6222745016814,
+     35.859163908334615
+    ]
+   },
+   "properties": {
+    "index": 27,
+    "pointIndex": 13,
+    "name": "",
+    "description": "직진 후 69m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 11,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6222745016814,
+      35.859163908334615
+     ],
+     [
+      128.62219117545428,
+      35.859172239186734
+     ],
+     [
+      128.6221495123794,
+      35.859175015881156
+     ],
+     [
+      128.62189953377543,
+      35.85919723097426
+     ],
+     [
+      128.62149401308204,
+      35.85922777558692
+     ]
+    ]
+   },
+   "properties": {
+    "index": 28,
+    "lineIndex": 14,
+    "name": "",
+    "description": ", 69m",
+    "distance": 69,
+    "time": 81,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.62149401308204,
+     35.85922777558692
+    ]
+   },
+   "properties": {
+    "index": 29,
+    "pointIndex": 14,
+    "name": "",
+    "description": "횡단보도 후 14m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 211,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.62149401308204,
+      35.85922777558692
+     ],
+     [
+      128.62133847091528,
+      35.85923888256973
+     ]
+    ]
+   },
+   "properties": {
+    "index": 30,
+    "lineIndex": 15,
+    "name": "",
+    "description": ", 14m",
+    "distance": 14,
+    "time": 9,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.62133847091528,
+     35.85923888256973
+    ]
+   },
+   "properties": {
+    "index": 31,
+    "pointIndex": 15,
+    "name": "",
+    "description": "직진 후 달구벌대로를 따라 305m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 11,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.62133847091528,
+      35.85923888256973
+     ],
+     [
+      128.62104405185812,
+      35.859258319379634
+     ],
+     [
+      128.62009413404584,
+      35.85931107365314
+     ],
+     [
+      128.6191886569969,
+      35.85935549635746
+     ],
+     [
+      128.6178915476182,
+      35.859405466762894
+     ]
+    ]
+   },
+   "properties": {
+    "index": 32,
+    "lineIndex": 16,
+    "name": "달구벌대로",
+    "description": "달구벌대로, 305m",
+    "distance": 305,
+    "time": 223,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6178915476182,
+      35.859405466762894
+     ],
+     [
+      128.61784155310394,
+      35.8593665813548
+     ]
+    ]
+   },
+   "properties": {
+    "index": 33,
+    "lineIndex": 17,
+    "name": "들안로",
+    "description": "들안로, 6m",
+    "distance": 6,
+    "time": 34,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.61784155310394,
+     35.8593665813548
+    ]
+   },
+   "properties": {
+    "index": 34,
+    "pointIndex": 16,
+    "name": "옥된장 대구수성점",
+    "description": "옥된장 대구수성점에서 횡단보도 후 보행자도로를 따라 44m 이동",
+    "direction": "",
+    "nearPoiName": "옥된장 대구수성점",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 211,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.61784155310394,
+      35.8593665813548
+     ],
+     [
+      128.6173415963618,
+      35.859394346762926
+     ]
+    ]
+   },
+   "properties": {
+    "index": 35,
+    "lineIndex": 18,
+    "name": "보행자도로",
+    "description": "보행자도로, 44m",
+    "distance": 44,
+    "time": 31,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6173415963618,
+     35.859394346762926
+    ]
+   },
+   "properties": {
+    "index": 36,
+    "pointIndex": 17,
+    "name": "",
+    "description": "직진 후 달구벌대로를 따라 272m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 11,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6173415963618,
+      35.859394346762926
+     ],
+     [
+      128.61730271004694,
+      35.859424898141334
+     ],
+     [
+      128.61629446442774,
+      35.85946376402484
+     ],
+     [
+      128.61576951004247,
+      35.85948597404579
+     ],
+     [
+      128.6154556484865,
+      35.85949707810835
+     ],
+     [
+      128.61531121668506,
+      35.85949985290698
+     ],
+     [
+      128.61449739869747,
+      35.85952761252572
+     ],
+     [
+      128.61436685440725,
+      35.859535942507165
+     ],
+     [
+      128.61430574991502,
+      35.85949150196778
+     ]
+    ]
+   },
+   "properties": {
+    "index": 37,
+    "lineIndex": 19,
+    "name": "달구벌대로",
+    "description": "달구벌대로, 272m",
+    "distance": 272,
+    "time": 228,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.61430574991502,
+     35.85949150196778
+    ]
+   },
+   "properties": {
+    "index": 38,
+    "pointIndex": 18,
+    "name": "대구은행역 3번출구",
+    "description": "대구은행역 3번출구에서 횡단보도 후 보행자도로를 따라 38m 이동",
+    "direction": "",
+    "nearPoiName": "대구은행역 3번출구",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "대구은행네거리",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 211,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.61430574991502,
+      35.85949150196778
+     ],
+     [
+      128.61388356441176,
+      35.859508158958825
+     ]
+    ]
+   },
+   "properties": {
+    "index": 39,
+    "lineIndex": 20,
+    "name": "보행자도로",
+    "description": "보행자도로, 38m",
+    "distance": 38,
+    "time": 25,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.61388356441176,
+     35.859508158958825
+    ]
+   },
+   "properties": {
+    "index": 40,
+    "pointIndex": 19,
+    "name": "KB국민은행 수성교지점",
+    "description": "KB국민은행 수성교지점에서 직진 후 달구벌대로를 따라 208m 이동",
+    "direction": "",
+    "nearPoiName": "KB국민은행 수성교지점",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "대구은행네거리",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 11,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.61388356441176,
+      35.859508158958825
+     ],
+     [
+      128.61379190388473,
+      35.85957759384928
+     ],
+     [
+      128.61370580027972,
+      35.859580369724114
+     ],
+     [
+      128.61335860840376,
+      35.859588695709
+     ],
+     [
+      128.61313085029872,
+      35.85960257882372
+     ],
+     [
+      128.61305863443678,
+      35.85960257749152
+     ],
+     [
+      128.61280865622126,
+      35.85961090526988
+     ],
+     [
+      128.61247812900322,
+      35.85963867380518
+     ],
+     [
+      128.61221703972743,
+      35.859680330937714
+     ],
+     [
+      128.61215593368888,
+      35.85969143966352
+     ],
+     [
+      128.61184207051022,
+      35.85976087045514
+     ],
+     [
+      128.6116004232708,
+      35.85982752511567
+     ]
+    ]
+   },
+   "properties": {
+    "index": 41,
+    "lineIndex": 21,
+    "name": "달구벌대로",
+    "description": "달구벌대로, 208m",
+    "distance": 208,
+    "time": 182,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6116004232708,
+     35.85982752511567
+    ]
+   },
+   "properties": {
+    "index": 42,
+    "pointIndex": 20,
+    "name": "노브랜드버거 대구수성점",
+    "description": "노브랜드버거 대구수성점에서 우측 횡단보도 후 보행자도로를 따라 50m 이동",
+    "direction": "",
+    "nearPoiName": "노브랜드버거 대구수성점",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 213,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6116004232708,
+      35.85982752511567
+     ],
+     [
+      128.61180317143868,
+      35.86024970326991
+     ]
+    ]
+   },
+   "properties": {
+    "index": 43,
+    "lineIndex": 22,
+    "name": "보행자도로",
+    "description": "보행자도로, 50m",
+    "distance": 50,
+    "time": 33,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.61180317143868,
+     35.86024970326991
+    ]
+   },
+   "properties": {
+    "index": 44,
+    "pointIndex": 21,
+    "name": "",
+    "description": "좌회전 후 달구벌대로를 따라 211m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 12,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.61180317143868,
+      35.86024970326991
+     ],
+     [
+      128.61171151207168,
+      35.8602774762116
+     ],
+     [
+      128.61164485058032,
+      35.860302472151176
+     ],
+     [
+      128.61104767461424,
+      35.86053021312188
+     ],
+     [
+      128.61094768233863,
+      35.860569095762884
+     ],
+     [
+      128.61018662805202,
+      35.860935706873114
+     ],
+     [
+      128.60997830981924,
+      35.86105235648685
+     ],
+     [
+      128.60981165512484,
+      35.86114956462637
+     ],
+     [
+      128.60978943447316,
+      35.861163451532725
+     ],
+     [
+      128.6097394381035,
+      35.861191225242955
+     ]
+    ]
+   },
+   "properties": {
+    "index": 45,
+    "lineIndex": 23,
+    "name": "달구벌대로",
+    "description": "달구벌대로, 211m",
+    "distance": 211,
+    "time": 184,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6097394381035,
+     35.861191225242955
+    ]
+   },
+   "properties": {
+    "index": 46,
+    "pointIndex": 22,
+    "name": "드라코바버하우스",
+    "description": "드라코바버하우스에서 횡단보도 후 보행자도로를 따라 16m 이동",
+    "direction": "",
+    "nearPoiName": "드라코바버하우스",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 211,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6097394381035,
+      35.861191225242955
+     ],
+     [
+      128.60962000108594,
+      35.861302321569646
+     ]
+    ]
+   },
+   "properties": {
+    "index": 47,
+    "lineIndex": 24,
+    "name": "보행자도로",
+    "description": "보행자도로, 16m",
+    "distance": 16,
+    "time": 11,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.60962000108594,
+     35.861302321569646
+    ]
+   },
+   "properties": {
+    "index": 48,
+    "pointIndex": 23,
+    "name": "",
+    "description": "직진 후 달구벌대로를 따라 34m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 11,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.60962000108594,
+      35.861302321569646
+     ],
+     [
+      128.60953667362284,
+      35.86135509183426
+     ],
+     [
+      128.6093144671061,
+      35.861493960897725
+     ]
+    ]
+   },
+   "properties": {
+    "index": 49,
+    "lineIndex": 25,
+    "name": "달구벌대로",
+    "description": "달구벌대로, 34m",
+    "distance": 34,
+    "time": 35,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "1",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6093144671061,
+     35.861493960897725
+    ]
+   },
+   "properties": {
+    "index": 50,
+    "pointIndex": 24,
+    "name": "",
+    "description": "우회전 후 보행자도로를 따라 16m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "16",
+    "facilityName": "",
+    "turnType": 13,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6093144671061,
+      35.861493960897725
+     ],
+     [
+      128.6093422415097,
+      35.861527290968944
+     ],
+     [
+      128.6094422344036,
+      35.86146618862202
+     ]
+    ]
+   },
+   "properties": {
+    "index": 51,
+    "lineIndex": 26,
+    "name": "보행자도로",
+    "description": "보행자도로, 16m",
+    "distance": 16,
+    "time": 15,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "16",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6094422344036,
+     35.86146618862202
+    ]
+   },
+   "properties": {
+    "index": 52,
+    "pointIndex": 25,
+    "name": "",
+    "description": "좌회전 후 신천동로를 따라 4m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 12,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6094422344036,
+      35.86146618862202
+     ],
+     [
+      128.6094644537409,
+      35.86149951859078
+     ]
+    ]
+   },
+   "properties": {
+    "index": 53,
+    "lineIndex": 27,
+    "name": "신천동로",
+    "description": "신천동로, 4m",
+    "distance": 4,
+    "time": 3,
+    "roadType": 23,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6094644537409,
+     35.86149951859078
+    ]
+   },
+   "properties": {
+    "index": 54,
+    "pointIndex": 26,
+    "name": "",
+    "description": "10시 방향 좌회전 후 73m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 17,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6094644537409,
+      35.86149951859078
+     ],
+     [
+      128.60946167543466,
+      35.86152729317197
+     ],
+     [
+      128.6095394428834,
+      35.86165228045236
+     ],
+     [
+      128.60988106801665,
+      35.86206335131375
+     ]
+    ]
+   },
+   "properties": {
+    "index": 55,
+    "lineIndex": 28,
+    "name": "",
+    "description": ", 73m",
+    "distance": 73,
+    "time": 62,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.60988106801665,
+     35.86206335131375
+    ]
+   },
+   "properties": {
+    "index": 56,
+    "pointIndex": 27,
+    "name": "",
+    "description": "경유지 후 보행자도로를 따라 74m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 0,
+    "pointType": "PP1"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.60988106801665,
+      35.86206335131375
+     ],
+     [
+      128.6095394428834,
+      35.86165228045236
+     ],
+     [
+      128.60946167543466,
+      35.86152729317197
+     ],
+     [
+      128.6094644537409,
+      35.86149951859078
+     ]
+    ]
+   },
+   "properties": {
+    "index": 57,
+    "lineIndex": 29,
+    "name": "보행자도로",
+    "description": "보행자도로, 74m",
+    "distance": 74,
+    "time": 61,
+    "roadType": 23,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6094644537409,
+     35.86149951859078
+    ]
+   },
+   "properties": {
+    "index": 58,
+    "pointIndex": 28,
+    "name": "",
+    "description": "2시 방향 우회전 후 신천동로를 따라 4m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 18,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6094644537409,
+      35.86149951859078
+     ],
+     [
+      128.6094422344036,
+      35.86146618862202
+     ]
+    ]
+   },
+   "properties": {
+    "index": 59,
+    "lineIndex": 30,
+    "name": "신천동로",
+    "description": "신천동로, 4m",
+    "distance": 4,
+    "time": 13,
+    "roadType": 23,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6094422344036,
+     35.86146618862202
+    ]
+   },
+   "properties": {
+    "index": 60,
+    "pointIndex": 29,
+    "name": "",
+    "description": "우회전 후 보행자도로를 따라 15m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "16",
+    "facilityName": "",
+    "turnType": 13,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6094422344036,
+      35.86146618862202
+     ],
+     [
+      128.6093422415097,
+      35.861527290968944
+     ],
+     [
+      128.6093144671061,
+      35.861493960897725
+     ]
+    ]
+   },
+   "properties": {
+    "index": 61,
+    "lineIndex": 31,
+    "name": "보행자도로",
+    "description": "보행자도로, 15m",
+    "distance": 15,
+    "time": 16,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "16",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6093144671061,
+     35.861493960897725
+    ]
+   },
+   "properties": {
+    "index": 62,
+    "pointIndex": 30,
+    "name": "",
+    "description": "우회전 후 59m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "1",
+    "facilityName": "",
+    "turnType": 13,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6093144671061,
+      35.861493960897725
+     ],
+     [
+      128.60928391370038,
+      35.861513402576854
+     ],
+     [
+      128.60888116420534,
+      35.86177169922952
+     ],
+     [
+      128.60880061435276,
+      35.8618216920821
+     ]
+    ]
+   },
+   "properties": {
+    "index": 63,
+    "lineIndex": 32,
+    "name": "",
+    "description": ", 59m",
+    "distance": 59,
+    "time": 42,
+    "roadType": 23,
+    "categoryRoadType": 0,
+    "facilityType": "1",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.60880061435276,
+     35.8618216920821
+    ]
+   },
+   "properties": {
+    "index": 64,
+    "pointIndex": 31,
+    "name": "",
+    "description": "직진 후 달구벌대로를 따라 24m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "수성교",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 11,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.60880061435276,
+      35.8618216920821
+     ],
+     [
+      128.60859785095477,
+      35.861946674187934
+     ],
+     [
+      128.60860062802402,
+      35.861963339018594
+     ]
+    ]
+   },
+   "properties": {
+    "index": 65,
+    "lineIndex": 33,
+    "name": "달구벌대로",
+    "description": "달구벌대로, 24m",
+    "distance": 24,
+    "time": 48,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.60860062802402,
+     35.861963339018594
+    ]
+   },
+   "properties": {
+    "index": 66,
+    "pointIndex": 32,
+    "name": "",
+    "description": "좌측 횡단보도 후 37m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "수성교남단교차로",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 212,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.60860062802402,
+      35.861963339018594
+     ],
+     [
+      128.6082339893207,
+      35.86211887019737
+     ]
+    ]
+   },
+   "properties": {
+    "index": 67,
+    "lineIndex": 34,
+    "name": "",
+    "description": ", 37m",
+    "distance": 37,
+    "time": 24,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.6082339893207,
+     35.86211887019737
+    ]
+   },
+   "properties": {
+    "index": 68,
+    "pointIndex": 33,
+    "name": "",
+    "description": "우회전 후 7m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 13,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.6082339893207,
+      35.86211887019737
+     ],
+     [
+      128.60820898989894,
+      35.86217719646427
+     ]
+    ]
+   },
+   "properties": {
+    "index": 69,
+    "lineIndex": 35,
+    "name": "",
+    "description": ", 7m",
+    "distance": 7,
+    "time": 35,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.60820898989894,
+     35.86217719646427
+    ]
+   },
+   "properties": {
+    "index": 70,
+    "pointIndex": 34,
+    "name": "",
+    "description": "횡단보도 후 보행자도로를 따라 15m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 211,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.60820898989894,
+      35.86217719646427
+     ],
+     [
+      128.60815343552528,
+      35.862310513675034
+     ]
+    ]
+   },
+   "properties": {
+    "index": 71,
+    "lineIndex": 36,
+    "name": "보행자도로",
+    "description": "보행자도로, 15m",
+    "distance": 15,
+    "time": 11,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.60815343552528,
+     35.862310513675034
+    ]
+   },
+   "properties": {
+    "index": 72,
+    "pointIndex": 35,
+    "name": "",
+    "description": "좌회전 후 달구벌대로를 따라 467m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "수성교남단교차로",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 12,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.60815343552528,
+      35.862310513675034
+     ],
+     [
+      128.6080951075614,
+      35.86230218020946
+     ],
+     [
+      128.60804233419992,
+      35.86231051162578
+     ],
+     [
+      128.60795900766476,
+      35.8623299523315
+     ],
+     [
+      128.60777568931832,
+      35.862371610898805
+     ],
+     [
+      128.60730628351308,
+      35.862468813454136
+     ],
+     [
+      128.60702852857645,
+      35.86252713505911
+     ],
+     [
+      128.6067341082092,
+      35.86259378874644
+     ],
+     [
+      128.60615637814863,
+      35.862707654083515
+     ],
+     [
+      128.60527033982407,
+      35.862896505241864
+     ],
+     [
+      128.60508424402235,
+      35.86293538629495
+     ],
+     [
+      128.60502313806168,
+      35.86294371755767
+     ],
+     [
+      128.60489537099676,
+      35.86296315744389
+     ],
+     [
+      128.60420098354115,
+      35.863113127652056
+     ],
+     [
+      128.60369824703108,
+      35.863221439446434
+     ],
+     [
+      128.60361769802938,
+      35.863240880203556
+     ],
+     [
+      128.60357603472337,
+      35.86325198928811
+     ],
+     [
+      128.60317329048817,
+      35.86332141844148
+     ],
+     [
+      128.60304274581307,
+      35.86334363573984
+     ]
+    ]
+   },
+   "properties": {
+    "index": 73,
+    "lineIndex": 37,
+    "name": "달구벌대로",
+    "description": "달구벌대로, 467m",
+    "distance": 467,
+    "time": 370,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.60304274581307,
+     35.86334363573984
+    ]
+   },
+   "properties": {
+    "index": 74,
+    "pointIndex": 36,
+    "name": "",
+    "description": "횡단보도 후 39m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "삼덕네거리",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 211,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.60304274581307,
+      35.86334363573984
+     ],
+     [
+      128.60260111634634,
+      35.86340473178653
+     ]
+    ]
+   },
+   "properties": {
+    "index": 75,
+    "lineIndex": 38,
+    "name": "",
+    "description": ", 39m",
+    "distance": 39,
+    "time": 27,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.60260111634634,
+     35.86340473178653
+    ]
+   },
+   "properties": {
+    "index": 76,
+    "pointIndex": 37,
+    "name": "",
+    "description": "직진 후 11m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 11,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.60260111634634,
+      35.86340473178653
+     ],
+     [
+      128.60253445531956,
+      35.8634130629469
+     ],
+     [
+      128.60251501158285,
+      35.863449169610284
+     ]
+    ]
+   },
+   "properties": {
+    "index": 77,
+    "lineIndex": 39,
+    "name": "",
+    "description": ", 11m",
+    "distance": 11,
+    "time": 38,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.60251501158285,
+     35.863449169610284
+    ]
+   },
+   "properties": {
+    "index": 78,
+    "pointIndex": 38,
+    "name": "KTAMG 대구중구점",
+    "description": "KTAMG 대구중구점에서 횡단보도 후 보행자도로를 따라 6m 이동",
+    "direction": "",
+    "nearPoiName": "KTAMG 대구중구점",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 211,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.60251501158285,
+      35.863449169610284
+     ],
+     [
+      128.60246779220572,
+      35.863496385614354
+     ]
+    ]
+   },
+   "properties": {
+    "index": 79,
+    "lineIndex": 40,
+    "name": "보행자도로",
+    "description": "보행자도로, 6m",
+    "distance": 6,
+    "time": 4,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.60246779220572,
+     35.863496385614354
+    ]
+   },
+   "properties": {
+    "index": 80,
+    "pointIndex": 39,
+    "name": "KTAMG 대구중구점",
+    "description": "KTAMG 대구중구점에서 좌회전 후 달구벌대로를 따라 254m 이동",
+    "direction": "",
+    "nearPoiName": "KTAMG 대구중구점",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "삼덕네거리",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 12,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.60246779220572,
+      35.863496385614354
+     ],
+     [
+      128.60242612967272,
+      35.86347972006668
+     ],
+     [
+      128.60219281557664,
+      35.86352693263894
+     ],
+     [
+      128.60065127596226,
+      35.86384075755641
+     ],
+     [
+      128.60045129241857,
+      35.863882415817045
+     ],
+     [
+      128.60036518835096,
+      35.86390185647185
+     ],
+     [
+      128.6000624353865,
+      35.863968510006465
+     ],
+     [
+      128.6000124394813,
+      35.86397961893745
+     ],
+     [
+      128.59978468045205,
+      35.86402683161242
+     ],
+     [
+      128.59972912816664,
+      35.8640851573157
+     ]
+    ]
+   },
+   "properties": {
+    "index": 81,
+    "lineIndex": 41,
+    "name": "달구벌대로",
+    "description": "달구벌대로, 254m",
+    "distance": 254,
+    "time": 215,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.59972912816664,
+     35.8640851573157
+    ]
+   },
+   "properties": {
+    "index": 82,
+    "pointIndex": 40,
+    "name": "테이스티커피 삼덕점",
+    "description": "테이스티커피 삼덕점에서 좌측 횡단보도 후 45m 이동",
+    "direction": "",
+    "nearPoiName": "테이스티커피 삼덕점",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "봉산육거리",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 212,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.59972912816664,
+      35.8640851573157
+     ],
+     [
+      128.59961803797225,
+      35.86368520056333
+     ]
+    ]
+   },
+   "properties": {
+    "index": 83,
+    "lineIndex": 42,
+    "name": "",
+    "description": ", 45m",
+    "distance": 45,
+    "time": 30,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.59961803797225,
+     35.86368520056333
+    ]
+   },
+   "properties": {
+    "index": 84,
+    "pointIndex": 41,
+    "name": "",
+    "description": "직진 후 10m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 11,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.59961803797225,
+      35.86368520056333
+     ],
+     [
+      128.59960415146602,
+      35.863643538358936
+     ],
+     [
+      128.5995486005719,
+      35.863651869724286
+     ]
+    ]
+   },
+   "properties": {
+    "index": 85,
+    "lineIndex": 43,
+    "name": "",
+    "description": ", 10m",
+    "distance": 10,
+    "time": 37,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.5995486005719,
+     35.863651869724286
+    ]
+   },
+   "properties": {
+    "index": 86,
+    "pointIndex": 42,
+    "name": "",
+    "description": "횡단보도 후 14m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 211,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.5995486005719,
+      35.863651869724286
+     ],
+     [
+      128.59939305802195,
+      35.863676864025216
+     ]
+    ]
+   },
+   "properties": {
+    "index": 87,
+    "lineIndex": 44,
+    "name": "",
+    "description": ", 14m",
+    "distance": 14,
+    "time": 10,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.59939305802195,
+     35.863676864025216
+    ]
+   },
+   "properties": {
+    "index": 88,
+    "pointIndex": 43,
+    "name": "",
+    "description": "직진 후 5m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 11,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.59939305802195,
+      35.863676864025216
+     ],
+     [
+      128.59933750774616,
+      35.86366297568481
+     ]
+    ]
+   },
+   "properties": {
+    "index": 89,
+    "lineIndex": 45,
+    "name": "",
+    "description": ", 5m",
+    "distance": 5,
+    "time": 33,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.59933750774616,
+     35.86366297568481
+    ]
+   },
+   "properties": {
+    "index": 90,
+    "pointIndex": 44,
+    "name": "",
+    "description": "횡단보도 후 보행자도로를 따라 11m 이동",
+    "direction": "",
+    "nearPoiName": "",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "15",
+    "facilityName": "",
+    "turnType": 211,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.59933750774616,
+      35.86366297568481
+     ],
+     [
+      128.59926251643893,
+      35.86358798279504
+     ]
+    ]
+   },
+   "properties": {
+    "index": 91,
+    "lineIndex": 46,
+    "name": "보행자도로",
+    "description": "보행자도로, 11m",
+    "distance": 11,
+    "time": 7,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "15",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.59926251643893,
+     35.86358798279504
+    ]
+   },
+   "properties": {
+    "index": 92,
+    "pointIndex": 45,
+    "name": "삼희빌딩",
+    "description": "삼희빌딩에서 우회전 후 달구벌대로를 따라 479m 이동",
+    "direction": "",
+    "nearPoiName": "삼희빌딩",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "",
+    "facilityType": "11",
+    "facilityName": "",
+    "turnType": 13,
+    "pointType": "GP"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.59926251643893,
+      35.86358798279504
+     ],
+     [
+      128.5992458508538,
+      35.86360186980386
+     ],
+     [
+      128.59916252308273,
+      35.86366574992149
+     ],
+     [
+      128.59900142276146,
+      35.86378795533272
+     ],
+     [
+      128.59823758492522,
+      35.864371208524666
+     ],
+     [
+      128.59822369695053,
+      35.86438231812146
+     ],
+     [
+      128.598134814809,
+      35.864421200967655
+     ],
+     [
+      128.59804037767853,
+      35.864457306248205
+     ],
+     [
+      128.59795982852282,
+      35.864482301931965
+     ],
+     [
+      128.59787927959894,
+      35.86449896522607
+     ],
+     [
+      128.5978598367899,
+      35.86450174233079
+     ],
+     [
+      128.59772651450515,
+      35.86452673704151
+     ],
+     [
+      128.5975987474412,
+      35.86454617692823
+     ],
+     [
+      128.5970904564868,
+      35.86463226891605
+     ],
+     [
+      128.59705712593495,
+      35.86463782322794
+     ],
+     [
+      128.59676270603464,
+      35.864687812137376
+     ],
+     [
+      128.59666271437914,
+      35.86470447507306
+     ],
+     [
+      128.59658494314309,
+      35.864715583492014
+     ],
+     [
+      128.5962599701469,
+      35.86477390422785
+     ],
+     [
+      128.5960877622443,
+      35.86480445314817
+     ],
+     [
+      128.5953739327592,
+      35.86492942583191
+     ],
+     [
+      128.59511284341113,
+      35.8649738604297
+     ],
+     [
+      128.5946878786829,
+      35.865051621564795
+     ],
+     [
+      128.59451844839097,
+      35.865079393073245
+     ],
+     [
+      128.59435457301075,
+      35.86511271961054
+     ]
+    ]
+   },
+   "properties": {
+    "index": 93,
+    "lineIndex": 47,
+    "name": "달구벌대로",
+    "description": "달구벌대로, 479m",
+    "distance": 479,
+    "time": 349,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.59435457301075,
+      35.86511271961054
+     ],
+     [
+      128.59407404077672,
+      35.865162708776445
+     ],
+     [
+      128.59386017412845,
+      35.86504049645241
+     ],
+     [
+      128.59378240451542,
+      35.864993278144105
+     ],
+     [
+      128.5935963127344,
+      35.86488773111142
+     ],
+     [
+      128.59358520685228,
+      35.86473497043009
+     ]
+    ]
+   },
+   "properties": {
+    "index": 94,
+    "lineIndex": 48,
+    "name": "중앙대로",
+    "description": "중앙대로, 95m",
+    "distance": 95,
+    "time": 79,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "11",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      128.59358520685228,
+      35.86473497043009
+     ],
+     [
+      128.59355465344726,
+      35.86475441210931
+     ],
+     [
+      128.59356298233723,
+      35.86488773049697
+     ],
+     [
+      128.5934824337228,
+      35.86489328393845
+     ]
+    ]
+   },
+   "properties": {
+    "index": 95,
+    "lineIndex": 49,
+    "name": "",
+    "description": ", 25m",
+    "distance": 25,
+    "time": 23,
+    "roadType": 21,
+    "categoryRoadType": 0,
+    "facilityType": "17",
+    "facilityName": ""
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     128.5934824337228,
+     35.86489328393845
+    ]
+   },
+   "properties": {
+    "index": 96,
+    "pointIndex": 46,
+    "name": "end",
+    "description": "도착",
+    "direction": "",
+    "nearPoiName": "end",
+    "nearPoiX": "0.0",
+    "nearPoiY": "0.0",
+    "intersectionName": "end",
+    "facilityType": "",
+    "facilityName": "",
+    "turnType": 201,
+    "pointType": "EP"
+   }
+  }
+ ]
+}
