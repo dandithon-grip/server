@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     kma_service_key: str = ""
     airkorea_service_key: str = ""
     llm_api_key: str = ""
+    # 카드·비전·자연어 취향이 쓰는 모델. 데모 중 바꿀 수 있게 env 로 둔다
+    llm_model: str = "claude-opus-5-5"
 
     app_env: Literal["dev", "test", "prod"] = "dev"
 
