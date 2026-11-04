@@ -268,6 +268,7 @@ TMAP_APP_KEY=
 ODSAY_API_KEY=
 KMA_SERVICE_KEY=
 LLM_API_KEY=
+LLM_MODEL=claude-opus-5-5
 APP_ENV=dev
 # scripts/seed_demo.py 전용. 앱 런타임은 읽지 않는다
 SUPABASE_SERVICE_ROLE_KEY=
