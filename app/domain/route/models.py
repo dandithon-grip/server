@@ -2,11 +2,20 @@ from enum import StrEnum
 from uuid import UUID, uuid4
 
 from geoalchemy2 import Geometry, WKBElement
-from sqlalchemy import BigInteger, CheckConstraint, String, UniqueConstraint
+from geoalchemy2.shape import to_shape
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Float,
+    ForeignKey,
+    String,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.database import Base
+from app.core.database import Base, TimestampMixin
 from app.core.geo import point_lat, point_lng
 
 PLACE_NAME_MAX_LENGTH = 50
@@ -88,3 +97,51 @@ class GreenArea(Base):
     # OSM 원본 id. 재적재 때 (osm_id, kind) 로 upsert 한다. 수동 입력은 None
     osm_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     city: Mapped[str] = mapped_column(String(20), index=True)
+
+
+class LegType(StrEnum):
+    """걷는 구간의 종류. 교통수단이 정한다 (F-03 1단계)."""
+
+    WALK_ALL = "walk_all"  # 도보 통근: 출발 → 도착 전체
+    FRONT_WALK = "front_walk"  # 대중교통: 출발 → 첫 정류장
+    BACK_WALK = "back_walk"  # 대중교통: 마지막 정류장 → 도착
+    ALIGHT_EARLY = "alight_early"  # 대중교통: 한 정거장 먼저 내려 → 도착
+    AFTER_ARRIVAL = "after_arrival"  # 자동차: 도착 후 반경 10분
+
+
+class Route(TimestampMixin, Base):
+    """동선 하나의 걷는 구간별 경로. 기준선(최단) 1개 + 경유지 후보 ≤6개.
+
+    점수는 정적 부분(녹지·물가·다리·노을 방향 비율)만 저장한다.
+    오늘의 노을 창, 취향별 후보 조건, 최종 score 는 요청 때 RouteService.rank 가 계산한다.
+    """
+
+    __tablename__ = "routes"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    commute_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commutes.id", ondelete="CASCADE"), index=True
+    )
+    leg_type: Mapped[LegType] = mapped_column(String(20))
+    is_baseline: Mapped[bool] = mapped_column(default=False)
+    name: Mapped[str] = mapped_column(String(60))
+    minutes: Mapped[float] = mapped_column(Float)
+    add_minutes: Mapped[float] = mapped_column(Float)
+    polyline: Mapped[WKBElement] = mapped_column(Geometry("LINESTRING", srid=4326))
+    # F-04 정적 점수
+    green_pct: Mapped[float] = mapped_column(Float)
+    water_score: Mapped[float] = mapped_column(Float)
+    landmark_score: Mapped[float] = mapped_column(Float)
+    sunset_ratio: Mapped[float] = mapped_column(Float)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String(10)))
+    # 경유한 Place 와 그 한 줄 설명 (LLM 프롬프트 재료)
+    spots: Mapped[list[UUID]] = mapped_column(ARRAY(Uuid))
+    highlights: Mapped[list[str]] = mapped_column(ARRAY(String(DESCRIPTION_MAX_LENGTH)))
+    alight_station_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("stations.id", ondelete="SET NULL"), nullable=True
+    )
+
+    @property
+    def points(self) -> list[tuple[float, float]]:
+        """경로선을 (lat, lng) 리스트로."""
+        return [(float(y), float(x)) for x, y in to_shape(self.polyline).coords]

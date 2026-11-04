@@ -1,0 +1,101 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from fastapi import APIRouter, Depends, Query
+
+from app.core.security import get_current_user
+from app.domain.commute.models import Commute, Preference
+from app.domain.commute.service import CommuteService, get_commute_service
+from app.domain.route.models import Route
+from app.domain.route.schemas import PointResponse, RouteResponse, RoutesResponse
+from app.domain.route.service import RankedRoute, RouteService, get_route_service
+from app.domain.user.models import User
+
+router = APIRouter(prefix="/commutes/me/routes", tags=["Route"])
+
+LOCAL_TZ = ZoneInfo("Asia/Seoul")
+
+
+def _to_response(ranked: RankedRoute) -> RouteResponse:
+    route: Route = ranked.route
+    return RouteResponse(
+        id=route.id,
+        leg_type=route.leg_type,
+        is_baseline=route.is_baseline,
+        name=route.name,
+        minutes=route.minutes,
+        add_minutes=route.add_minutes,
+        green_pct=route.green_pct,
+        event_score=ranked.event_score,
+        score=ranked.score,
+        tags=ranked.tags,
+        highlights=route.highlights,
+        polyline=[PointResponse(lat=lat, lng=lng) for lat, lng in route.points],
+        spots=route.spots,
+        alight_station_id=route.alight_station_id,
+    )
+
+
+def _walk_time(commute: Commute) -> datetime:
+    """오늘 퇴근 시각 (데모는 퇴근 카드만, 11/3 결정)."""
+    today = datetime.now(LOCAL_TZ).date()
+    return datetime.combine(today, commute.leave_time, tzinfo=LOCAL_TZ)
+
+
+def _ranked_response(
+    service: RouteService, commute: Commute, routes: list[Route], preference: Preference
+) -> RoutesResponse:
+    ranked = service.rank(routes, preference=preference, at=_walk_time(commute), is_clear=None)
+    return RoutesResponse(
+        preference=preference,
+        candidates=[_to_response(r) for r in ranked.candidates],
+        shortest=[_to_response(r) for r in ranked.shortest],
+    )
+
+
+@router.post(
+    "",
+    response_model=RoutesResponse,
+    summary="내 동선의 샛길 생성",
+    description=(
+        "걷는 구간마다 최단 경로와 경유지 후보 경로를 TMAP 으로 받아 저장한다 (동기, 최대 10초). "
+        "기존 경로는 지우고 다시 만든다. 응답은 기본 취향으로 고른 후보 ≤3개 + 최단."
+    ),
+    responses={
+        401: {"description": "토큰 없음 또는 만료"},
+        404: {"description": "저장한 동선이 없음"},
+        502: {"description": "TMAP 호출 실패"},
+    },
+)
+async def generate_routes(
+    current_user: User = Depends(get_current_user),
+    commute_service: CommuteService = Depends(get_commute_service),
+    route_service: RouteService = Depends(get_route_service),
+) -> RoutesResponse:
+    commute = await commute_service.get_commute(current_user.id)
+    routes = await route_service.generate(commute, current_user.city)
+    return _ranked_response(route_service, commute, routes, commute.preference)
+
+
+@router.get(
+    "",
+    response_model=RoutesResponse,
+    summary="내 동선의 샛길 후보 조회",
+    description=(
+        "저장된 경로에 오늘의 노을 창과 취향을 적용해 후보 ≤3개 + 최단을 돌려준다. "
+        "TMAP 을 다시 부르지 않는다. preference 를 주면 그 취향으로 다시 고른다 (취향 칩)."
+    ),
+    responses={
+        401: {"description": "토큰 없음 또는 만료"},
+        404: {"description": "저장한 동선이 없음"},
+    },
+)
+async def list_routes(
+    preference: Preference | None = Query(None, description="생략하면 동선의 기본 취향"),
+    current_user: User = Depends(get_current_user),
+    commute_service: CommuteService = Depends(get_commute_service),
+    route_service: RouteService = Depends(get_route_service),
+) -> RoutesResponse:
+    commute = await commute_service.get_commute(current_user.id)
+    routes = await route_service.list_routes(commute.id)
+    return _ranked_response(route_service, commute, routes, preference or commute.preference)
