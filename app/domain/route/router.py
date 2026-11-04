@@ -1,9 +1,9 @@
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
 
 from app.core.security import get_current_user
+from app.core.timezone import LOCAL_TZ
 from app.domain.commute.models import Commute, Preference
 from app.domain.commute.service import CommuteService, get_commute_service
 from app.domain.route.models import Route
@@ -12,8 +12,6 @@ from app.domain.route.service import RankedRoute, RouteService, get_route_servic
 from app.domain.user.models import User
 
 router = APIRouter(prefix="/commutes/me/routes", tags=["Route"])
-
-LOCAL_TZ = ZoneInfo("Asia/Seoul")
 
 
 def _to_response(ranked: RankedRoute) -> RouteResponse:

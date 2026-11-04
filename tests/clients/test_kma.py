@@ -8,7 +8,6 @@
 """
 
 import json
-from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -24,27 +23,12 @@ from app.clients.kma import (
     to_grid,
 )
 from app.core.exceptions import AppException, ErrorCode
+from tests.clients.conftest import Handler, RecordingTransport
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "kma_vilage_fcst.json"
-Handler = Callable[[httpx.Request], httpx.Response | Exception]
 
 # 픽스처를 뜬 지점. 엑셀의 '대구광역시' 대표점 (격자 89,90)
 DAEGU_LAT, DAEGU_LNG = 35.8685416666666, 128.603552777777
-
-
-class RecordingTransport(httpx.AsyncBaseTransport):
-    """요청을 기록하고 정해진 응답을 돌려주는 가짜 서버."""
-
-    def __init__(self, handler: Handler) -> None:
-        self._handler = handler
-        self.requests: list[httpx.Request] = []
-
-    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        self.requests.append(request)
-        response = self._handler(request)
-        if isinstance(response, Exception):
-            raise response
-        return response
 
 
 @pytest.fixture
