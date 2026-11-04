@@ -6,6 +6,7 @@ from app.core.security import get_current_user
 from app.core.timezone import LOCAL_TZ
 from app.domain.commute.models import Commute, Preference
 from app.domain.commute.service import CommuteService, get_commute_service
+from app.domain.route.fallback import decide_fallback
 from app.domain.route.models import Route
 from app.domain.route.schemas import PointResponse, RouteResponse, RoutesResponse
 from app.domain.route.service import RankedRoute, RouteService, get_route_service
@@ -43,11 +44,15 @@ def _walk_time(commute: Commute) -> datetime:
 def _ranked_response(
     service: RouteService, commute: Commute, routes: list[Route], preference: Preference
 ) -> RoutesResponse:
-    ranked = service.rank(routes, preference=preference, at=_walk_time(commute), is_clear=None)
+    at = _walk_time(commute)
+    ranked = service.rank(routes, preference=preference, at=at, is_clear=None)
+    decided = decide_fallback(ranked, transport_mode=commute.transport_mode, at=at, is_clear=None)
     return RoutesResponse(
         preference=preference,
-        candidates=[_to_response(r) for r in ranked.candidates],
-        shortest=[_to_response(r) for r in ranked.shortest],
+        fallback_level=decided.level,
+        action_type=decided.action_type,
+        candidates=[_to_response(r) for r in decided.candidates],
+        shortest=[_to_response(r) for r in decided.shortest],
     )
 
 

@@ -19,6 +19,7 @@ from app.domain.commute.models import Preference, Station
 from app.domain.route.models import LegType, Place, PlaceType, Route
 from app.domain.route.service import (
     MAX_WAYPOINTS,
+    RankedRoutes,
     RouteService,
     distance_m,
     shortlist,
@@ -167,7 +168,7 @@ async def test_places_beyond_600m_are_not_shortlisted(db_session: AsyncSession) 
 # --- rank (순수) ---------------------------------------------------------------
 
 
-def rank(routes: list[Route], preference: Preference = Preference.FULL):  # type: ignore[no-untyped-def]
+def rank(routes: list[Route], preference: Preference = Preference.FULL) -> RankedRoutes:
     service = RouteService.__new__(RouteService)
     return service.rank(routes, preference=preference, at=NOON, is_clear=None)
 
@@ -199,6 +200,7 @@ def test_rank_orders_by_score_and_keeps_three() -> None:
     ranked = rank([baseline, weak, ok, good, better])
 
     assert [r.route.id for r in ranked.candidates] == [better.id, good.id, ok.id]
+    assert [r.route.id for r in ranked.eligible] == [better.id, good.id, ok.id, weak.id]
     assert ranked.candidates[0].score == 70 + 0 - 5 * 1.5
     assert [r.route.id for r in ranked.shortest] == [baseline.id]
 
@@ -282,7 +284,8 @@ async def test_generate_walk_stores_baseline_and_bridge_candidate(
     assert response.status_code == 200
     body = response.json()
     assert body["preference"] == "full"
-    assert len(fake.calls) == 1 + 2  # 기준선 + 경유지 2
+    # 기준선 1 + 경유지 2 + 도착지 반경 1 (공원A 는 왕복 우회량 1,264m 라 규칙 ② 에서 제외)
+    assert len(fake.calls) == 1 + 2 + 1
     assert [r["leg_type"] for r in body["shortest"]] == ["walk_all"]
     assert body["shortest"][0]["is_baseline"] is True
     # 녹지 데이터가 없어 공원A 는 후보 조건 미달, 다리B 는 이벤트 10 으로 후보
@@ -363,7 +366,10 @@ async def test_generate_transit_makes_three_legs_with_at_most_7_calls_each(
     body = response.json()
     leg_types = {r["leg_type"] for r in body["shortest"]}
     assert leg_types == {"front_walk", "back_walk", "alight_early"}
-    assert len(fake.calls) <= 3 * (1 + MAX_WAYPOINTS)
-    alight = [r for r in body["candidates"] if r["leg_type"] == "alight_early"]
-    assert alight and UUID(alight[0]["alight_station_id"]) == stations[1].id
-    assert alight[0]["name"].endswith("(한 정거장 먼저)")
+    assert len(fake.calls) <= 4 * (1 + MAX_WAYPOINTS)  # 3구간 + 도착지 반경
+    # 뒤 도보 구간에 다리B 후보가 있어 F-15 1단계(돌아가기)가 이긴다
+    assert body["fallback_level"] == 1
+    assert body["action_type"] == "detour"
+    assert {r["leg_type"] for r in body["candidates"]} <= {"front_walk", "back_walk"}
+    alight = next(r for r in body["shortest"] if r["leg_type"] == "alight_early")
+    assert UUID(alight["alight_station_id"]) == stations[1].id
