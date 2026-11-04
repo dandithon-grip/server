@@ -6,7 +6,7 @@
 """
 
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from astral import Observer
 from astral.sun import azimuth as sun_azimuth
@@ -45,16 +45,45 @@ LANDMARK_TYPES = (PlaceType.BRIDGE.value, PlaceType.VIEW.value)
 # 거리 계산용 타입. geography 로 캐스트해야 ST_DWithin 의 단위가 미터가 된다
 GEOGRAPHY = Geography(geometry_type="GEOMETRY", srid=4326)
 PARK_LIKE_KINDS = {GreenKind.PARK, GreenKind.FOREST, GreenKind.GRASS}
+# 저장용 노을 방향 비율은 데모 기간의 일몰 방위각(11/10 대구 약 249°)으로 계산한다.
+# 하루 단위 변화는 1° 미만이라 ±30° 허용 폭 안에서 무시된다
+_NOON_REFERENCE = datetime(2026, 11, 10, 12, 0, tzinfo=timezone(timedelta(hours=9)))
+
+
+class StaticScore(BaseModel):
+    """경로 자체의 성질. 날짜·날씨와 무관해서 Route 에 저장한다."""
+
+    model_config = ConfigDict(frozen=True)
+
+    green_pct: float = Field(..., ge=0, le=100, description="녹지 30m 안 구간 비율 × 100")
+    water_score: float = Field(..., ge=0, le=WATER_WEIGHT, description="하천 50m 안 비율 × 10")
+    landmark_score: float = Field(..., ge=0, le=LANDMARK_BONUS, description="다리·전망 +10")
+    sunset_ratio: float = Field(..., ge=0, le=1, description="일몰 방향으로 걷는 구간 비율")
+    tags: list[PlaceType] = Field(..., description="river·park·trees·bridge·view. sunset 은 동적")
 
 
 class RouteScore(BaseModel):
-    """F-03·F-15·F-05 가 쓰는 경로 점수."""
+    """F-03·F-15·F-05 가 쓰는 경로 점수. 정적 점수에 오늘의 노을 창을 적용한 값."""
 
     model_config = ConfigDict(frozen=True)
 
     green_pct: float = Field(..., ge=0, le=100, description="녹지 30m 안 구간 비율 × 100")
     event_score: float = Field(..., ge=0, le=EVENT_SCORE_MAX, description="물가·다리·노을 가산")
     tags: list[PlaceType] = Field(..., description="경로의 성격. 피드백 가중치의 키")
+
+
+def apply_sunset(static: StaticScore, *, window_open: bool) -> RouteScore:
+    """정적 점수에 오늘의 노을 창을 적용한다. 창이 열려 있으면 노을 방향 비율 × 10 을 더한다."""
+    facing_ratio = static.sunset_ratio if window_open else 0.0
+    tags = list(static.tags)
+    if facing_ratio >= TAG_RATIO_THRESHOLD:
+        tags.append(PlaceType.SUNSET)
+    event_score = static.water_score + static.landmark_score + facing_ratio * SUNSET_WEIGHT
+    return RouteScore(
+        green_pct=static.green_pct,
+        event_score=round(min(event_score, EVENT_SCORE_MAX), 1),
+        tags=tags,
+    )
 
 
 class SunsetWindow(BaseModel):
@@ -165,22 +194,12 @@ class ScoringService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def score(
-        self,
-        polyline: list[LatLng],
-        *,
-        city: str,
-        at: datetime,
-        is_clear: bool | None,
-    ) -> RouteScore:
+    async def score_static(self, polyline: list[LatLng], *, city: str) -> StaticScore:
         """
-        경로 하나의 녹지 % 와 이벤트 점수를 계산한다.
+        경로 자체의 성질을 계산한다 (날짜·날씨 무관). F-03 이 Route 에 저장한다.
 
         :param polyline: 경로 좌표열 (TMAP 응답)
         :param city: 도시 코드. 녹지·Place 조회 범위
-        :param at: 걷는 시각 (tz-aware). 노을 창 판정
-        :param is_clear: 맑음 여부. None 이면 노을 가산 없음
-        :return: RouteScore
         """
         # 1. 50m 간격 점
         points = sample_points(polyline)
@@ -194,16 +213,15 @@ class ScoringService:
         # 3. 물가: 50m 안에 하천이 있는 점의 비율 × 10
         river_hits = await self._count_near(points, city, RIVER_RADIUS_M, kinds=[GreenKind.RIVER])
         water_ratio = river_hits / total
-        water_score = water_ratio * WATER_WEIGHT
 
         # 4. 다리·전망: 경로 100m 안의 Place(bridge/view) 가 있으면 +10
         landmark_types = await self._landmark_types(polyline, city)
-        landmark_score = LANDMARK_BONUS if landmark_types else 0
 
-        # 5. 노을: 창이 열려 있을 때 일몰 방향으로 걷는 구간 비율 × 10
-        window = sunset_window(at, lat=polyline[0].lat, lng=polyline[0].lng, is_clear=is_clear)
-        facing_ratio = sunset_ratio(polyline, window.azimuth_deg) if window.is_open else 0.0
-        sunset_score = facing_ratio * SUNSET_WEIGHT
+        # 5. 노을 방향 비율. 창이 열렸는지는 요청 때 apply_sunset 이 본다
+        azimuth = sunset_window(
+            _NOON_REFERENCE, lat=polyline[0].lat, lng=polyline[0].lng, is_clear=None
+        ).azimuth_deg
+        facing_ratio = sunset_ratio(polyline, azimuth)
 
         # 6. 태그: 비율이 기준을 넘는 성격만
         tags: list[PlaceType] = []
@@ -214,11 +232,32 @@ class ScoringService:
         if GreenKind.TREES in covered_kinds and green_pct >= TAG_RATIO_THRESHOLD * 100:
             tags.append(PlaceType.TREES)
         tags.extend(PlaceType(value) for value in LANDMARK_TYPES if value in landmark_types)
-        if facing_ratio >= TAG_RATIO_THRESHOLD:
-            tags.append(PlaceType.SUNSET)
 
-        event_score = round(min(water_score + landmark_score + sunset_score, EVENT_SCORE_MAX), 1)
-        return RouteScore(green_pct=green_pct, event_score=event_score, tags=tags)
+        return StaticScore(
+            green_pct=green_pct,
+            water_score=round(water_ratio * WATER_WEIGHT, 1),
+            landmark_score=LANDMARK_BONUS if landmark_types else 0,
+            sunset_ratio=round(facing_ratio, 3),
+            tags=tags,
+        )
+
+    async def score(
+        self,
+        polyline: list[LatLng],
+        *,
+        city: str,
+        at: datetime,
+        is_clear: bool | None,
+    ) -> RouteScore:
+        """
+        경로 하나의 녹지 % 와 이벤트 점수를 한 번에 계산한다 (정적 점수 + 오늘의 노을 창).
+
+        :param at: 걷는 시각 (tz-aware). 노을 창 판정
+        :param is_clear: 맑음 여부. None 이면 노을 가산 없음
+        """
+        static = await self.score_static(polyline, city=city)
+        window = sunset_window(at, lat=polyline[0].lat, lng=polyline[0].lng, is_clear=is_clear)
+        return apply_sunset(static, window_open=window.is_open)
 
     async def _count_near(
         self, points: list[LatLng], city: str, radius_m: float, *, kinds: list[GreenKind] | None
