@@ -2,7 +2,7 @@ from enum import StrEnum
 from uuid import UUID, uuid4
 
 from geoalchemy2 import Geometry, WKBElement
-from sqlalchemy import String, UniqueConstraint
+from sqlalchemy import BigInteger, CheckConstraint, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -58,3 +58,33 @@ class Place(Base):
     @property
     def place_types(self) -> list[PlaceType]:
         return [PlaceType(value) for value in self.types]
+
+
+class GreenKind(StrEnum):
+    """green_areas 의 종류. OSM 태그를 #9 적재 SQL 이 이 값으로 바꾼다."""
+
+    PARK = "park"
+    FOREST = "forest"
+    GRASS = "grass"
+    RIVER = "river"
+    TREES = "trees"
+
+
+class GreenArea(Base):
+    """OSM 에서 적재한 녹지. 공원·숲·잔디는 면, 하천·가로수열은 선이라 둘 다 받는다 (F-04)."""
+
+    __tablename__ = "green_areas"
+    __table_args__ = (
+        CheckConstraint(
+            "GeometryType(geom) IN ('POLYGON', 'MULTIPOLYGON', 'LINESTRING', 'MULTILINESTRING')",
+            name="geom_type",
+        ),
+        UniqueConstraint("osm_id", "kind", name="uq_green_areas_osm_id_kind"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    kind: Mapped[str] = mapped_column(String(10))
+    geom: Mapped[WKBElement] = mapped_column(Geometry("GEOMETRY", srid=4326))
+    # OSM 원본 id. 재적재 때 (osm_id, kind) 로 upsert 한다. 수동 입력은 None
+    osm_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    city: Mapped[str] = mapped_column(String(20), index=True)
