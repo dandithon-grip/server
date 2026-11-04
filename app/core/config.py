@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     tmap_app_key: str = ""
     odsay_api_key: str = ""
     kma_service_key: str = ""
+    airkorea_service_key: str = ""
     llm_api_key: str = ""
 
     app_env: Literal["dev", "test", "prod"] = "dev"
