@@ -94,4 +94,8 @@ async def main(csv_path: Path) -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main(Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_CSV))
+    try:
+        asyncio.run(main(Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_CSV))
+    except SeedError as error:
+        # 스택 트레이스 대신 무엇이 틀렸는지 한 줄만 보여준다
+        sys.exit(f"시드 중단: {error}")

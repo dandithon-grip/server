@@ -3,12 +3,12 @@ from enum import StrEnum
 from uuid import UUID, uuid4
 
 from geoalchemy2 import Geometry, WKBElement
-from geoalchemy2.shape import to_shape
 from sqlalchemy import ForeignKey, Integer, String, Time, UniqueConstraint, Uuid
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, TimestampMixin
+from app.core.geo import point_lat, point_lng
 
 AREA_MAX_LENGTH = 50
 LINE_MAX_LENGTH = 10
@@ -31,14 +31,6 @@ class Preference(StrEnum):
     SUNSET = "sunset"
 
 
-def _lat(point: WKBElement) -> float:
-    return float(to_shape(point).y)
-
-
-def _lng(point: WKBElement) -> float:
-    return float(to_shape(point).x)
-
-
 class Station(Base):
     """지하철·버스 정류장. 데모 2호선은 시드로 넣고, 그 외는 ODsay 조회 결과를 저장한다."""
 
@@ -55,11 +47,11 @@ class Station(Base):
 
     @property
     def lat(self) -> float:
-        return _lat(self.location)
+        return point_lat(self.location)
 
     @property
     def lng(self) -> float:
-        return _lng(self.location)
+        return point_lng(self.location)
 
 
 class Commute(TimestampMixin, Base):
@@ -84,16 +76,16 @@ class Commute(TimestampMixin, Base):
 
     @property
     def from_lat(self) -> float:
-        return _lat(self.from_location)
+        return point_lat(self.from_location)
 
     @property
     def from_lng(self) -> float:
-        return _lng(self.from_location)
+        return point_lng(self.from_location)
 
     @property
     def to_lat(self) -> float:
-        return _lat(self.to_location)
+        return point_lat(self.to_location)
 
     @property
     def to_lng(self) -> float:
-        return _lng(self.to_location)
+        return point_lng(self.to_location)

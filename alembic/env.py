@@ -16,6 +16,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 import app.domain.commute.models  # noqa: F401  (Commute, Station 을 metadata 에 등록)
+import app.domain.route.models  # noqa: F401  (Place 를 metadata 에 등록)
 import app.domain.user.models  # noqa: F401  (User 를 metadata 에 등록)
 from app.core.config import get_settings
 from app.core.database import Base
