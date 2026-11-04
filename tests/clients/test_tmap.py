@@ -5,7 +5,6 @@
 """
 
 import json
-from collections.abc import Callable
 from pathlib import Path
 
 import httpx
@@ -13,29 +12,14 @@ import pytest
 
 from app.clients.tmap import LatLng, PedestrianRoute, TmapClient
 from app.core.exceptions import AppException, ErrorCode
+from tests.clients.conftest import Handler, RecordingTransport
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "tmap_pedestrian.json"
-Handler = Callable[[httpx.Request], httpx.Response | Exception]
 
 START = LatLng(lat=35.8581, lng=128.6305)
 END = LatLng(lat=35.8651, lng=128.5935)
 PASS_A = LatLng(lat=35.8620, lng=128.6100)
 PASS_B = LatLng(lat=35.8640, lng=128.6000)
-
-
-class RecordingTransport(httpx.AsyncBaseTransport):
-    """요청을 기록하고 정해진 응답을 돌려주는 가짜 서버 (MockRestServiceServer 에 해당)."""
-
-    def __init__(self, handler: Handler) -> None:
-        self._handler = handler
-        self.requests: list[httpx.Request] = []
-
-    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        self.requests.append(request)
-        response = self._handler(request)
-        if isinstance(response, Exception):
-            raise response
-        return response
 
 
 @pytest.fixture

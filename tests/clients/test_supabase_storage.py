@@ -6,7 +6,6 @@
 """
 
 import logging
-from collections.abc import Callable
 from urllib.parse import quote
 
 import httpx
@@ -14,29 +13,13 @@ import pytest
 
 from app.clients.supabase_storage import SupabaseStorageClient
 from app.core.exceptions import AppException, ErrorCode
+from tests.clients.conftest import Handler, RecordingTransport
 
 SUPABASE_URL = "https://xxxx.supabase.co"
 BUCKET = "records"
 TOKEN = "user-access-token"
 IMAGE_PATH = "22222222-2222-2222-2222-222222222222/2026-11-04/photo.jpg"
 IMAGE_BYTES = b"\xff\xd8\xff\xe0 fake jpeg bytes"
-
-Handler = Callable[[httpx.Request], httpx.Response | Exception]
-
-
-class RecordingTransport(httpx.AsyncBaseTransport):
-    """요청을 기록하고 정해진 응답을 돌려주는 가짜 서버."""
-
-    def __init__(self, handler: Handler) -> None:
-        self._handler = handler
-        self.requests: list[httpx.Request] = []
-
-    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        self.requests.append(request)
-        response = self._handler(request)
-        if isinstance(response, Exception):
-            raise response
-        return response
 
 
 def make_client(

@@ -6,7 +6,6 @@
 
 import datetime
 from uuid import UUID
-from zoneinfo import ZoneInfo
 
 from fastapi import Depends
 from sqlalchemy import select
@@ -14,12 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.exceptions import AppException, ErrorCode
+from app.core.timezone import LOCAL_TZ
 from app.domain.record.models import Record
 from app.domain.record.schemas import CreateRecordRequest
 from app.domain.route.service import RouteService, get_route_service
-
-# 기록 날짜를 생략했을 때 쓰는 "오늘"의 기준 시간대
-LOCAL_TZ = ZoneInfo("Asia/Seoul")
 
 
 class RecordService:
