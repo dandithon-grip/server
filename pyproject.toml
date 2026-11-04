@@ -57,3 +57,5 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 markers = ["integration: 실제 OSM 데이터가 필요한 테스트"]
+# CLAUDE.md 의 `uv run pytest` 는 단위+API 만 돈다. OSM 적재가 필요한 것은 -m integration 으로
+addopts = "-m 'not integration'"
