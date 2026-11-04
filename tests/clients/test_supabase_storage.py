@@ -5,7 +5,9 @@
 그 헤더가 실제로 실리는지 MockTransport 로 확인하는 것이 이 파일의 핵심이다 (#18 인수 조건).
 """
 
+import logging
 from collections.abc import Callable
+from urllib.parse import quote
 
 import httpx
 import pytest
@@ -92,6 +94,24 @@ async def test_download_requests_authenticated_object_url() -> None:
     assert url == f"{SUPABASE_URL}/storage/v1/object/authenticated/{BUCKET}/{IMAGE_PATH}"
 
 
+async def test_download_percent_encodes_path() -> None:
+    """경로의 공백·#·?·한글은 URL 에서 인코딩된다.
+
+    # 와 ? 가 fragment·query 로 새면 실제 파일이 있어도 다른 객체를 요청하게 된다.
+    """
+    client, transport = make_client(ok_handler)
+    path = "22222222-2222-2222-2222-222222222222/사진 #1?.jpg"
+
+    await client.download(path, access_token=TOKEN)
+
+    url = transport.requests[0].url
+    assert url.fragment == ""
+    assert url.query == b""
+    assert str(url) == (
+        f"{SUPABASE_URL}/storage/v1/object/authenticated/{BUCKET}/{quote(path, safe='/')}"
+    )
+
+
 async def test_download_returns_file_bytes() -> None:
     client, _ = make_client(ok_handler)
 
@@ -129,6 +149,23 @@ async def test_network_error_returns_external_api_failed() -> None:
         await client.download(IMAGE_PATH, access_token=TOKEN)
 
     assert exc_info.value.code is ErrorCode.EXTERNAL_API_FAILED
+
+
+async def test_network_error_log_omits_object_path(caplog: pytest.LogCaptureFixture) -> None:
+    """httpx 예외 메시지에는 URL(= 사용자 경로)이 들어갈 수 있다. 로그에 그대로 남기지 않는다."""
+
+    def handler(request: httpx.Request) -> Exception:
+        return httpx.ConnectError(f"connection failed for {request.url}", request=request)
+
+    client, _ = make_client(handler)
+
+    with (
+        caplog.at_level(logging.ERROR, logger="app.clients.supabase_storage"),
+        pytest.raises(AppException),
+    ):
+        await client.download(IMAGE_PATH, access_token=TOKEN)
+
+    assert IMAGE_PATH not in caplog.text
 
 
 @pytest.mark.parametrize("path", ["", "/absolute.jpg", "../other-user/photo.jpg", "a/../../b.jpg"])

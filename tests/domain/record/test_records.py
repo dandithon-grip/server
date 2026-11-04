@@ -9,8 +9,10 @@ import datetime
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -197,6 +199,38 @@ async def test_unknown_season_returns_422(
     )
 
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "image_path", ["/absolute/photo.jpg", "../other-user/photo.jpg", "uid/../other-user/photo.jpg"]
+)
+async def test_image_path_outside_bucket_returns_422(
+    client: AsyncClient, db_session: AsyncSession, make_token: TokenFactory, image_path: str
+) -> None:
+    """버킷 밖을 가리키는 경로는 어차피 내려받을 수 없다. 저장 시점에 거른다."""
+    place = await add_place(db_session)
+
+    response = await client.post(
+        "/records", json=payload(place.id, image_path=image_path), headers=bearer(make_token())
+    )
+
+    assert response.status_code == 422
+    assert await stored_records(db_session) == []
+
+
+async def test_place_with_records_cannot_be_deleted(
+    client: AsyncClient, db_session: AsyncSession, make_token: TokenFactory
+) -> None:
+    """큐레이션 지점을 지운다고 사용자 기록이 따라 사라지면 안 된다.
+
+    기록이 있는 지점은 삭제가 거부된다 (RESTRICT).
+    """
+    place = await add_place(db_session)
+    await client.post("/records", json=payload(place.id), headers=bearer(make_token()))
+
+    await db_session.delete(place)
+    with pytest.raises(IntegrityError):
+        await db_session.flush()
 
 
 # --- 조회 -------------------------------------------------------------------
