@@ -6,6 +6,10 @@ on:
   push:
     branches: [develop]
 
+# 이 워크플로는 저장소를 읽기만 한다. GITHUB_TOKEN 을 최소 권한으로 내린다
+permissions:
+  contents: read
+
 jobs:
   test:
     name: 린트 · 타입 · 테스트
