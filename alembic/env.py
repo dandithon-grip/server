@@ -25,7 +25,9 @@ from app.core.database import Base
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers=False: 기본값(True)이면 이미 만들어진 app.* 로거가 전부 꺼진다.
+    # 테스트가 alembic 을 같은 프로세스에서 돌리므로 앱 로그 검증이 불가능해진다
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

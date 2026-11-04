@@ -1,8 +1,9 @@
 import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.clients.supabase_storage import is_safe_object_path
 from app.domain.record.models import (
     IMAGE_PATH_MAX_LENGTH,
     TITLE_MAX_LENGTH,
@@ -29,6 +30,14 @@ class CreateRecordRequest(BaseModel):
     ai_stage: Stage | None = Field(None, description="비전이 제안한 단계")
     title: str | None = Field(None, max_length=TITLE_MAX_LENGTH, description="한 줄 (선택)")
     date: datetime.date | None = Field(None, description="기록 날짜 (YYYY-MM-DD). 생략하면 오늘")
+
+    @field_validator("image_path")
+    @classmethod
+    def _inside_bucket(cls, value: str) -> str:
+        """버킷 밖을 가리키는 경로(`..`, 선행 `/`)는 어차피 내려받을 수 없다. 저장 전에 거른다."""
+        if not is_safe_object_path(value):
+            raise ValueError("버킷 안의 객체 경로여야 합니다")
+        return value
 
 
 class RecordResponse(BaseModel):

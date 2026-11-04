@@ -43,7 +43,8 @@ class Record(TimestampMixin, Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    place_id: Mapped[UUID] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"), index=True)
+    # RESTRICT: 큐레이션 지점을 지운다고 사용자 기록이 따라 사라지면 안 된다
+    place_id: Mapped[UUID] = mapped_column(ForeignKey("places.id", ondelete="RESTRICT"), index=True)
     date: Mapped[datetime.date] = mapped_column(Date)
     # 사용자가 저장한 최종 값
     season: Mapped[Season] = mapped_column(String(TAG_MAX_LENGTH))

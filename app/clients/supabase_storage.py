@@ -15,6 +15,7 @@ access token 을 그대로 전달해서 버킷 RLS(본인 경로 `{supabase user
 """
 
 import logging
+from urllib.parse import quote
 
 import httpx
 
@@ -82,7 +83,8 @@ class SupabaseStorageClient:
         headers = {"Authorization": f"Bearer {access_token}"}
         if self._anon_key:
             headers["apikey"] = self._anon_key
-        url = f"{self._base_url}{OBJECT_PATH_PREFIX}/{self._bucket}/{path}"
+        # 경로의 공백·#·?·한글은 인코딩한다. # 와 ? 가 새면 다른 객체를 요청하게 된다
+        url = f"{self._base_url}{OBJECT_PATH_PREFIX}/{self._bucket}/{quote(path, safe='/')}"
 
         # 3. 호출. httpx 예외는 여기서 끝낸다
         try:
@@ -91,10 +93,11 @@ class SupabaseStorageClient:
             ) as client:
                 response = await client.get(url, headers=headers)
         except httpx.HTTPError as exc:
-            logger.error("Storage 다운로드 실패: %s", exc)
+            # 예외 메시지에는 URL(= 사용자 경로)이 들어갈 수 있다. 종류만 남긴다
+            logger.error("Storage 다운로드 실패: %s", type(exc).__name__)
             raise AppException(ErrorCode.EXTERNAL_API_FAILED) from exc
 
-        # 4. 상태코드 해석. 경로는 개인정보라 로그에 남기지 않는다
+        # 4. 상태코드 해석. 경로는 사용자 식별자를 담고 있어 로그에 남기지 않는다
         if response.status_code in NOT_FOUND_STATUSES:
             logger.info("Storage 객체 접근 거절 → %s", response.status_code)
             raise AppException(ErrorCode.IMAGE_NOT_FOUND)

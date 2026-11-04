@@ -46,8 +46,12 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
+        # RESTRICT: 기록이 달린 큐레이션 지점은 지울 수 없다. 사용자 데이터가 조용히 사라지지 않게
         sa.ForeignKeyConstraint(
-            ["place_id"], ["places.id"], name=op.f("fk_records_place_id_places"), ondelete="CASCADE"
+            ["place_id"],
+            ["places.id"],
+            name=op.f("fk_records_place_id_places"),
+            ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
             ["user_id"], ["users.id"], name=op.f("fk_records_user_id_users"), ondelete="CASCADE"
