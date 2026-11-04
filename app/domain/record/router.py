@@ -2,12 +2,42 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from app.core.security import get_current_user
-from app.domain.record.schemas import CreateRecordRequest, RecordResponse
+from app.core.security import get_access_token, get_current_user
+from app.domain.record.schemas import (
+    CreateRecordRequest,
+    RecordResponse,
+    RecordSuggestionResponse,
+    SuggestRecordRequest,
+)
 from app.domain.record.service import RecordService, get_record_service
 from app.domain.user.models import User
 
 router = APIRouter(prefix="/records", tags=["Record"])
+
+
+@router.post(
+    "/suggest",
+    response_model=RecordSuggestionResponse,
+    summary="사진의 계절·단계 제안",
+    description=(
+        "Storage 에 올린 사진을 요청자 토큰으로 내려받아 비전 AI 가 계절·단계를 제안한다. "
+        "저장은 하지 않는다. 장소는 place_id, 없으면 lat·lng 100m 안의 Place 이고 못 찾으면 "
+        "null 이다. 비전 실패·스키마 밖·못 읽는 사진 형식은 none 으로 응답한다."
+    ),
+    responses={
+        401: {"description": "토큰 없음 또는 만료"},
+        404: {"description": "사진을 찾을 수 없음 (권한 없음 포함) 또는 존재하지 않는 장소"},
+        502: {"description": "Storage 호출 실패"},
+    },
+)
+async def suggest_record(
+    request: SuggestRecordRequest,
+    current_user: User = Depends(get_current_user),
+    access_token: str = Depends(get_access_token),
+    service: RecordService = Depends(get_record_service),
+) -> RecordSuggestionResponse:
+    suggestion = await service.suggest(request, city=current_user.city, access_token=access_token)
+    return RecordSuggestionResponse.model_validate(suggestion)
 
 
 @router.post(

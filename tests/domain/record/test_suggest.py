@@ -11,12 +11,13 @@ from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
 import httpx
+import httpx2
 import pytest
 from httpx import AsyncClient
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.clients.llm import get_llm_client
+from app.clients.llm import LlmClient, get_llm_client
 from app.clients.supabase_storage import SupabaseStorageClient, get_storage_client
 from app.core.config import get_settings
 from app.core.exceptions import AppException, ErrorCode
@@ -27,6 +28,8 @@ from app.domain.record.service import detect_image_media_type
 from app.domain.route.models import Place, PlaceType
 from app.main import app
 from tests.clients.conftest import RecordingTransport
+from tests.clients.test_llm import RecordingTransport as LlmTransport
+from tests.clients.test_llm import message_response
 from tests.conftest import TokenFactory
 
 IMAGE_PATH = "11111111-1111-1111-1111-111111111111/2026-11-04/photo.jpg"
@@ -238,6 +241,36 @@ async def test_vision_failure_falls_back_to_none(
 
     assert response.status_code == 200
     assert response.json() == {"season": "none", "stage": "none", "place_id": None}
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ('{"season": "ginkgo", "stage": "mid"}', {"season": "ginkgo", "stage": "mid"}),
+        ('{"season": "rain", "stage": "mid"}', {"season": "none", "stage": "none"}),
+        ('{"season": "ginkgo"}', {"season": "none", "stage": "none"}),
+        ("은행잎이 보입니다", {"season": "none", "stage": "none"}),
+    ],
+)
+async def test_real_llm_client_response_is_validated_against_schema(
+    client: AsyncClient,
+    storage: FakeStorage,
+    make_token: TokenFactory,
+    text: str,
+    expected: dict[str, str],
+) -> None:
+    """가짜 예외가 아니라 실제 LlmClient 에 응답 본문을 넣어 스키마 검증부터 폴백까지 확인한다."""
+
+    def handler(_: httpx2.Request) -> httpx2.Response:
+        return message_response(text)
+
+    real = LlmClient("test-key", "test-model", transport=LlmTransport(handler))
+    app.dependency_overrides[get_llm_client] = lambda: real
+
+    response = await client.post("/records/suggest", json=payload(), headers=bearer(make_token()))
+
+    assert response.status_code == 200
+    assert response.json() == {**expected, "place_id": None}
 
 
 async def test_unsupported_image_format_falls_back_without_vision(

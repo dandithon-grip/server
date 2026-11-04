@@ -330,6 +330,27 @@ class RouteService:
         stmt = select(Place).where(Place.id == place_id)
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
+    async def find_nearest_place(
+        self, lat: float, lng: float, *, city: str, radius_m: float
+    ) -> Place | None:
+        """
+        현재 위치 반경 안에서 가장 가까운 큐레이션 지점을 찾는다. 없으면 None.
+
+        :param lat: 위도
+        :param lng: 경도
+        :param city: 도시 코드
+        :param radius_m: 반경 (m)
+        """
+        location = cast(Place.location, GEOGRAPHY)
+        here = cast(make_point(lat, lng), GEOGRAPHY)
+        stmt = (
+            select(Place)
+            .where(Place.city == city, func.ST_DWithin(location, here, radius_m))
+            .order_by(func.ST_Distance(location, here))
+            .limit(1)
+        )
+        return (await self._session.execute(stmt)).scalar_one_or_none()
+
     # --- rank ---------------------------------------------------------------
 
     async def list_routes(self, commute_id: UUID) -> list[Route]:
