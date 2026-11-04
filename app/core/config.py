@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     database_url: str
     supabase_url: str
     supabase_jwt_audience: str = "authenticated"
+    # 공개 anon 키. Storage 게이트웨이가 apikey 헤더로 요구한다.
+    # service role 키는 런타임 설정에 두지 않는다 (scripts/seed_demo.py 전용)
+    supabase_anon_key: str = ""
+    # 기록 사진이 올라가는 비공개 버킷 이름 (F-11). 프론트의 업로드 대상과 같아야 한다
+    supabase_record_bucket: str = "records"
     default_city: str
 
     tmap_app_key: str = ""

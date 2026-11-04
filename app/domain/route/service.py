@@ -316,6 +316,16 @@ class RouteService:
             alight_station_id=leg.alight_station_id,
         )
 
+    async def get_place(self, place_id: UUID) -> Place | None:
+        """
+        큐레이션 자연 지점 하나를 조회한다. 없으면 None.
+
+        Place 는 이 도메인의 엔티티다. 다른 도메인(기록 F-11)이 place_id 가 실재하는지
+        확인할 때 이 메서드를 쓴다.
+        """
+        stmt = select(Place).where(Place.id == place_id)
+        return (await self._session.execute(stmt)).scalar_one_or_none()
+
     # --- rank ---------------------------------------------------------------
 
     async def list_routes(self, commute_id: UUID) -> list[Route]:
