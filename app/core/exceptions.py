@@ -12,6 +12,7 @@ class ErrorCode(Enum):
     USER_NOT_FOUND = (404, "사용자를 찾을 수 없습니다")
     COMMUTE_NOT_FOUND = (404, "출퇴근 정보가 없습니다")
     ROUTES_NOT_READY = (404, "경로가 아직 없습니다. 샛길을 먼저 생성하세요")
+    ROUTE_NOT_FOUND = (404, "경로를 찾을 수 없습니다")
     DEMO_NOT_READY = (404, "데모 동선이 준비되지 않았습니다")
     STATION_REQUIRED = (400, "대중교통은 정류장을 선택해야 합니다")
     STATION_NOT_FOUND = (400, "존재하지 않는 정류장입니다")

@@ -9,6 +9,7 @@ from app.core.exceptions import AppException, register_exception_handlers
 from app.core.security import jwks_cache
 from app.domain.card.router import router as card_router
 from app.domain.commute.router import commute_router, station_router
+from app.domain.feedback.router import feedback_router, tag_weights_router
 from app.domain.record.router import router as record_router
 from app.domain.route.router import router as route_router
 from app.domain.user.router import router as user_router
@@ -38,4 +39,6 @@ app.include_router(commute_router)
 app.include_router(station_router)
 app.include_router(route_router)
 app.include_router(card_router)
+app.include_router(feedback_router)
+app.include_router(tag_weights_router)
 app.include_router(record_router)

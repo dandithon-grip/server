@@ -31,6 +31,7 @@ from app.domain.card.prompt import (
 )
 from app.domain.commute.models import Commute, Preference
 from app.domain.commute.service import CommuteService, get_commute_service
+from app.domain.feedback.service import top_tags
 from app.domain.route.fallback import FallbackResult, decide_fallback
 from app.domain.route.models import ActionType, LegType, PlaceType, Route
 from app.domain.route.scoring import sunset_window
@@ -113,7 +114,7 @@ class CardService:
         if preference is None:
             cached = await self._find_card(user.id, today)
             if cached is not None:
-                return await self._result_from_card(cached, commute, routes)
+                return await self._result_from_card(cached, commute, routes, user.tag_weights)
 
         # 3. 새로 만들어 저장
         return await self._build_and_save(
@@ -139,7 +140,7 @@ class CardService:
         today = datetime.now(LOCAL_TZ).date()
         cached = await self._find_card(user.id, today)
         if cached is not None:
-            return await self._result_from_card(cached, commute, routes)
+            return await self._result_from_card(cached, commute, routes, user.tag_weights)
         return await self._build_and_save(user, commute, routes, today, commute.preference)
 
     # --- 조립 ----------------------------------------------------------------
@@ -154,7 +155,9 @@ class CardService:
         window = sunset_window(at, lat=commute.from_lat, lng=commute.from_lng, is_clear=is_clear)
 
         # 2. 후보·대체 단계 (DB 미접근)
-        ranked = self._routes.rank(routes, preference=preference, at=at, is_clear=is_clear)
+        ranked = self._routes.rank(
+            routes, preference=preference, at=at, is_clear=is_clear, tag_weights=user.tag_weights
+        )
         decided = decide_fallback(
             ranked, transport_mode=commute.transport_mode, at=at, is_clear=is_clear
         )
@@ -258,7 +261,7 @@ class CardService:
             sunset_at=format_time(context.sunset_at.astimezone(LOCAL_TZ)),
             sky=str(context.weather.sky) if context.weather.sky else None,
             air_grade=str(context.air.grade) if context.air.grade else None,
-            top_tag_weights=[],  # F-16 에서 채운다
+            top_tag_weights=top_tags(user.tag_weights),
             recent_route_ids=[str(route_id) for route_id in recent],
         )
 
@@ -347,13 +350,21 @@ class CardService:
         return [route_id for route_id in (await self._session.execute(stmt)).scalars() if route_id]
 
     async def _result_from_card(
-        self, card: TodayCard, commute: Commute, routes: list[Route]
+        self,
+        card: TodayCard,
+        commute: Commute,
+        routes: list[Route],
+        user_weights: dict[str, float],
     ) -> CardResult:
         """캐시된 카드에 오늘의 후보 목록을 붙인다 (LLM·날씨 재호출 없음)."""
         at = datetime.combine(card.date, commute.leave_time, tzinfo=LOCAL_TZ)
         is_clear = card.sky == WeatherSky.CLEAR.value if card.sky else None
         ranked = self._routes.rank(
-            routes, preference=Preference(card.preference), at=at, is_clear=is_clear
+            routes,
+            preference=Preference(card.preference),
+            at=at,
+            is_clear=is_clear,
+            tag_weights=user_weights,
         )
         decided = decide_fallback(
             ranked, transport_mode=commute.transport_mode, at=at, is_clear=is_clear
