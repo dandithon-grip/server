@@ -70,8 +70,10 @@ async def seed_demo(
     if account is None:
         account = await admin.create_user(email=email, password=password, nickname=nickname)
 
-    # 3. users 행 upsert (이미 있으면 그대로 둔다)
-    await UserService(session).get_or_create_user(supabase_id=account.id, nickname=nickname)
+    # 3. users 행 upsert (이미 있으면 그대로 둔다) + 둘러보기 카드의 주인으로 표시
+    user_service = UserService(session)
+    await user_service.get_or_create_user(supabase_id=account.id, nickname=nickname)
+    await user_service.mark_demo(account.id)
 
     return SeedResult(supabase_user_id=account.id, created_account=created)
 

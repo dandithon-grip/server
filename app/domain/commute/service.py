@@ -97,6 +97,19 @@ class CommuteService:
         )
         return list((await self._session.execute(stmt)).scalars())
 
+    async def list_station_names(self, city: str) -> set[str]:
+        """도시의 모든 정류장 이름. 카드 문장 검증용."""
+        stmt = select(Station.name).where(Station.city == city)
+        return set((await self._session.execute(stmt)).scalars())
+
+    async def get_station(self, station_id: UUID) -> Station | None:
+        stmt = select(Station).where(Station.id == station_id)
+        return (await self._session.execute(stmt)).scalar_one_or_none()
+
+    async def get_commute_by_user(self, user_id: UUID) -> Commute | None:
+        """예외 없이 조회. 데모 카드처럼 없을 수도 있는 자리에서 쓴다."""
+        return await self._find_by_user(user_id)
+
     async def _find_by_user(self, user_id: UUID) -> Commute | None:
         stmt = select(Commute).where(Commute.user_id == user_id)
         return (await self._session.execute(stmt)).scalar_one_or_none()

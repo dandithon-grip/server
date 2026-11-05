@@ -1,9 +1,13 @@
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.commute.models import Preference
 from app.domain.route.models import ActionType, LegType, PlaceType
+
+if TYPE_CHECKING:
+    from app.domain.route.service import RankedRoute
 
 
 class PointResponse(BaseModel):
@@ -42,3 +46,27 @@ class RoutesResponse(BaseModel):
     action_type: ActionType = Field(..., description="오늘 카드의 행동 유형")
     candidates: list[RouteResponse] = Field(..., description="그 단계의 후보 ≤3, 점수순")
     shortest: list[RouteResponse] = Field(..., description="구간별 최단 경로")
+
+
+def to_route_response(ranked: "RankedRoute") -> RouteResponse:
+    """RankedRoute(엔티티 + 오늘 점수) 를 응답으로.
+
+    엔티티 하나에는 score 가 없어 model_validate 를 못 쓴다.
+    """
+    route = ranked.route
+    return RouteResponse(
+        id=route.id,
+        leg_type=route.leg_type,
+        is_baseline=route.is_baseline,
+        name=route.name,
+        minutes=route.minutes,
+        add_minutes=route.add_minutes,
+        green_pct=route.green_pct,
+        event_score=ranked.event_score,
+        score=ranked.score,
+        tags=ranked.tags,
+        highlights=route.highlights,
+        polyline=[PointResponse(lat=lat, lng=lng) for lat, lng in route.points],
+        spots=route.spots,
+        alight_station_id=route.alight_station_id,
+    )
