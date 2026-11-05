@@ -1,0 +1,4227 @@
+{
+ "result": {
+  "searchType": 0,
+  "outTrafficCheck": 0,
+  "busCount": 10,
+  "subwayCount": 2,
+  "subwayBusCount": 5,
+  "pointDistance": 3917,
+  "startRadius": 700,
+  "endRadius": 700,
+  "path": [
+   {
+    "pathType": 1,
+    "info": {
+     "trafficDistance": 3900.0,
+     "totalWalk": 654,
+     "totalTime": 18,
+     "payment": 1500,
+     "busTransitCount": 0,
+     "subwayTransitCount": 1,
+     "mapObj": "40002:2:40234:40230",
+     "firstStartStation": "수성구청",
+     "lastEndStation": "반월당",
+     "totalStationCount": 4,
+     "busStationCount": 0,
+     "subwayStationCount": 4,
+     "totalDistance": 4554.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 9
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 189,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 1,
+      "distance": 3900,
+      "sectionTime": 8,
+      "stationCount": 4,
+      "lane": [
+       {
+        "name": "대구 2호선",
+        "subwayCode": 42,
+        "subwayCityCode": 4000
+       }
+      ],
+      "intervalTime": 9,
+      "startName": "수성구청",
+      "startX": 128.635728,
+      "startY": 35.858851,
+      "endName": "반월당",
+      "endX": 128.593018,
+      "endY": 35.865577,
+      "way": "반월당",
+      "wayCode": 1,
+      "door": "null",
+      "startID": 40234,
+      "endID": 40230,
+      "startExitNo": "3",
+      "startExitX": 128.63601636592045,
+      "startExitY": 35.85862941483227,
+      "endExitNo": "13",
+      "endExitX": 128.59370110996124,
+      "endExitY": 35.86592438919985,
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 40234,
+         "stationName": "수성구청",
+         "x": "128.635725",
+         "y": "35.858848"
+        },
+        {
+         "index": 1,
+         "stationID": 40233,
+         "stationName": "범어",
+         "x": "128.626851",
+         "y": "35.859025"
+        },
+        {
+         "index": 2,
+         "stationID": 40232,
+         "stationName": "대구은행",
+         "x": "128.614151",
+         "y": "35.859769"
+        },
+        {
+         "index": 3,
+         "stationID": 40231,
+         "stationName": "경대병원",
+         "x": "128.603381",
+         "y": "35.863078"
+        },
+        {
+         "index": 4,
+         "stationID": 40230,
+         "stationName": "반월당",
+         "x": "128.593023",
+         "y": "35.865579"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 465,
+      "sectionTime": 7
+     }
+    ]
+   },
+   {
+    "pathType": 1,
+    "info": {
+     "trafficDistance": 4600.0,
+     "totalWalk": 467,
+     "totalTime": 23,
+     "payment": 1500,
+     "busTransitCount": 0,
+     "subwayTransitCount": 2,
+     "mapObj": "40002:2:40234:40230@40001:2:40130:40131",
+     "firstStartStation": "수성구청",
+     "lastEndStation": "중앙로",
+     "totalStationCount": 5,
+     "busStationCount": 0,
+     "subwayStationCount": 5,
+     "totalDistance": 5067.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 18
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 189,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 1,
+      "distance": 3900,
+      "sectionTime": 8,
+      "stationCount": 4,
+      "lane": [
+       {
+        "name": "대구 2호선",
+        "subwayCode": 42,
+        "subwayCityCode": 4000
+       }
+      ],
+      "intervalTime": 9,
+      "startName": "수성구청",
+      "startX": 128.635728,
+      "startY": 35.858851,
+      "endName": "반월당",
+      "endX": 128.593018,
+      "endY": 35.865577,
+      "way": "반월당",
+      "wayCode": 1,
+      "door": "6-4",
+      "startID": 40234,
+      "endID": 40230,
+      "startExitNo": "3",
+      "startExitX": 128.63601636592045,
+      "startExitY": 35.85862941483227,
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 40234,
+         "stationName": "수성구청",
+         "x": "128.635725",
+         "y": "35.858848"
+        },
+        {
+         "index": 1,
+         "stationID": 40233,
+         "stationName": "범어",
+         "x": "128.626851",
+         "y": "35.859025"
+        },
+        {
+         "index": 2,
+         "stationID": 40232,
+         "stationName": "대구은행",
+         "x": "128.614151",
+         "y": "35.859769"
+        },
+        {
+         "index": 3,
+         "stationID": 40231,
+         "stationName": "경대병원",
+         "x": "128.603381",
+         "y": "35.863078"
+        },
+        {
+         "index": 4,
+         "stationID": 40230,
+         "stationName": "반월당",
+         "x": "128.593023",
+         "y": "35.865579"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 0,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 1,
+      "distance": 700,
+      "sectionTime": 2,
+      "stationCount": 1,
+      "lane": [
+       {
+        "name": "대구 1호선",
+        "subwayCode": 41,
+        "subwayCityCode": 4000
+       }
+      ],
+      "intervalTime": 9,
+      "startName": "반월당",
+      "startX": 128.593332,
+      "startY": 35.864593,
+      "endName": "중앙로",
+      "endX": 128.593988,
+      "endY": 35.870899,
+      "way": "중앙로",
+      "wayCode": 2,
+      "door": "null",
+      "startID": 40130,
+      "endID": 40131,
+      "endExitNo": "2",
+      "endExitX": 128.59394842897967,
+      "endExitY": 35.86997574049925,
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 40130,
+         "stationName": "반월당",
+         "x": "128.593334",
+         "y": "35.864592"
+        },
+        {
+         "index": 1,
+         "stationID": 40131,
+         "stationName": "중앙로",
+         "x": "128.593984",
+         "y": "35.870901"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 278,
+      "sectionTime": 4
+     }
+    ]
+   },
+   {
+    "pathType": 2,
+    "info": {
+     "trafficDistance": 4558.0,
+     "totalWalk": 382,
+     "totalTime": 25,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 0,
+     "mapObj": "2828171:1:99:109",
+     "firstStartStation": "경신고등학교건너",
+     "lastEndStation": "CGV대구한일건너",
+     "totalStationCount": 10,
+     "busStationCount": 10,
+     "subwayStationCount": 0,
+     "totalDistance": 4940.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 13
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 174,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 2,
+      "distance": 4558,
+      "sectionTime": 19,
+      "stationCount": 10,
+      "lane": [
+       {
+        "busNo": "309",
+        "type": 11,
+        "busID": 2828171,
+        "busLocalBlID": "DGB3000309002",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 13,
+      "startName": "경신고등학교건너",
+      "startX": 128.637335,
+      "startY": 35.85904,
+      "endName": "CGV대구한일건너",
+      "endX": 128.596335,
+      "endY": 35.870851,
+      "startID": 431197,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061001400",
+      "startArsID": "05298",
+      "endID": 432057,
+      "endStationCityCode": 4000,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7001006600",
+      "endArsID": "20118",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 431197,
+         "stationName": "경신고등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001400",
+         "arsID": "05298",
+         "x": "128.637335",
+         "y": "35.85904",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 431202,
+         "stationName": "수성경찰서건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001200",
+         "arsID": "20342",
+         "x": "128.63336",
+         "y": "35.859007",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 431200,
+         "stationName": "수성구청건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001000",
+         "arsID": "20396",
+         "x": "128.630725",
+         "y": "35.859003",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 431213,
+         "stationName": "범어역(1번출구)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061000800",
+         "arsID": "20397",
+         "x": "128.621839",
+         "y": "35.859645",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 431211,
+         "stationName": "수성네거리1",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061000600",
+         "arsID": "02066",
+         "x": "128.618187",
+         "y": "35.859817",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 431218,
+         "stationName": "대구은행역(1번출구)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061034900",
+         "arsID": "20400",
+         "x": "128.61273",
+         "y": "35.860061",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 431217,
+         "stationName": "수성교2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061000200",
+         "arsID": "20401",
+         "x": "128.610388",
+         "y": "35.860803",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 431219,
+         "stationName": "방천시장(김광석길)건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001007700",
+         "arsID": "02075",
+         "x": "128.605698",
+         "y": "35.862774",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 432063,
+         "stationName": "경북대학교치과병원",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001007600",
+         "arsID": "20103",
+         "x": "128.601441",
+         "y": "35.86366",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 432061,
+         "stationName": "삼덕교회",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001009400",
+         "arsID": "20075",
+         "x": "128.600054",
+         "y": "35.866155",
+         "isNonStop": "N"
+        },
+        {
+         "index": 10,
+         "stationID": 432057,
+         "stationName": "CGV대구한일건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001006600",
+         "arsID": "20118",
+         "x": "128.596335",
+         "y": "35.870851",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 208,
+      "sectionTime": 3
+     }
+    ]
+   },
+   {
+    "pathType": 2,
+    "info": {
+     "trafficDistance": 5565.0,
+     "totalWalk": 382,
+     "totalTime": 27,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 0,
+     "mapObj": "41106:1:81:91",
+     "firstStartStation": "경신고등학교건너",
+     "lastEndStation": "CGV대구한일건너",
+     "totalStationCount": 10,
+     "busStationCount": 10,
+     "subwayStationCount": 0,
+     "totalDistance": 5947.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 9
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 174,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 2,
+      "distance": 5565,
+      "sectionTime": 21,
+      "stationCount": 10,
+      "lane": [
+       {
+        "busNo": "724",
+        "type": 11,
+        "busID": 41106,
+        "busLocalBlID": "DGB3000724000",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 9,
+      "startName": "경신고등학교건너",
+      "startX": 128.637335,
+      "startY": 35.85904,
+      "endName": "CGV대구한일건너",
+      "endX": 128.596335,
+      "endY": 35.870851,
+      "startID": 431197,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061001400",
+      "startArsID": "05298",
+      "endID": 432057,
+      "endStationCityCode": 4000,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7001006600",
+      "endArsID": "20118",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 431197,
+         "stationName": "경신고등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001400",
+         "arsID": "05298",
+         "x": "128.637335",
+         "y": "35.85904",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 431202,
+         "stationName": "수성경찰서건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001200",
+         "arsID": "20342",
+         "x": "128.63336",
+         "y": "35.859007",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 431200,
+         "stationName": "수성구청건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001000",
+         "arsID": "20396",
+         "x": "128.630725",
+         "y": "35.859003",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 431204,
+         "stationName": "법원앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061005000",
+         "arsID": "20209",
+         "x": "128.627185",
+         "y": "35.86214",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 431206,
+         "stationName": "대구고용복지플러스센터앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004800",
+         "arsID": "20210",
+         "x": "128.627242",
+         "y": "35.865259",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 431293,
+         "stationName": "영남일보앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011006200",
+         "arsID": "20368",
+         "x": "128.626058",
+         "y": "35.868122",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 431436,
+         "stationName": "청구고등학교앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011001900",
+         "arsID": "00659",
+         "x": "128.621647",
+         "y": "35.867604",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 431043,
+         "stationName": "대구중앙중고등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011001700",
+         "arsID": "20823",
+         "x": "128.61659",
+         "y": "35.86809",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 431002,
+         "stationName": "동인초등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001010200",
+         "arsID": "20091",
+         "x": "128.610725",
+         "y": "35.868634",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 431003,
+         "stationName": "중구청앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001010000",
+         "arsID": "02061",
+         "x": "128.606886",
+         "y": "35.869023",
+         "isNonStop": "N"
+        },
+        {
+         "index": 10,
+         "stationID": 432057,
+         "stationName": "CGV대구한일건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001006600",
+         "arsID": "20118",
+         "x": "128.596335",
+         "y": "35.870851",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 208,
+      "sectionTime": 3
+     }
+    ]
+   },
+   {
+    "pathType": 2,
+    "info": {
+     "trafficDistance": 3902.0,
+     "totalWalk": 587,
+     "totalTime": 26,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 0,
+     "mapObj": "2828185:1:115:124",
+     "firstStartStation": "경신고등학교건너",
+     "lastEndStation": "2호선반월당역1",
+     "totalStationCount": 9,
+     "busStationCount": 9,
+     "subwayStationCount": 0,
+     "totalDistance": 4489.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 14
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 174,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 2,
+      "distance": 3902,
+      "sectionTime": 17,
+      "stationCount": 9,
+      "lane": [
+       {
+        "busNo": "609",
+        "type": 11,
+        "busID": 2828185,
+        "busLocalBlID": "DGB3000609007",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 14,
+      "startName": "경신고등학교건너",
+      "startX": 128.637335,
+      "startY": 35.85904,
+      "endName": "2호선반월당역1",
+      "endX": 128.595729,
+      "endY": 35.865284,
+      "startID": 431197,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061001400",
+      "startArsID": "05298",
+      "endID": 434048,
+      "endStationCityCode": 4010,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7001001400",
+      "endArsID": "21876",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 431197,
+         "stationName": "경신고등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001400",
+         "arsID": "05298",
+         "x": "128.637335",
+         "y": "35.85904",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 431202,
+         "stationName": "수성경찰서건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001200",
+         "arsID": "20342",
+         "x": "128.63336",
+         "y": "35.859007",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 431200,
+         "stationName": "수성구청건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001000",
+         "arsID": "20396",
+         "x": "128.630725",
+         "y": "35.859003",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 431213,
+         "stationName": "범어역(1번출구)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061000800",
+         "arsID": "20397",
+         "x": "128.621839",
+         "y": "35.859645",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 431211,
+         "stationName": "수성네거리1",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061000600",
+         "arsID": "02066",
+         "x": "128.618187",
+         "y": "35.859817",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 431218,
+         "stationName": "대구은행역(1번출구)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061034900",
+         "arsID": "20400",
+         "x": "128.61273",
+         "y": "35.860061",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 431217,
+         "stationName": "수성교2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061000200",
+         "arsID": "20401",
+         "x": "128.610388",
+         "y": "35.860803",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 431219,
+         "stationName": "방천시장(김광석길)건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001007700",
+         "arsID": "02075",
+         "x": "128.605698",
+         "y": "35.862774",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 432063,
+         "stationName": "경북대학교치과병원",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001007600",
+         "arsID": "20103",
+         "x": "128.601441",
+         "y": "35.86366",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 434048,
+         "stationName": "2호선반월당역1",
+         "stationCityCode": 4010,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001001400",
+         "arsID": "21876",
+         "x": "128.595729",
+         "y": "35.865284",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 413,
+      "sectionTime": 6
+     }
+    ]
+   },
+   {
+    "pathType": 2,
+    "info": {
+     "trafficDistance": 3794.0,
+     "totalWalk": 616,
+     "totalTime": 27,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 0,
+     "mapObj": "41159:1:106:115",
+     "firstStartStation": "경신고등학교건너",
+     "lastEndStation": "봉산문화거리건너",
+     "totalStationCount": 9,
+     "busStationCount": 9,
+     "subwayStationCount": 0,
+     "totalDistance": 4410.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 12
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 174,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 2,
+      "distance": 3794,
+      "sectionTime": 17,
+      "stationCount": 9,
+      "lane": [
+       {
+        "busNo": "649",
+        "type": 11,
+        "busID": 41159,
+        "busLocalBlID": "DGB3000649000",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 12,
+      "startName": "경신고등학교건너",
+      "startX": 128.637335,
+      "startY": 35.85904,
+      "endName": "봉산문화거리건너",
+      "endX": 128.596901,
+      "endY": 35.86508,
+      "startID": 431197,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061001400",
+      "startArsID": "05298",
+      "endID": 432065,
+      "endStationCityCode": 4000,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7001001500",
+      "endArsID": "21875",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 431197,
+         "stationName": "경신고등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001400",
+         "arsID": "05298",
+         "x": "128.637335",
+         "y": "35.85904",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 431202,
+         "stationName": "수성경찰서건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001200",
+         "arsID": "20342",
+         "x": "128.63336",
+         "y": "35.859007",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 431200,
+         "stationName": "수성구청건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001000",
+         "arsID": "20396",
+         "x": "128.630725",
+         "y": "35.859003",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 431213,
+         "stationName": "범어역(1번출구)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061000800",
+         "arsID": "20397",
+         "x": "128.621839",
+         "y": "35.859645",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 431211,
+         "stationName": "수성네거리1",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061000600",
+         "arsID": "02066",
+         "x": "128.618187",
+         "y": "35.859817",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 431218,
+         "stationName": "대구은행역(1번출구)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061034900",
+         "arsID": "20400",
+         "x": "128.61273",
+         "y": "35.860061",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 431217,
+         "stationName": "수성교2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061000200",
+         "arsID": "20401",
+         "x": "128.610388",
+         "y": "35.860803",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 431219,
+         "stationName": "방천시장(김광석길)건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001007700",
+         "arsID": "02075",
+         "x": "128.605698",
+         "y": "35.862774",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 432063,
+         "stationName": "경북대학교치과병원",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001007600",
+         "arsID": "20103",
+         "x": "128.601441",
+         "y": "35.86366",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 432065,
+         "stationName": "봉산문화거리건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001001500",
+         "arsID": "21875",
+         "x": "128.596901",
+         "y": "35.86508",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 442,
+      "sectionTime": 7
+     }
+    ]
+   },
+   {
+    "pathType": 2,
+    "info": {
+     "trafficDistance": 6663.0,
+     "totalWalk": 382,
+     "totalTime": 32,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 0,
+     "mapObj": "41065:1:12:28",
+     "firstStartStation": "경신고등학교건너",
+     "lastEndStation": "CGV대구한일건너",
+     "totalStationCount": 16,
+     "busStationCount": 16,
+     "subwayStationCount": 0,
+     "totalDistance": 7045.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 13
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 174,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 2,
+      "distance": 6663,
+      "sectionTime": 26,
+      "stationCount": 16,
+      "lane": [
+       {
+        "busNo": "425",
+        "type": 11,
+        "busID": 41065,
+        "busLocalBlID": "DGB3000425000",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 13,
+      "startName": "경신고등학교건너",
+      "startX": 128.637335,
+      "startY": 35.85904,
+      "endName": "CGV대구한일건너",
+      "endX": 128.596335,
+      "endY": 35.870851,
+      "startID": 431197,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061001400",
+      "startArsID": "05298",
+      "endID": 432057,
+      "endStationCityCode": 4000,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7001006600",
+      "endArsID": "20118",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 431197,
+         "stationName": "경신고등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001400",
+         "arsID": "05298",
+         "x": "128.637335",
+         "y": "35.85904",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 434108,
+         "stationName": "도시철도수성구청역북편2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003500",
+         "arsID": "20341",
+         "x": "128.635817",
+         "y": "35.860238",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 434189,
+         "stationName": "범어2동2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061007500",
+         "arsID": "00507",
+         "x": "128.635728",
+         "y": "35.862943",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 432803,
+         "stationName": "새범어아파트앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061007300",
+         "arsID": "20231",
+         "x": "128.634226",
+         "y": "35.866222",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 432754,
+         "stationName": "차량등록사업소건너2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061007100",
+         "arsID": "20212",
+         "x": "128.63755",
+         "y": "35.866529",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 434377,
+         "stationName": "메트로팔레스1",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061038700",
+         "arsID": "20229",
+         "x": "128.637541",
+         "y": "35.869549",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 431536,
+         "stationName": "팔공정보문화센터앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011006000",
+         "arsID": "20807",
+         "x": "128.634665",
+         "y": "35.874026",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 431534,
+         "stationName": "경북아파트건너(신천동)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011005800",
+         "arsID": "20808",
+         "x": "128.632903",
+         "y": "35.876694",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 431532,
+         "stationName": "동대구역복합환승센터앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011004000",
+         "arsID": "09059",
+         "x": "128.629909",
+         "y": "35.877548",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 431548,
+         "stationName": "동대구동화아이위시아파트앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011003900",
+         "arsID": "00468",
+         "x": "128.624295",
+         "y": "35.876279",
+         "isNonStop": "N"
+        },
+        {
+         "index": 10,
+         "stationID": 432531,
+         "stationName": "역전시장건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011002500",
+         "arsID": "21186",
+         "x": "128.620945",
+         "y": "35.875522",
+         "isNonStop": "N"
+        },
+        {
+         "index": 11,
+         "stationID": 432118,
+         "stationName": "신천역(2번출구)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011002300",
+         "arsID": "21187",
+         "x": "128.616584",
+         "y": "35.87449",
+         "isNonStop": "N"
+        },
+        {
+         "index": 12,
+         "stationID": 432115,
+         "stationName": "신천LH아파트앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011002200",
+         "arsID": "21188",
+         "x": "128.61388",
+         "y": "35.874179",
+         "isNonStop": "N"
+        },
+        {
+         "index": 13,
+         "stationID": 431084,
+         "stationName": "신천교2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001011300",
+         "arsID": "20057",
+         "x": "128.609787",
+         "y": "35.873353",
+         "isNonStop": "N"
+        },
+        {
+         "index": 14,
+         "stationID": 434190,
+         "stationName": "동인네거리2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001011100",
+         "arsID": "00549",
+         "x": "128.60707",
+         "y": "35.872771",
+         "isNonStop": "N"
+        },
+        {
+         "index": 15,
+         "stationID": 431095,
+         "stationName": "동인찜갈비골목건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001011400",
+         "arsID": "20106",
+         "x": "128.604177",
+         "y": "35.871011",
+         "isNonStop": "N"
+        },
+        {
+         "index": 16,
+         "stationID": 432057,
+         "stationName": "CGV대구한일건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001006600",
+         "arsID": "20118",
+         "x": "128.596335",
+         "y": "35.870851",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 208,
+      "sectionTime": 3
+     }
+    ]
+   },
+   {
+    "pathType": 2,
+    "info": {
+     "trafficDistance": 5526.0,
+     "totalWalk": 577,
+     "totalTime": 31,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 0,
+     "mapObj": "2828167:1:58:70",
+     "firstStartStation": "수성경찰서건너",
+     "lastEndStation": "CGV대구한일건너",
+     "totalStationCount": 12,
+     "busStationCount": 12,
+     "subwayStationCount": 0,
+     "totalDistance": 6103.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 14
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 369,
+      "sectionTime": 6
+     },
+     {
+      "trafficType": 2,
+      "distance": 5526,
+      "sectionTime": 22,
+      "stationCount": 12,
+      "lane": [
+       {
+        "busNo": "232",
+        "type": 11,
+        "busID": 2828167,
+        "busLocalBlID": "DGB3000232000",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 14,
+      "startName": "수성경찰서건너",
+      "startX": 128.63336,
+      "startY": 35.859007,
+      "endName": "CGV대구한일건너",
+      "endX": 128.596335,
+      "endY": 35.870851,
+      "startID": 431202,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061001200",
+      "startArsID": "20342",
+      "endID": 432057,
+      "endStationCityCode": 4000,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7001006600",
+      "endArsID": "20118",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 431202,
+         "stationName": "수성경찰서건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001200",
+         "arsID": "20342",
+         "x": "128.63336",
+         "y": "35.859007",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 431200,
+         "stationName": "수성구청건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001000",
+         "arsID": "20396",
+         "x": "128.630725",
+         "y": "35.859003",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 431462,
+         "stationName": "그랜드호텔앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003600",
+         "arsID": "02016",
+         "x": "128.62544",
+         "y": "35.857183",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 431461,
+         "stationName": "여성메디파크",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003800",
+         "arsID": "20156",
+         "x": "128.625056",
+         "y": "35.854761",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 431658,
+         "stationName": "범어쌍용예가앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003900",
+         "arsID": "09169",
+         "x": "128.623776",
+         "y": "35.853938",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 434109,
+         "stationName": "수성3가롯데캐슬앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004000",
+         "arsID": "20319",
+         "x": "128.620258",
+         "y": "35.854218",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 431111,
+         "stationName": "수성시장네거리2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004200",
+         "arsID": "20320",
+         "x": "128.615466",
+         "y": "35.854486",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 431146,
+         "stationName": "수성롯데캐슬더퍼스트앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004500",
+         "arsID": "20321",
+         "x": "128.610819",
+         "y": "35.85487",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 431144,
+         "stationName": "대백프라자앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001007900",
+         "arsID": "20097",
+         "x": "128.604555",
+         "y": "35.855235",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 431142,
+         "stationName": "청운맨션건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001008900",
+         "arsID": "20098",
+         "x": "128.604655",
+         "y": "35.856713",
+         "isNonStop": "N"
+        },
+        {
+         "index": 10,
+         "stationID": 431140,
+         "stationName": "청구타운건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001008700",
+         "arsID": "20099",
+         "x": "128.604272",
+         "y": "35.860284",
+         "isNonStop": "N"
+        },
+        {
+         "index": 11,
+         "stationID": 432185,
+         "stationName": "경북대학교병원앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001009800",
+         "arsID": "20100",
+         "x": "128.603292",
+         "y": "35.865337",
+         "isNonStop": "N"
+        },
+        {
+         "index": 12,
+         "stationID": 432057,
+         "stationName": "CGV대구한일건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001006600",
+         "arsID": "20118",
+         "x": "128.596335",
+         "y": "35.870851",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 208,
+      "sectionTime": 3
+     }
+    ]
+   },
+   {
+    "pathType": 2,
+    "info": {
+     "trafficDistance": 7270.0,
+     "totalWalk": 419,
+     "totalTime": 35,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 0,
+     "mapObj": "2828223:1:26:43",
+     "firstStartStation": "경신고등학교건너",
+     "lastEndStation": "2.28기념중앙공원앞",
+     "totalStationCount": 17,
+     "busStationCount": 17,
+     "subwayStationCount": 0,
+     "totalDistance": 7689.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 16
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 174,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 2,
+      "distance": 7270,
+      "sectionTime": 28,
+      "stationCount": 17,
+      "lane": [
+       {
+        "busNo": "동구1",
+        "type": 12,
+        "busID": 2828223,
+        "busLocalBlID": "DGB4050001001",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 16,
+      "startName": "경신고등학교건너",
+      "startX": 128.637335,
+      "startY": 35.85904,
+      "endName": "2.28기념중앙공원앞",
+      "endX": 128.598236,
+      "endY": 35.870247,
+      "startID": 431197,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061001400",
+      "startArsID": "05298",
+      "endID": 432059,
+      "endStationCityCode": 4000,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7001006800",
+      "endArsID": "20120",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 431197,
+         "stationName": "경신고등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001400",
+         "arsID": "05298",
+         "x": "128.637335",
+         "y": "35.85904",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 431202,
+         "stationName": "수성경찰서건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001200",
+         "arsID": "20342",
+         "x": "128.63336",
+         "y": "35.859007",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 431200,
+         "stationName": "수성구청건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001000",
+         "arsID": "20396",
+         "x": "128.630725",
+         "y": "35.859003",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 431462,
+         "stationName": "그랜드호텔앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003600",
+         "arsID": "02016",
+         "x": "128.62544",
+         "y": "35.857183",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 431461,
+         "stationName": "여성메디파크",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003800",
+         "arsID": "20156",
+         "x": "128.625056",
+         "y": "35.854761",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 431658,
+         "stationName": "범어쌍용예가앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003900",
+         "arsID": "09169",
+         "x": "128.623776",
+         "y": "35.853938",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 434109,
+         "stationName": "수성3가롯데캐슬앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004000",
+         "arsID": "20319",
+         "x": "128.620258",
+         "y": "35.854218",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 431111,
+         "stationName": "수성시장네거리2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004200",
+         "arsID": "20320",
+         "x": "128.615466",
+         "y": "35.854486",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 431146,
+         "stationName": "수성롯데캐슬더퍼스트앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004500",
+         "arsID": "20321",
+         "x": "128.610819",
+         "y": "35.85487",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 431144,
+         "stationName": "대백프라자앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001007900",
+         "arsID": "20097",
+         "x": "128.604555",
+         "y": "35.855235",
+         "isNonStop": "N"
+        },
+        {
+         "index": 10,
+         "stationID": 432075,
+         "stationName": "대봉성당",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001008000",
+         "arsID": "20095",
+         "x": "128.600815",
+         "y": "35.855462",
+         "isNonStop": "N"
+        },
+        {
+         "index": 11,
+         "stationID": 432492,
+         "stationName": "건들바위건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001008100",
+         "arsID": "20073",
+         "x": "128.598604",
+         "y": "35.857456",
+         "isNonStop": "N"
+        },
+        {
+         "index": 12,
+         "stationID": 432091,
+         "stationName": "대구향교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001003700",
+         "arsID": "01024",
+         "x": "128.595913",
+         "y": "35.860254",
+         "isNonStop": "N"
+        },
+        {
+         "index": 13,
+         "stationID": 434179,
+         "stationName": "남문시장건너1",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001012400",
+         "arsID": "01023",
+         "x": "128.591738",
+         "y": "35.861645",
+         "isNonStop": "N"
+        },
+        {
+         "index": 14,
+         "stationID": 434180,
+         "stationName": "남산2동주민센터앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001012500",
+         "arsID": "01025",
+         "x": "128.589242",
+         "y": "35.864009",
+         "isNonStop": "N"
+        },
+        {
+         "index": 15,
+         "stationID": 434181,
+         "stationName": "매일신문사앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001013500",
+         "arsID": "21877",
+         "x": "128.587191",
+         "y": "35.868211",
+         "isNonStop": "N"
+        },
+        {
+         "index": 16,
+         "stationID": 432055,
+         "stationName": "만경관건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001006400",
+         "arsID": "02237",
+         "x": "128.590485",
+         "y": "35.870358",
+         "isNonStop": "N"
+        },
+        {
+         "index": 17,
+         "stationID": 432059,
+         "stationName": "2.28기념중앙공원앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001006800",
+         "arsID": "20120",
+         "x": "128.598236",
+         "y": "35.870247",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 245,
+      "sectionTime": 4
+     }
+    ]
+   },
+   {
+    "pathType": 2,
+    "info": {
+     "trafficDistance": 3902.0,
+     "totalWalk": 587,
+     "totalTime": 26,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 0,
+     "mapObj": "1510064:1:48:57",
+     "firstStartStation": "경신고등학교건너",
+     "lastEndStation": "2호선반월당역1",
+     "totalStationCount": 9,
+     "busStationCount": 9,
+     "subwayStationCount": 0,
+     "totalDistance": 4489.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 48
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 174,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 2,
+      "distance": 3902,
+      "sectionTime": 17,
+      "stationCount": 9,
+      "lane": [
+       {
+        "busNo": "990(자인.대신동.자인)",
+        "type": 11,
+        "busID": 1510064,
+        "busLocalBlID": "GYB360101001",
+        "busCityCode": 4010,
+        "busProviderCode": 14
+       },
+       {
+        "busNo": "991(대구대-경산시장-서문시장-경산시장-대구대)",
+        "type": 11,
+        "busID": 2828367,
+        "busLocalBlID": "GYB360084321",
+        "busCityCode": 4010,
+        "busProviderCode": 14
+       }
+      ],
+      "intervalTime": 48,
+      "startName": "경신고등학교건너",
+      "startX": 128.637335,
+      "startY": 35.85904,
+      "endName": "2호선반월당역1",
+      "endX": 128.595729,
+      "endY": 35.865284,
+      "startID": 431197,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 14,
+      "startLocalStationID": "GYB155001400",
+      "startArsID": "2027",
+      "endID": 434048,
+      "endStationCityCode": 4010,
+      "endStationProviderCode": 14,
+      "endLocalStationID": "GYB150001400",
+      "endArsID": "2193",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 431197,
+         "stationName": "경신고등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 14,
+         "localStationID": "GYB155001400",
+         "arsID": "2027",
+         "x": "128.637335",
+         "y": "35.85904",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 431202,
+         "stationName": "수성경찰서건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 14,
+         "localStationID": "GYB155001200",
+         "arsID": "0459",
+         "x": "128.63336",
+         "y": "35.859007",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 431200,
+         "stationName": "수성구청건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 14,
+         "localStationID": "GYB155001000",
+         "arsID": "2028",
+         "x": "128.630725",
+         "y": "35.859003",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 431213,
+         "stationName": "범어역(1번출구)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 14,
+         "localStationID": "GYB155000800",
+         "arsID": "0670",
+         "x": "128.621839",
+         "y": "35.859645",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 431211,
+         "stationName": "수성네거리1",
+         "stationCityCode": 4000,
+         "stationProviderCode": 14,
+         "localStationID": "GYB155000600",
+         "arsID": "2066",
+         "x": "128.618187",
+         "y": "35.859817",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 431218,
+         "stationName": "대구은행역(1번출구)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 14,
+         "localStationID": "GYB155034900",
+         "arsID": "2067",
+         "x": "128.61273",
+         "y": "35.860061",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 431217,
+         "stationName": "수성교2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 14,
+         "localStationID": "GYB155000200",
+         "arsID": "2068",
+         "x": "128.610388",
+         "y": "35.860803",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 431219,
+         "stationName": "방천시장(김광석길)건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 14,
+         "localStationID": "GYB150007700",
+         "arsID": "2075",
+         "x": "128.605698",
+         "y": "35.862774",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 432063,
+         "stationName": "경북대학교치과병원",
+         "stationCityCode": 4000,
+         "stationProviderCode": 14,
+         "localStationID": "GYB150007600",
+         "arsID": "2191",
+         "x": "128.601441",
+         "y": "35.86366",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 434048,
+         "stationName": "2호선반월당역1",
+         "stationCityCode": 4010,
+         "stationProviderCode": 14,
+         "localStationID": "GYB150001400",
+         "arsID": "2193",
+         "x": "128.595729",
+         "y": "35.865284",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 413,
+      "sectionTime": 6
+     }
+    ]
+   },
+   {
+    "pathType": 2,
+    "info": {
+     "trafficDistance": 9746.0,
+     "totalWalk": 606,
+     "totalTime": 45,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 0,
+     "mapObj": "2828174:1:10:34",
+     "firstStartStation": "우방청솔맨션앞",
+     "lastEndStation": "CGV대구한일건너",
+     "totalStationCount": 24,
+     "busStationCount": 24,
+     "subwayStationCount": 0,
+     "totalDistance": 10352.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 15
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 398,
+      "sectionTime": 6
+     },
+     {
+      "trafficType": 2,
+      "distance": 9746,
+      "sectionTime": 36,
+      "stationCount": 24,
+      "lane": [
+       {
+        "busNo": "402",
+        "type": 11,
+        "busID": 2828174,
+        "busLocalBlID": "DGB3000402001",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 15,
+      "startName": "우방청솔맨션앞",
+      "startX": 128.64026,
+      "startY": 35.855086,
+      "endName": "CGV대구한일건너",
+      "endX": 128.596335,
+      "endY": 35.870851,
+      "startID": 434119,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061002300",
+      "startArsID": "20340",
+      "endID": 432057,
+      "endStationCityCode": 4000,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7001006600",
+      "endArsID": "20118",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 434119,
+         "stationName": "우방청솔맨션앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061002300",
+         "arsID": "20340",
+         "x": "128.64026",
+         "y": "35.855086",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 431430,
+         "stationName": "만촌육교2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061002100",
+         "arsID": "00008",
+         "x": "128.644955",
+         "y": "35.857936",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 432515,
+         "stationName": "만촌네거리북편",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061028600",
+         "arsID": "20215",
+         "x": "128.647254",
+         "y": "35.860105",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 423751,
+         "stationName": "만촌태왕리더스앞2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061040200",
+         "arsID": "20182",
+         "x": "128.648125",
+         "y": "35.862417",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 432513,
+         "stationName": "만촌그린빌라건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061002900",
+         "arsID": "00515",
+         "x": "128.64488",
+         "y": "35.860983",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 432512,
+         "stationName": "만촌천주교회앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061002700",
+         "arsID": "00516",
+         "x": "128.644421",
+         "y": "35.863059",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 432523,
+         "stationName": "청구시장앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061007000",
+         "arsID": "20234",
+         "x": "128.644043",
+         "y": "35.864259",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 433204,
+         "stationName": "만촌1동행정복지센터",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061033900",
+         "arsID": "20228",
+         "x": "128.639806",
+         "y": "35.866121",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 434187,
+         "stationName": "차량등록사업소건너1",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061039300",
+         "arsID": "20230",
+         "x": "128.637553",
+         "y": "35.866818",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 432753,
+         "stationName": "동대구LPG충전소앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061007600",
+         "arsID": "00501",
+         "x": "128.631997",
+         "y": "35.867181",
+         "isNonStop": "N"
+        },
+        {
+         "index": 10,
+         "stationID": 431588,
+         "stationName": "우방만촌하이츠앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061007800",
+         "arsID": "20218",
+         "x": "128.631106",
+         "y": "35.86796",
+         "isNonStop": "N"
+        },
+        {
+         "index": 11,
+         "stationID": 431428,
+         "stationName": "구.동부정류장(메트로팔레스)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011004700",
+         "arsID": "20219",
+         "x": "128.633006",
+         "y": "35.870096",
+         "isNonStop": "N"
+        },
+        {
+         "index": 12,
+         "stationID": 431536,
+         "stationName": "팔공정보문화센터앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011006000",
+         "arsID": "20807",
+         "x": "128.634665",
+         "y": "35.874026",
+         "isNonStop": "N"
+        },
+        {
+         "index": 13,
+         "stationID": 431534,
+         "stationName": "경북아파트건너(신천동)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011005800",
+         "arsID": "20808",
+         "x": "128.632903",
+         "y": "35.876694",
+         "isNonStop": "N"
+        },
+        {
+         "index": 14,
+         "stationID": 431532,
+         "stationName": "동대구역복합환승센터앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011004000",
+         "arsID": "09059",
+         "x": "128.629909",
+         "y": "35.877548",
+         "isNonStop": "N"
+        },
+        {
+         "index": 15,
+         "stationID": 431589,
+         "stationName": "동대구역",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011006700",
+         "arsID": "09060",
+         "x": "128.626987",
+         "y": "35.879158",
+         "isNonStop": "N"
+        },
+        {
+         "index": 16,
+         "stationID": 431590,
+         "stationName": "동대구역화성파크드림",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011006900",
+         "arsID": "21511",
+         "x": "128.625757",
+         "y": "35.881932",
+         "isNonStop": "N"
+        },
+        {
+         "index": 17,
+         "stationID": 431440,
+         "stationName": "평화시장(닭똥집골목)앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011009700",
+         "arsID": "20670",
+         "x": "128.621411",
+         "y": "35.88282",
+         "isNonStop": "N"
+        },
+        {
+         "index": 18,
+         "stationID": 431439,
+         "stationName": "공고네거리1",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011009400",
+         "arsID": "20671",
+         "x": "128.615964",
+         "y": "35.88164",
+         "isNonStop": "N"
+        },
+        {
+         "index": 19,
+         "stationID": 431437,
+         "stationName": "강남약국건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7021025000",
+         "arsID": "20713",
+         "x": "128.610669",
+         "y": "35.880045",
+         "isNonStop": "N"
+        },
+        {
+         "index": 20,
+         "stationID": 431093,
+         "stationName": "농협중앙회앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7021024800",
+         "arsID": "20714",
+         "x": "128.607196",
+         "y": "35.877683",
+         "isNonStop": "N"
+        },
+        {
+         "index": 21,
+         "stationID": 431070,
+         "stationName": "칠성시장앞1",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7021024700",
+         "arsID": "20715",
+         "x": "128.605379",
+         "y": "35.874691",
+         "isNonStop": "N"
+        },
+        {
+         "index": 22,
+         "stationID": 423715,
+         "stationName": "태평상가앞2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001010900",
+         "arsID": "00116",
+         "x": "128.603276",
+         "y": "35.873367",
+         "isNonStop": "N"
+        },
+        {
+         "index": 23,
+         "stationID": 431425,
+         "stationName": "대구시동인청사건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001010400",
+         "arsID": "02169",
+         "x": "128.600752",
+         "y": "35.872082",
+         "isNonStop": "N"
+        },
+        {
+         "index": 24,
+         "stationID": 432057,
+         "stationName": "CGV대구한일건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001006600",
+         "arsID": "20118",
+         "x": "128.596335",
+         "y": "35.870851",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 208,
+      "sectionTime": 3
+     }
+    ]
+   },
+   {
+    "pathType": 2,
+    "info": {
+     "trafficDistance": 8099.0,
+     "totalWalk": 816,
+     "totalTime": 43,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 0,
+     "mapObj": "2828180:1:82:101",
+     "firstStartStation": "우방청솔맨션건너",
+     "lastEndStation": "봉산문화거리건너",
+     "totalStationCount": 19,
+     "busStationCount": 19,
+     "subwayStationCount": 0,
+     "totalDistance": 8915.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 16
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 374,
+      "sectionTime": 6
+     },
+     {
+      "trafficType": 2,
+      "distance": 8099,
+      "sectionTime": 30,
+      "stationCount": 19,
+      "lane": [
+       {
+        "busNo": "504",
+        "type": 11,
+        "busID": 2828180,
+        "busLocalBlID": "DGB3000504000",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 16,
+      "startName": "우방청솔맨션건너",
+      "startX": 128.639316,
+      "startY": 35.854704,
+      "endName": "봉산문화거리건너",
+      "endX": 128.596901,
+      "endY": 35.86508,
+      "startID": 434118,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061002200",
+      "startArsID": "20323",
+      "endID": 432065,
+      "endStationCityCode": 4000,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7001001500",
+      "endArsID": "21875",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 434118,
+         "stationName": "우방청솔맨션건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061002200",
+         "arsID": "20323",
+         "x": "128.639316",
+         "y": "35.854704",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 431540,
+         "stationName": "동도중학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061018100",
+         "arsID": "20324",
+         "x": "128.638415",
+         "y": "35.850094",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 431441,
+         "stationName": "국립대구박물관앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061017900",
+         "arsID": "20325",
+         "x": "128.639111",
+         "y": "35.847179",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 431442,
+         "stationName": "경북고등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061017700",
+         "arsID": "20326",
+         "x": "128.638671",
+         "y": "35.843359",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 431445,
+         "stationName": "캐슬골드파크4단지앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061017500",
+         "arsID": "20327",
+         "x": "128.636625",
+         "y": "35.840883",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 431446,
+         "stationName": "성동초등학교앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061034500",
+         "arsID": "09095",
+         "x": "128.633003",
+         "y": "35.840577",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 431449,
+         "stationName": "캐슬골드파크(1102동)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061017200",
+         "arsID": "02390",
+         "x": "128.630816",
+         "y": "35.839778",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 431450,
+         "stationName": "헬로TV대구방송앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061017000",
+         "arsID": "20328",
+         "x": "128.626695",
+         "y": "35.839367",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 431454,
+         "stationName": "대구과학고등학교앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061016800",
+         "arsID": "20207",
+         "x": "128.624909",
+         "y": "35.844568",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 431455,
+         "stationName": "어린이세상앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061016200",
+         "arsID": "00015",
+         "x": "128.625164",
+         "y": "35.84745",
+         "isNonStop": "N"
+        },
+        {
+         "index": 10,
+         "stationID": 434157,
+         "stationName": "대구고용노동청건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061016300",
+         "arsID": "20208",
+         "x": "128.625418",
+         "y": "35.850171",
+         "isNonStop": "N"
+        },
+        {
+         "index": 11,
+         "stationID": 431658,
+         "stationName": "범어쌍용예가앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003900",
+         "arsID": "09169",
+         "x": "128.623776",
+         "y": "35.853938",
+         "isNonStop": "N"
+        },
+        {
+         "index": 12,
+         "stationID": 434109,
+         "stationName": "수성3가롯데캐슬앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004000",
+         "arsID": "20319",
+         "x": "128.620258",
+         "y": "35.854218",
+         "isNonStop": "N"
+        },
+        {
+         "index": 13,
+         "stationID": 431111,
+         "stationName": "수성시장네거리2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004200",
+         "arsID": "20320",
+         "x": "128.615466",
+         "y": "35.854486",
+         "isNonStop": "N"
+        },
+        {
+         "index": 14,
+         "stationID": 431146,
+         "stationName": "수성롯데캐슬더퍼스트앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004500",
+         "arsID": "20321",
+         "x": "128.610819",
+         "y": "35.85487",
+         "isNonStop": "N"
+        },
+        {
+         "index": 15,
+         "stationID": 431144,
+         "stationName": "대백프라자앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001007900",
+         "arsID": "20097",
+         "x": "128.604555",
+         "y": "35.855235",
+         "isNonStop": "N"
+        },
+        {
+         "index": 16,
+         "stationID": 432075,
+         "stationName": "대봉성당",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001008000",
+         "arsID": "20095",
+         "x": "128.600815",
+         "y": "35.855462",
+         "isNonStop": "N"
+        },
+        {
+         "index": 17,
+         "stationID": 432492,
+         "stationName": "건들바위건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001008100",
+         "arsID": "20073",
+         "x": "128.598604",
+         "y": "35.857456",
+         "isNonStop": "N"
+        },
+        {
+         "index": 18,
+         "stationID": 432067,
+         "stationName": "봉산가구골목(동편)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001008300",
+         "arsID": "20074",
+         "x": "128.599267",
+         "y": "35.861589",
+         "isNonStop": "N"
+        },
+        {
+         "index": 19,
+         "stationID": 432065,
+         "stationName": "봉산문화거리건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001001500",
+         "arsID": "21875",
+         "x": "128.596901",
+         "y": "35.86508",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 442,
+      "sectionTime": 7
+     }
+    ]
+   },
+   {
+    "pathType": 3,
+    "info": {
+     "trafficDistance": 6088.0,
+     "totalWalk": 633,
+     "totalTime": 33,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 1,
+     "mapObj": "2832615:1:110:122@40001:2:40129:40131",
+     "firstStartStation": "경신고등학교건너",
+     "lastEndStation": "중앙로",
+     "totalStationCount": 14,
+     "busStationCount": 12,
+     "subwayStationCount": 2,
+     "totalDistance": 6721.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 22
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 175,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 2,
+      "distance": 4588,
+      "sectionTime": 20,
+      "stationCount": 12,
+      "lane": [
+       {
+        "busNo": "509",
+        "type": 11,
+        "busID": 2832615,
+        "busLocalBlID": "GYB3000509002",
+        "busCityCode": 4010,
+        "busProviderCode": 14
+       },
+       {
+        "busNo": "509",
+        "type": 11,
+        "busID": 2828181,
+        "busLocalBlID": "DGB3000509002",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 13,
+      "startName": "경신고등학교건너",
+      "startX": 128.637335,
+      "startY": 35.85904,
+      "endName": "명덕네거리2",
+      "endX": 128.592555,
+      "endY": 35.856927,
+      "startID": 431197,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061001400",
+      "startArsID": "05298",
+      "endID": 432081,
+      "endStationCityCode": 4000,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7001002300",
+      "endArsID": "20079",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 431197,
+         "stationName": "경신고등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001400",
+         "arsID": "05298",
+         "x": "128.637335",
+         "y": "35.85904",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 431202,
+         "stationName": "수성경찰서건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001200",
+         "arsID": "20342",
+         "x": "128.63336",
+         "y": "35.859007",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 431200,
+         "stationName": "수성구청건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001000",
+         "arsID": "20396",
+         "x": "128.630725",
+         "y": "35.859003",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 431462,
+         "stationName": "그랜드호텔앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003600",
+         "arsID": "02016",
+         "x": "128.62544",
+         "y": "35.857183",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 431461,
+         "stationName": "여성메디파크",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003800",
+         "arsID": "20156",
+         "x": "128.625056",
+         "y": "35.854761",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 431658,
+         "stationName": "범어쌍용예가앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003900",
+         "arsID": "09169",
+         "x": "128.623776",
+         "y": "35.853938",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 434109,
+         "stationName": "수성3가롯데캐슬앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004000",
+         "arsID": "20319",
+         "x": "128.620258",
+         "y": "35.854218",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 431111,
+         "stationName": "수성시장네거리2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004200",
+         "arsID": "20320",
+         "x": "128.615466",
+         "y": "35.854486",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 431146,
+         "stationName": "수성롯데캐슬더퍼스트앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004500",
+         "arsID": "20321",
+         "x": "128.610819",
+         "y": "35.85487",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 431144,
+         "stationName": "대백프라자앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001007900",
+         "arsID": "20097",
+         "x": "128.604555",
+         "y": "35.855235",
+         "isNonStop": "N"
+        },
+        {
+         "index": 10,
+         "stationID": 432075,
+         "stationName": "대봉성당",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001008000",
+         "arsID": "20095",
+         "x": "128.600815",
+         "y": "35.855462",
+         "isNonStop": "N"
+        },
+        {
+         "index": 11,
+         "stationID": 432080,
+         "stationName": "상수도사업본부건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001002400",
+         "arsID": "20078",
+         "x": "128.596184",
+         "y": "35.856521",
+         "isNonStop": "N"
+        },
+        {
+         "index": 12,
+         "stationID": 432081,
+         "stationName": "명덕네거리2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7001002300",
+         "arsID": "20079",
+         "x": "128.592555",
+         "y": "35.856927",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 180,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 1,
+      "distance": 1500,
+      "sectionTime": 3,
+      "stationCount": 2,
+      "lane": [
+       {
+        "name": "대구 1호선",
+        "subwayCode": 41,
+        "subwayCityCode": 4000
+       }
+      ],
+      "intervalTime": 9,
+      "startName": "명덕",
+      "startX": 128.591235,
+      "startY": 35.858141,
+      "endName": "중앙로",
+      "endX": 128.593988,
+      "endY": 35.870899,
+      "way": "중앙로",
+      "wayCode": 2,
+      "door": "null",
+      "startID": 40129,
+      "endID": 40131,
+      "startExitNo": "6",
+      "startExitX": 128.59115081794252,
+      "startExitY": 35.85714005438995,
+      "endExitNo": "2",
+      "endExitX": 128.59394842897967,
+      "endExitY": 35.86997574049925,
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 40129,
+         "stationName": "명덕",
+         "x": "128.591241",
+         "y": "35.858145"
+        },
+        {
+         "index": 1,
+         "stationID": 40130,
+         "stationName": "반월당",
+         "x": "128.593334",
+         "y": "35.864592"
+        },
+        {
+         "index": 2,
+         "stationID": 40131,
+         "stationName": "중앙로",
+         "x": "128.593984",
+         "y": "35.870901"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 278,
+      "sectionTime": 4
+     }
+    ]
+   },
+   {
+    "pathType": 3,
+    "info": {
+     "trafficDistance": 7884.0,
+     "totalWalk": 638,
+     "totalTime": 35,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 1,
+     "mapObj": "2828177:1:33:45@40001:2:40135:40131",
+     "firstStartStation": "경신고등학교앞",
+     "lastEndStation": "중앙로",
+     "totalStationCount": 16,
+     "busStationCount": 12,
+     "subwayStationCount": 4,
+     "totalDistance": 8522.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 26
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 140,
+      "sectionTime": 2
+     },
+     {
+      "trafficType": 2,
+      "distance": 4284,
+      "sectionTime": 19,
+      "stationCount": 12,
+      "lane": [
+       {
+        "busNo": "413",
+        "type": 11,
+        "busID": 2828177,
+        "busLocalBlID": "DGB3000413001",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 17,
+      "startName": "경신고등학교앞",
+      "startX": 128.637786,
+      "startY": 35.858578,
+      "endName": "동대구역복합환승센터앞",
+      "endX": 128.629909,
+      "endY": 35.877548,
+      "startID": 431196,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061001300",
+      "startArsID": "20195",
+      "endID": 431532,
+      "endStationCityCode": 4000,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7011004000",
+      "endArsID": "09059",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 431196,
+         "stationName": "경신고등학교앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001300",
+         "arsID": "20195",
+         "x": "128.637786",
+         "y": "35.858578",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 433105,
+         "stationName": "흥사단 대구지부건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061033800",
+         "arsID": "00522",
+         "x": "128.640022",
+         "y": "35.861361",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 432522,
+         "stationName": "동원초등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003100",
+         "arsID": "20232",
+         "x": "128.641266",
+         "y": "35.863193",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 432523,
+         "stationName": "청구시장앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061007000",
+         "arsID": "20234",
+         "x": "128.644043",
+         "y": "35.864259",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 434106,
+         "stationName": "청구시장북편",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061006900",
+         "arsID": "00512",
+         "x": "128.643761",
+         "y": "35.866379",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 432508,
+         "stationName": "만촌초등학교앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061006700",
+         "arsID": "20214",
+         "x": "128.645253",
+         "y": "35.867326",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 432507,
+         "stationName": "만촌초등학교건너1",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061008200",
+         "arsID": "20226",
+         "x": "128.645079",
+         "y": "35.869157",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 432504,
+         "stationName": "동부중학교앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061008000",
+         "arsID": "20223",
+         "x": "128.64371",
+         "y": "35.872355",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 431089,
+         "stationName": "한전동대구지사",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011005200",
+         "arsID": "20806",
+         "x": "128.64107",
+         "y": "35.874532",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 431542,
+         "stationName": "동구시장앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011005300",
+         "arsID": "00495",
+         "x": "128.639361",
+         "y": "35.874055",
+         "isNonStop": "N"
+        },
+        {
+         "index": 10,
+         "stationID": 431039,
+         "stationName": "동구기억쉼터건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011005500",
+         "arsID": "20484",
+         "x": "128.639256",
+         "y": "35.877543",
+         "isNonStop": "N"
+        },
+        {
+         "index": 11,
+         "stationID": 431546,
+         "stationName": "대구지방법원등기국건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011004300",
+         "arsID": "20485",
+         "x": "128.634716",
+         "y": "35.879073",
+         "isNonStop": "N"
+        },
+        {
+         "index": 12,
+         "stationID": 431532,
+         "stationName": "동대구역복합환승센터앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011004000",
+         "arsID": "09059",
+         "x": "128.629909",
+         "y": "35.877548",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 220,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 1,
+      "distance": 3600,
+      "sectionTime": 7,
+      "stationCount": 4,
+      "lane": [
+       {
+        "name": "대구 1호선",
+        "subwayCode": 41,
+        "subwayCityCode": 4000
+       }
+      ],
+      "intervalTime": 9,
+      "startName": "동대구역",
+      "startX": 128.627482,
+      "startY": 35.877416,
+      "endName": "중앙로",
+      "endX": 128.593988,
+      "endY": 35.870899,
+      "way": "중앙로",
+      "wayCode": 1,
+      "door": "null",
+      "startID": 40135,
+      "endID": 40131,
+      "startExitNo": "2",
+      "startExitX": 128.62749361698883,
+      "startExitY": 35.87706024652911,
+      "endExitNo": "2",
+      "endExitX": 128.59394842897967,
+      "endExitY": 35.86997574049925,
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 40135,
+         "stationName": "동대구역",
+         "x": "128.627487",
+         "y": "35.877416"
+        },
+        {
+         "index": 1,
+         "stationID": 40134,
+         "stationName": "신천",
+         "x": "128.6176",
+         "y": "35.874621"
+        },
+        {
+         "index": 2,
+         "stationID": 40133,
+         "stationName": "칠성시장",
+         "x": "128.605125",
+         "y": "35.876131"
+        },
+        {
+         "index": 3,
+         "stationID": 40132,
+         "stationName": "대구역",
+         "x": "128.597067",
+         "y": "35.876329"
+        },
+        {
+         "index": 4,
+         "stationID": 40131,
+         "stationName": "중앙로",
+         "x": "128.593984",
+         "y": "35.870901"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 278,
+      "sectionTime": 4
+     }
+    ]
+   },
+   {
+    "pathType": 3,
+    "info": {
+     "trafficDistance": 10096.0,
+     "totalWalk": 459,
+     "totalTime": 37,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 1,
+     "mapObj": "2828168:1:41:53@40001:2:40137:40131",
+     "firstStartStation": "경신고등학교앞",
+     "lastEndStation": "중앙로",
+     "totalStationCount": 18,
+     "busStationCount": 12,
+     "subwayStationCount": 6,
+     "totalDistance": 10555.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 23
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 140,
+      "sectionTime": 2
+     },
+     {
+      "trafficType": 2,
+      "distance": 4796,
+      "sectionTime": 20,
+      "stationCount": 12,
+      "lane": [
+       {
+        "busNo": "232-1",
+        "type": 11,
+        "busID": 2828168,
+        "busLocalBlID": "DGB3000323101",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 14,
+      "startName": "경신고등학교앞",
+      "startX": 128.637786,
+      "startY": 35.858578,
+      "endName": "아양교역(1번출구)",
+      "endX": 128.6394,
+      "endY": 35.887169,
+      "startID": 431196,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061001300",
+      "startArsID": "20195",
+      "endID": 431339,
+      "endStationCityCode": 4000,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7011011000",
+      "endArsID": "20416",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 431196,
+         "stationName": "경신고등학교앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001300",
+         "arsID": "20195",
+         "x": "128.637786",
+         "y": "35.858578",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 433105,
+         "stationName": "흥사단 대구지부건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061033800",
+         "arsID": "00522",
+         "x": "128.640022",
+         "y": "35.861361",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 432522,
+         "stationName": "동원초등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003100",
+         "arsID": "20232",
+         "x": "128.641266",
+         "y": "35.863193",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 432523,
+         "stationName": "청구시장앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061007000",
+         "arsID": "20234",
+         "x": "128.644043",
+         "y": "35.864259",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 434106,
+         "stationName": "청구시장북편",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061006900",
+         "arsID": "00512",
+         "x": "128.643761",
+         "y": "35.866379",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 432508,
+         "stationName": "만촌초등학교앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061006700",
+         "arsID": "20214",
+         "x": "128.645253",
+         "y": "35.867326",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 432507,
+         "stationName": "만촌초등학교건너1",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061008200",
+         "arsID": "20226",
+         "x": "128.645079",
+         "y": "35.869157",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 432504,
+         "stationName": "동부중학교앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061008000",
+         "arsID": "20223",
+         "x": "128.64371",
+         "y": "35.872355",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 431016,
+         "stationName": "청기와주유소앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061023400",
+         "arsID": "05265",
+         "x": "128.647816",
+         "y": "35.877434",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 432727,
+         "stationName": "대구일마이스터고교앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011011600",
+         "arsID": "20414",
+         "x": "128.647633",
+         "y": "35.880878",
+         "isNonStop": "N"
+        },
+        {
+         "index": 10,
+         "stationID": 432725,
+         "stationName": "효동초등학교앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011011400",
+         "arsID": "05147",
+         "x": "128.644295",
+         "y": "35.88306",
+         "isNonStop": "N"
+        },
+        {
+         "index": 11,
+         "stationID": 434104,
+         "stationName": "동촌강나루아파트앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011011200",
+         "arsID": "20415",
+         "x": "128.641993",
+         "y": "35.886037",
+         "isNonStop": "N"
+        },
+        {
+         "index": 12,
+         "stationID": 431339,
+         "stationName": "아양교역(1번출구)",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011011000",
+         "arsID": "20416",
+         "x": "128.6394",
+         "y": "35.887169",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 41,
+      "sectionTime": 1
+     },
+     {
+      "trafficType": 1,
+      "distance": 5300,
+      "sectionTime": 10,
+      "stationCount": 6,
+      "lane": [
+       {
+        "name": "대구 1호선",
+        "subwayCode": 41,
+        "subwayCityCode": 4000
+       }
+      ],
+      "intervalTime": 9,
+      "startName": "아양교",
+      "startX": 128.639854,
+      "startY": 35.887193,
+      "endName": "중앙로",
+      "endX": 128.593988,
+      "endY": 35.870899,
+      "way": "중앙로",
+      "wayCode": 1,
+      "door": "null",
+      "startID": 40137,
+      "endID": 40131,
+      "startExitX": 128.63952212500575,
+      "startExitY": 35.88718338313717,
+      "endExitNo": "2",
+      "endExitX": 128.59394842897967,
+      "endExitY": 35.86997574049925,
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 40137,
+         "stationName": "아양교",
+         "x": "128.639859",
+         "y": "35.887195"
+        },
+        {
+         "index": 1,
+         "stationID": 40136,
+         "stationName": "동구청",
+         "x": "128.632177",
+         "y": "35.884357"
+        },
+        {
+         "index": 2,
+         "stationID": 40135,
+         "stationName": "동대구역",
+         "x": "128.627487",
+         "y": "35.877416"
+        },
+        {
+         "index": 3,
+         "stationID": 40134,
+         "stationName": "신천",
+         "x": "128.6176",
+         "y": "35.874621"
+        },
+        {
+         "index": 4,
+         "stationID": 40133,
+         "stationName": "칠성시장",
+         "x": "128.605125",
+         "y": "35.876131"
+        },
+        {
+         "index": 5,
+         "stationID": 40132,
+         "stationName": "대구역",
+         "x": "128.597067",
+         "y": "35.876329"
+        },
+        {
+         "index": 6,
+         "stationID": 40131,
+         "stationName": "중앙로",
+         "x": "128.593984",
+         "y": "35.870901"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 278,
+      "sectionTime": 4
+     }
+    ]
+   },
+   {
+    "pathType": 3,
+    "info": {
+     "trafficDistance": 9161.0,
+     "totalWalk": 650,
+     "totalTime": 36,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 1,
+     "mapObj": "2828225:1:47:56@40001:2:40137:40131",
+     "firstStartStation": "경신고등학교앞",
+     "lastEndStation": "중앙로",
+     "totalStationCount": 15,
+     "busStationCount": 9,
+     "subwayStationCount": 6,
+     "totalDistance": 9811.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 26
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 140,
+      "sectionTime": 2
+     },
+     {
+      "trafficType": 2,
+      "distance": 3861,
+      "sectionTime": 17,
+      "stationCount": 9,
+      "lane": [
+       {
+        "busNo": "동구1-1",
+        "type": 12,
+        "busID": 2828225,
+        "busLocalBlID": "DGB4050001101",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 17,
+      "startName": "경신고등학교앞",
+      "startX": 128.637786,
+      "startY": 35.858578,
+      "endName": "동촌강나루아파트앞",
+      "endX": 128.641993,
+      "endY": 35.886037,
+      "startID": 431196,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061001300",
+      "startArsID": "20195",
+      "endID": 434104,
+      "endStationCityCode": 4000,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7011011200",
+      "endArsID": "20415",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 431196,
+         "stationName": "경신고등학교앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001300",
+         "arsID": "20195",
+         "x": "128.637786",
+         "y": "35.858578",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 433105,
+         "stationName": "흥사단 대구지부건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061033800",
+         "arsID": "00522",
+         "x": "128.640022",
+         "y": "35.861361",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 427053,
+         "stationName": "동원초등학교후문앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061058300",
+         "arsID": "03851",
+         "x": "128.63935",
+         "y": "35.864546",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 434377,
+         "stationName": "메트로팔레스1",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061038700",
+         "arsID": "20229",
+         "x": "128.637541",
+         "y": "35.869549",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 414045,
+         "stationName": "수성도서관앞2",
+         "stationCityCode": 4210,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061058500",
+         "arsID": "20220",
+         "x": "128.637266",
+         "y": "35.872425",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 431542,
+         "stationName": "동구시장앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011005300",
+         "arsID": "00495",
+         "x": "128.639361",
+         "y": "35.874055",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 5005854,
+         "stationName": "효목2동행정복지센터",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011064502",
+         "arsID": "04190",
+         "x": "128.641328",
+         "y": "35.879083",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 5005855,
+         "stationName": "효목1동행정복지센터",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011064500",
+         "arsID": "04189",
+         "x": "128.643206",
+         "y": "35.881263",
+         "isNonStop": "N"
+        },
+        {
+         "index": 8,
+         "stationID": 432725,
+         "stationName": "효동초등학교앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011011400",
+         "arsID": "05147",
+         "x": "128.644295",
+         "y": "35.88306",
+         "isNonStop": "N"
+        },
+        {
+         "index": 9,
+         "stationID": 434104,
+         "stationName": "동촌강나루아파트앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7011011200",
+         "arsID": "20415",
+         "x": "128.641993",
+         "y": "35.886037",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 232,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 1,
+      "distance": 5300,
+      "sectionTime": 10,
+      "stationCount": 6,
+      "lane": [
+       {
+        "name": "대구 1호선",
+        "subwayCode": 41,
+        "subwayCityCode": 4000
+       }
+      ],
+      "intervalTime": 9,
+      "startName": "아양교",
+      "startX": 128.639854,
+      "startY": 35.887193,
+      "endName": "중앙로",
+      "endX": 128.593988,
+      "endY": 35.870899,
+      "way": "중앙로",
+      "wayCode": 1,
+      "door": "null",
+      "startID": 40137,
+      "endID": 40131,
+      "startExitNo": "3",
+      "startExitX": 128.6402044890098,
+      "startExitY": 35.8871686122406,
+      "endExitNo": "2",
+      "endExitX": 128.59394842897967,
+      "endExitY": 35.86997574049925,
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 40137,
+         "stationName": "아양교",
+         "x": "128.639859",
+         "y": "35.887195"
+        },
+        {
+         "index": 1,
+         "stationID": 40136,
+         "stationName": "동구청",
+         "x": "128.632177",
+         "y": "35.884357"
+        },
+        {
+         "index": 2,
+         "stationID": 40135,
+         "stationName": "동대구역",
+         "x": "128.627487",
+         "y": "35.877416"
+        },
+        {
+         "index": 3,
+         "stationID": 40134,
+         "stationName": "신천",
+         "x": "128.6176",
+         "y": "35.874621"
+        },
+        {
+         "index": 4,
+         "stationID": 40133,
+         "stationName": "칠성시장",
+         "x": "128.605125",
+         "y": "35.876131"
+        },
+        {
+         "index": 5,
+         "stationID": 40132,
+         "stationName": "대구역",
+         "x": "128.597067",
+         "y": "35.876329"
+        },
+        {
+         "index": 6,
+         "stationID": 40131,
+         "stationName": "중앙로",
+         "x": "128.593984",
+         "y": "35.870901"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 278,
+      "sectionTime": 4
+     }
+    ]
+   },
+   {
+    "pathType": 3,
+    "info": {
+     "trafficDistance": 6379.0,
+     "totalWalk": 509,
+     "totalTime": 37,
+     "payment": 1500,
+     "busTransitCount": 1,
+     "subwayTransitCount": 2,
+     "mapObj": "2832615:1:110:117@40003:2:40342:40339@40001:2:40129:40131",
+     "firstStartStation": "경신고등학교건너",
+     "lastEndStation": "중앙로",
+     "totalStationCount": 12,
+     "busStationCount": 7,
+     "subwayStationCount": 5,
+     "totalDistance": 6888.0,
+     "totalWalkTime": -1,
+     "checkIntervalTime": 100,
+     "checkIntervalTimeOverYn": "N",
+     "totalIntervalTime": 27
+    },
+    "subPath": [
+     {
+      "trafficType": 3,
+      "distance": 175,
+      "sectionTime": 3
+     },
+     {
+      "trafficType": 2,
+      "distance": 2479,
+      "sectionTime": 13,
+      "stationCount": 7,
+      "lane": [
+       {
+        "busNo": "509",
+        "type": 11,
+        "busID": 2832615,
+        "busLocalBlID": "GYB3000509002",
+        "busCityCode": 4010,
+        "busProviderCode": 14
+       },
+       {
+        "busNo": "413",
+        "type": 11,
+        "busID": 2828177,
+        "busLocalBlID": "DGB3000413001",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       },
+       {
+        "busNo": "509",
+        "type": 11,
+        "busID": 2828181,
+        "busLocalBlID": "DGB3000509002",
+        "busCityCode": 4000,
+        "busProviderCode": 13
+       }
+      ],
+      "intervalTime": 13,
+      "startName": "경신고등학교건너",
+      "startX": 128.637335,
+      "startY": 35.85904,
+      "endName": "수성시장네거리2",
+      "endX": 128.615466,
+      "endY": 35.854486,
+      "startID": 431197,
+      "startStationCityCode": 4000,
+      "startStationProviderCode": 13,
+      "startLocalStationID": "DGB7061001400",
+      "startArsID": "05298",
+      "endID": 431111,
+      "endStationCityCode": 4000,
+      "endStationProviderCode": 13,
+      "endLocalStationID": "DGB7061004200",
+      "endArsID": "20320",
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 431197,
+         "stationName": "경신고등학교건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001400",
+         "arsID": "05298",
+         "x": "128.637335",
+         "y": "35.85904",
+         "isNonStop": "N"
+        },
+        {
+         "index": 1,
+         "stationID": 431202,
+         "stationName": "수성경찰서건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001200",
+         "arsID": "20342",
+         "x": "128.63336",
+         "y": "35.859007",
+         "isNonStop": "N"
+        },
+        {
+         "index": 2,
+         "stationID": 431200,
+         "stationName": "수성구청건너",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061001000",
+         "arsID": "20396",
+         "x": "128.630725",
+         "y": "35.859003",
+         "isNonStop": "N"
+        },
+        {
+         "index": 3,
+         "stationID": 431462,
+         "stationName": "그랜드호텔앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003600",
+         "arsID": "02016",
+         "x": "128.62544",
+         "y": "35.857183",
+         "isNonStop": "N"
+        },
+        {
+         "index": 4,
+         "stationID": 431461,
+         "stationName": "여성메디파크",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003800",
+         "arsID": "20156",
+         "x": "128.625056",
+         "y": "35.854761",
+         "isNonStop": "N"
+        },
+        {
+         "index": 5,
+         "stationID": 431658,
+         "stationName": "범어쌍용예가앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061003900",
+         "arsID": "09169",
+         "x": "128.623776",
+         "y": "35.853938",
+         "isNonStop": "N"
+        },
+        {
+         "index": 6,
+         "stationID": 434109,
+         "stationName": "수성3가롯데캐슬앞",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004000",
+         "arsID": "20319",
+         "x": "128.620258",
+         "y": "35.854218",
+         "isNonStop": "N"
+        },
+        {
+         "index": 7,
+         "stationID": 431111,
+         "stationName": "수성시장네거리2",
+         "stationCityCode": 4000,
+         "stationProviderCode": 13,
+         "localStationID": "DGB7061004200",
+         "arsID": "20320",
+         "x": "128.615466",
+         "y": "35.854486",
+         "isNonStop": "N"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 56,
+      "sectionTime": 1
+     },
+     {
+      "trafficType": 1,
+      "distance": 2400,
+      "sectionTime": 5,
+      "stationCount": 3,
+      "lane": [
+       {
+        "name": "대구 3호선",
+        "subwayCode": 43,
+        "subwayCityCode": 4000
+       }
+      ],
+      "intervalTime": 5,
+      "startName": "수성시장",
+      "startX": 128.616051,
+      "startY": 35.854312,
+      "endName": "명덕",
+      "endX": 128.590108,
+      "endY": 35.856957,
+      "way": "명덕",
+      "wayCode": 1,
+      "door": "1-2",
+      "startID": 40342,
+      "endID": 40339,
+      "startExitNo": "1",
+      "startExitX": 128.6159946099212,
+      "startExitY": 35.854416211215444,
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 40342,
+         "stationName": "수성시장",
+         "x": "128.616048",
+         "y": "35.854316"
+        },
+        {
+         "index": 1,
+         "stationID": 40341,
+         "stationName": "대봉교",
+         "x": "128.606347",
+         "y": "35.855004"
+        },
+        {
+         "index": 2,
+         "stationID": 40340,
+         "stationName": "건들바위",
+         "x": "128.599707",
+         "y": "35.85541"
+        },
+        {
+         "index": 3,
+         "stationID": 40339,
+         "stationName": "명덕",
+         "x": "128.590108",
+         "y": "35.856959"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 0,
+      "sectionTime": 4
+     },
+     {
+      "trafficType": 1,
+      "distance": 1500,
+      "sectionTime": 3,
+      "stationCount": 2,
+      "lane": [
+       {
+        "name": "대구 1호선",
+        "subwayCode": 41,
+        "subwayCityCode": 4000
+       }
+      ],
+      "intervalTime": 9,
+      "startName": "명덕",
+      "startX": 128.591235,
+      "startY": 35.858141,
+      "endName": "중앙로",
+      "endX": 128.593988,
+      "endY": 35.870899,
+      "way": "중앙로",
+      "wayCode": 2,
+      "door": "null",
+      "startID": 40129,
+      "endID": 40131,
+      "endExitNo": "2",
+      "endExitX": 128.59394842897967,
+      "endExitY": 35.86997574049925,
+      "passStopList": {
+       "stations": [
+        {
+         "index": 0,
+         "stationID": 40129,
+         "stationName": "명덕",
+         "x": "128.591241",
+         "y": "35.858145"
+        },
+        {
+         "index": 1,
+         "stationID": 40130,
+         "stationName": "반월당",
+         "x": "128.593334",
+         "y": "35.864592"
+        },
+        {
+         "index": 2,
+         "stationID": 40131,
+         "stationName": "중앙로",
+         "x": "128.593984",
+         "y": "35.870901"
+        }
+       ]
+      }
+     },
+     {
+      "trafficType": 3,
+      "distance": 278,
+      "sectionTime": 4
+     }
+    ]
+   }
+  ]
+ }
+}

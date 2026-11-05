@@ -7,32 +7,54 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.clients.odsay import OdsayClient, TransitPath, get_odsay_client
+from app.clients.tmap import LatLng
 from app.core.database import get_db
 from app.core.exceptions import AppException, ErrorCode
+from app.core.geo import make_point
 from app.domain.commute.models import Commute, Station, TransportMode
-from app.domain.commute.schemas import SaveCommuteRequest
+from app.domain.commute.schemas import SaveCommuteRequest, TransitLegInput
 
 
 class CommuteService:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, odsay: OdsayClient | None = None) -> None:
         self._session = session
+        self._odsay = odsay
 
-    async def save_commute(self, user_id: UUID, request: SaveCommuteRequest) -> Commute:
+    async def search_transit(self, start: LatLng, end: LatLng) -> list[TransitPath]:
+        """
+        출발·도착 좌표로 대중교통 경로 후보를 받는다 (ODsay 1회).
+
+        :raises AppException: EXTERNAL_API_FAILED - ODsay 실패
+        """
+        if self._odsay is None:
+            raise AppException(ErrorCode.EXTERNAL_API_FAILED)
+        return await self._odsay.search_transit(start, end)
+
+    async def save_commute(
+        self, user_id: UUID, request: SaveCommuteRequest, *, city: str
+    ) -> Commute:
         """
         출퇴근 동선을 저장한다. 이미 있으면 덮어쓴다 (사용자당 1행).
 
         :param user_id: 저장할 사용자 (users.id)
         :param request: 검증이 끝난 요청. 좌표·동 이름·시각·교통수단·정류장·취향
+        :param city: 정류장을 저장할 도시 코드
         :return: 저장된 Commute
         :raises AppException: STATION_REQUIRED - transit 인데 정류장이 없음
         :raises AppException: STATION_NOT_FOUND - 모르는 정류장 id 가 있음
         """
         # 1. 교통수단별 정류장 규칙. transit 만 정류장을 쓰고 나머지는 비운다
         is_transit = request.transport_mode == TransportMode.TRANSIT
-        if is_transit and not request.station_ids:
+        if is_transit and not request.station_ids and not request.transit_legs:
             raise AppException(ErrorCode.STATION_REQUIRED)
-        station_ids = list(request.station_ids) if is_transit else []
+        station_ids: list[UUID] = []
         line = request.line if is_transit else None
+        if is_transit and request.transit_legs:
+            # 고른 경로의 탑승 구간들을 stations 에 넣고 구간마다 탑승·하차 역 id 를 순서대로
+            station_ids, line = await self._store_transit_legs(request.transit_legs, city)
+        elif is_transit:
+            station_ids = list(request.station_ids)
 
         # 2. 정류장이 실제로 있는지 확인
         if station_ids:
@@ -82,6 +104,38 @@ class CommuteService:
             raise AppException(ErrorCode.COMMUTE_NOT_FOUND)
         return commute
 
+    async def _store_transit_legs(
+        self, legs: list[TransitLegInput], city: str
+    ) -> tuple[list[UUID], str]:
+        """탑승 구간의 정류장을 upsert 한다.
+
+        [탑승, 하차, 탑승, 하차, ...] 순서의 id 목록과 마지막 노선을 돌려준다.
+        """
+        station_ids: list[UUID] = []
+        for leg in legs:
+            values = [
+                {
+                    "city": city,
+                    "line": leg.line,
+                    "name": stop.name,
+                    "order_no": order,
+                    "location": make_point(stop.lat, stop.lng),
+                }
+                for order, stop in enumerate(leg.stops)
+            ]
+            upsert = insert(Station).values(values)
+            upsert = upsert.on_conflict_do_update(
+                constraint="uq_stations_city_line_name",
+                set_={"order_no": upsert.excluded.order_no, "location": upsert.excluded.location},
+            )
+            await self._session.execute(upsert)
+            for stop in (leg.stops[0], leg.stops[-1]):
+                stmt = select(Station.id).where(
+                    Station.city == city, Station.line == leg.line, Station.name == stop.name
+                )
+                station_ids.append((await self._session.execute(stmt)).scalar_one())
+        return station_ids, legs[-1].line
+
     async def list_stations(self, *, line: str, city: str) -> list[Station]:
         """
         노선의 정류장을 순서대로 돌려준다.
@@ -115,5 +169,7 @@ class CommuteService:
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
 
-def get_commute_service(session: AsyncSession = Depends(get_db)) -> CommuteService:
-    return CommuteService(session)
+def get_commute_service(
+    session: AsyncSession = Depends(get_db), odsay: OdsayClient = Depends(get_odsay_client)
+) -> CommuteService:
+    return CommuteService(session, odsay)

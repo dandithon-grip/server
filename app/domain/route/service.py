@@ -221,14 +221,17 @@ class RouteService:
         if commute.transport_mode == TransportMode.CAR:
             return [after_arrival]
 
-        # transit: 앞 도보 · 뒤 도보 · 한 정거장 먼저
+        # transit: 앞 도보(출발→첫 탑승) · 뒤 도보(마지막 하차→도착) · 한 정거장 먼저.
+        # station_ids 는 [탑승, 하차, 탑승, 하차, ...] 순서.
+        # 마지막 두 개가 마지막 탑승 구간이다 (환승 동선 대응)
         stations = await self._stations(commute.station_ids)
         first, last = stations[0], stations[-1]
+        last_board = stations[-2] if len(stations) >= 2 else first
         legs = [
             Leg(LegType.FRONT_WALK, start, LatLng(lat=first.lat, lng=first.lng)),
             Leg(LegType.BACK_WALK, LatLng(lat=last.lat, lng=last.lng), end),
         ]
-        previous = await self._previous_station(first, last)
+        previous = await self._previous_station(last_board, last)
         if previous is not None:
             legs.append(
                 Leg(
@@ -256,7 +259,11 @@ class RouteService:
             Station.line == last.line,
             Station.order_no == last.order_no - direction,
         )
-        return (await self._session.execute(stmt)).scalar_one_or_none()
+        previous = (await self._session.execute(stmt)).scalar_one_or_none()
+        # 바로 앞 역이 탑승역이면 "먼저 내리기" 가 아니라 "안 타기" 라 제외한다
+        if previous is not None and previous.id == first.id:
+            return None
+        return previous
 
     async def _places_near(self, polyline: list[LatLng], city: str) -> list[Place]:
         """규칙 ①: 기준선 600m 안의 Place."""
