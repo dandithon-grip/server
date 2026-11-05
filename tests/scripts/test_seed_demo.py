@@ -48,6 +48,7 @@ async def test_account_missing_creates_account_and_user_row(db_session: AsyncSes
     user = await find_user(db_session, result.supabase_user_id)
     assert user is not None
     assert user.nickname == DEMO_NICKNAME
+    assert user.is_demo is True  # 둘러보기 카드의 주인
 
 
 async def test_account_exists_skips_creation_and_upserts_user_row(
