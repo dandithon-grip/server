@@ -8,31 +8,11 @@ from app.domain.commute.models import Commute, Preference
 from app.domain.commute.service import CommuteService, get_commute_service
 from app.domain.route.fallback import decide_fallback
 from app.domain.route.models import Route
-from app.domain.route.schemas import PointResponse, RouteResponse, RoutesResponse
-from app.domain.route.service import RankedRoute, RouteService, get_route_service
+from app.domain.route.schemas import RoutesResponse, to_route_response
+from app.domain.route.service import RouteService, get_route_service
 from app.domain.user.models import User
 
 router = APIRouter(prefix="/commutes/me/routes", tags=["Route"])
-
-
-def _to_response(ranked: RankedRoute) -> RouteResponse:
-    route: Route = ranked.route
-    return RouteResponse(
-        id=route.id,
-        leg_type=route.leg_type,
-        is_baseline=route.is_baseline,
-        name=route.name,
-        minutes=route.minutes,
-        add_minutes=route.add_minutes,
-        green_pct=route.green_pct,
-        event_score=ranked.event_score,
-        score=ranked.score,
-        tags=ranked.tags,
-        highlights=route.highlights,
-        polyline=[PointResponse(lat=lat, lng=lng) for lat, lng in route.points],
-        spots=route.spots,
-        alight_station_id=route.alight_station_id,
-    )
 
 
 def _walk_time(commute: Commute) -> datetime:
@@ -51,8 +31,8 @@ def _ranked_response(
         preference=preference,
         fallback_level=decided.level,
         action_type=decided.action_type,
-        candidates=[_to_response(r) for r in decided.candidates],
-        shortest=[_to_response(r) for r in decided.shortest],
+        candidates=[to_route_response(r) for r in decided.candidates],
+        shortest=[to_route_response(r) for r in decided.shortest],
     )
 
 

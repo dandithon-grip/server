@@ -1,10 +1,11 @@
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.exceptions import AppException, ErrorCode
 from app.domain.user.models import User
 
 DEFAULT_NICKNAME = "샛길러"
@@ -45,6 +46,29 @@ class UserService:
         user = (await self._session.execute(stmt)).scalar_one()
         await self._session.commit()
         return user
+
+    async def mark_demo(self, supabase_id: str) -> User:
+        """
+        계정을 둘러보기 카드의 주인으로 표시한다. 기존 데모 표시는 지운다 (데모는 하나).
+
+        :raises AppException: USER_NOT_FOUND - 그 supabase_id 의 사용자가 없음
+        """
+        # 1. 대상 확인
+        stmt = select(User).where(User.supabase_id == supabase_id)
+        user = (await self._session.execute(stmt)).scalar_one_or_none()
+        if user is None:
+            raise AppException(ErrorCode.USER_NOT_FOUND)
+
+        # 2. 데모는 하나만. 다른 행의 표시를 내리고 이 행을 켠다
+        await self._session.execute(update(User).values(is_demo=False).where(User.is_demo))
+        user.is_demo = True
+        await self._session.commit()
+        return user
+
+    async def find_demo_user(self) -> User | None:
+        """둘러보기 카드의 주인. 시드가 안 돌았으면 None."""
+        stmt = select(User).where(User.is_demo).limit(1)
+        return (await self._session.execute(stmt)).scalar_one_or_none()
 
 
 def get_user_service(session: AsyncSession = Depends(get_db)) -> UserService:

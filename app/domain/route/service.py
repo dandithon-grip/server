@@ -330,6 +330,18 @@ class RouteService:
         stmt = select(Place).where(Place.id == place_id)
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
+    async def list_places(self, place_ids: list[UUID]) -> list[Place]:
+        """id 목록의 Place. 카드가 경유지의 계절 태그·이름을 쓴다."""
+        if not place_ids:
+            return []
+        stmt = select(Place).where(Place.id.in_(place_ids))
+        return list((await self._session.execute(stmt)).scalars())
+
+    async def list_place_names(self, city: str) -> set[str]:
+        """도시의 모든 Place 이름. 카드 문장에 입력에 없는 장소가 섞였는지 검사한다."""
+        stmt = select(Place.name).where(Place.city == city)
+        return set((await self._session.execute(stmt)).scalars())
+
     async def find_nearest_place(
         self, lat: float, lng: float, *, city: str, radius_m: float
     ) -> Place | None:
