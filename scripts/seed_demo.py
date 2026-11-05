@@ -177,6 +177,7 @@ async def seed_demo(
             station_ids=station_ids,
             preference=row.preference,
         ),
+        city=user.city,
     )
 
     # 5. 경로 사전 계산 (기존 경로는 지우고 다시 만든다)

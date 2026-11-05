@@ -11,7 +11,7 @@ from app.core.database import Base, TimestampMixin
 from app.core.geo import point_lat, point_lng
 
 AREA_MAX_LENGTH = 50
-LINE_MAX_LENGTH = 10
+LINE_MAX_LENGTH = 30  # "대구 2호선", "급행1" 같은 ODsay 노선 이름
 STATION_NAME_MAX_LENGTH = 50
 
 
