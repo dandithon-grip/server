@@ -22,10 +22,16 @@ def _walk_time(commute: Commute) -> datetime:
 
 
 def _ranked_response(
-    service: RouteService, commute: Commute, routes: list[Route], preference: Preference
+    service: RouteService,
+    commute: Commute,
+    routes: list[Route],
+    preference: Preference,
+    tag_weights: dict[str, float],
 ) -> RoutesResponse:
     at = _walk_time(commute)
-    ranked = service.rank(routes, preference=preference, at=at, is_clear=None)
+    ranked = service.rank(
+        routes, preference=preference, at=at, is_clear=None, tag_weights=tag_weights
+    )
     decided = decide_fallback(ranked, transport_mode=commute.transport_mode, at=at, is_clear=None)
     return RoutesResponse(
         preference=preference,
@@ -57,7 +63,9 @@ async def generate_routes(
 ) -> RoutesResponse:
     commute = await commute_service.get_commute(current_user.id)
     routes = await route_service.generate(commute, current_user.city)
-    return _ranked_response(route_service, commute, routes, commute.preference)
+    return _ranked_response(
+        route_service, commute, routes, commute.preference, current_user.tag_weights
+    )
 
 
 @router.get(
@@ -81,4 +89,6 @@ async def list_routes(
 ) -> RoutesResponse:
     commute = await commute_service.get_commute(current_user.id)
     routes = await route_service.list_routes(commute.id)
-    return _ranked_response(route_service, commute, routes, preference or commute.preference)
+    return _ranked_response(
+        route_service, commute, routes, preference or commute.preference, current_user.tag_weights
+    )

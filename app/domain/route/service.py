@@ -330,6 +330,21 @@ class RouteService:
         stmt = select(Place).where(Place.id == place_id)
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
+    async def find_user_route(self, user_id: UUID, route_id: UUID) -> Route | None:
+        """사용자의 동선에 속한 경로. 남의 경로면 None (피드백은 내 경로에만)."""
+        stmt = (
+            select(Route)
+            .join(Commute, Commute.id == Route.commute_id)
+            .where(Route.id == route_id, Commute.user_id == user_id)
+        )
+        return (await self._session.execute(stmt)).scalar_one_or_none()
+
+    async def list_routes_by_ids(self, route_ids: list[UUID]) -> list[Route]:
+        if not route_ids:
+            return []
+        stmt = select(Route).where(Route.id.in_(route_ids))
+        return list((await self._session.execute(stmt)).scalars())
+
     async def list_places(self, place_ids: list[UUID]) -> list[Place]:
         """id 목록의 Place. 카드가 경유지의 계절 태그·이름을 쓴다."""
         if not place_ids:
