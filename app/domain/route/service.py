@@ -29,6 +29,7 @@ from app.domain.route.scoring import (
     ScoringService,
     StaticScore,
     apply_sunset,
+    bbox_near,
     meters_per_deg_lng,
     retrace_m,
     sunset_window,
@@ -291,18 +292,19 @@ class RouteService:
         line = from_shape(LineString([(p.lng, p.lat) for p in polyline]), srid=4326)
         stmt = select(Place).where(
             Place.city == city,
+            bbox_near(Place.location, line, BUFFER_M, polyline[0].lat),
             func.ST_DWithin(cast(Place.location, GEOGRAPHY), cast(line, GEOGRAPHY), BUFFER_M),
         )
         return list((await self._session.execute(stmt)).scalars())
 
     async def _after_arrival_routes(self, commute: Commute, leg: Leg, city: str) -> list[Route]:
         """자동차: 도착지 반경 10분 안의 Place 로 가는 경로. 기준선 없음(추가 시간 = 소요 시간)."""
+        end_point = make_point(leg.end.lat, leg.end.lng)
         stmt = select(Place).where(
             Place.city == city,
+            bbox_near(Place.location, end_point, CAR_RADIUS_M, leg.end.lat),
             func.ST_DWithin(
-                cast(Place.location, GEOGRAPHY),
-                cast(make_point(leg.end.lat, leg.end.lng), GEOGRAPHY),
-                CAR_RADIUS_M,
+                cast(Place.location, GEOGRAPHY), cast(end_point, GEOGRAPHY), CAR_RADIUS_M
             ),
         )
         places = list((await self._session.execute(stmt)).scalars())

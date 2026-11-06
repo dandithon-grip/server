@@ -7,11 +7,12 @@
 
 import math
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from astral import Observer
 from astral.sun import azimuth as sun_azimuth
 from astral.sun import sun
-from geoalchemy2 import Geography, Geometry
+from geoalchemy2 import Geography, Geometry, WKBElement
 from geoalchemy2.shape import from_shape
 from pydantic import BaseModel, ConfigDict, Field
 from shapely.geometry import LineString
@@ -19,6 +20,8 @@ from shapely.ops import substring
 from sqlalchemy import cast, column, exists, func, select
 from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import QueryableAttribute
+from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.selectable import TableValuedAlias
 
 from app.clients.tmap import LatLng
@@ -46,6 +49,7 @@ RETRACE_GAP_M = 30
 
 METERS_PER_DEG_LAT = 110_540
 METERS_PER_DEG_LNG_AT_EQUATOR = 111_320
+BBOX_MARGIN = 1.1  # 인덱스 사전 필터는 넉넉하게. 정확한 판정은 ST_DWithin 이 한다
 
 LANDMARK_TYPES = (PlaceType.BRIDGE.value, PlaceType.VIEW.value)
 # 거리 계산용 타입. geography 로 캐스트해야 ST_DWithin 의 단위가 미터가 된다
@@ -208,6 +212,23 @@ def sunset_window(at: datetime, *, lat: float, lng: float, is_clear: bool | None
 # --- DB 질의 ---------------------------------------------------------------
 
 
+def bbox_near(
+    column: QueryableAttribute[WKBElement] | ColumnElement[Any],
+    target: ColumnElement[Any] | WKBElement,
+    radius_m: float,
+    lat: float,
+) -> ColumnElement[bool]:
+    """
+    GIST 인덱스로 먼저 거르는 조건 (#54). ST_DWithin(geography) 앞에 붙인다.
+
+    geography 로 캐스트하면 geom 의 GIST 인덱스를 못 쓴다. 대상의 바운딩 박스를 반경만큼 넓혀
+    겹치는 행만 남긴 뒤 정확한 거리를 잰다. 경도 1도가 위도 1도보다 짧으므로 경도 기준으로 넓히면
+    위도 방향도 빠짐없이 덮는다.
+    """
+    degrees = radius_m * BBOX_MARGIN / meters_per_deg_lng(lat)
+    return column.op("&&")(func.ST_Expand(target, degrees))
+
+
 def _sample_table(points: list[LatLng]) -> TableValuedAlias:
     """점 배열을 unnest 해 행 집합(컬럼 pt)으로 쓴다. 한 쿼리로 모든 점을 검사하기 위해서다."""
     geoms = array([func.ST_SetSRID(func.ST_MakePoint(p.lng, p.lat), 4326) for p in points])
@@ -294,6 +315,7 @@ class ScoringService:
             .select_from(GreenArea)
             .where(
                 GreenArea.city == city,
+                bbox_near(GreenArea.geom, samples.c.pt, radius_m, points[0].lat),
                 func.ST_DWithin(
                     cast(GreenArea.geom, GEOGRAPHY), cast(samples.c.pt, GEOGRAPHY), radius_m
                 ),
@@ -313,9 +335,10 @@ class ScoringService:
             select(1)
             .select_from(samples)
             .where(
+                bbox_near(GreenArea.geom, samples.c.pt, radius_m, points[0].lat),
                 func.ST_DWithin(
                     cast(GreenArea.geom, GEOGRAPHY), cast(samples.c.pt, GEOGRAPHY), radius_m
-                )
+                ),
             )
         )
         stmt = (
@@ -330,6 +353,7 @@ class ScoringService:
         stmt = select(func.unnest(Place.types).label("place_type")).where(
             Place.city == city,
             Place.types.overlap(list(LANDMARK_TYPES)),
+            bbox_near(Place.location, line, LANDMARK_RADIUS_M, polyline[0].lat),
             func.ST_DWithin(
                 cast(Place.location, GEOGRAPHY), cast(line, GEOGRAPHY), LANDMARK_RADIUS_M
             ),
