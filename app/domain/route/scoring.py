@@ -15,6 +15,7 @@ from geoalchemy2 import Geography, Geometry
 from geoalchemy2.shape import from_shape
 from pydantic import BaseModel, ConfigDict, Field
 from shapely.geometry import LineString
+from shapely.ops import substring
 from sqlalchemy import cast, column, exists, func, select
 from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,6 +38,11 @@ SUNSET_WINDOW = timedelta(minutes=30)
 SUNSET_HEADING_TOLERANCE_DEG = 30
 # 이 비율 이상이어야 경로의 "성격" 태그로 인정한다 (F-16 가중치용)
 TAG_RATIO_THRESHOLD = 0.3
+
+# 왕복 판정 (#49). 10m 간격 점이 30m 이상 앞서 지나온 길에서 8m 안이면 "다시 밟은 길"
+RETRACE_STEP_M = 10
+RETRACE_TOLERANCE_M = 8
+RETRACE_GAP_M = 30
 
 METERS_PER_DEG_LAT = 110_540
 METERS_PER_DEG_LNG_AT_EQUATOR = 111_320
@@ -114,6 +120,25 @@ def _to_local_meters(polyline: list[LatLng]) -> tuple[LineString, LatLng, float]
         ]
     )
     return line, origin, scale_lng
+
+
+def retrace_m(polyline: list[LatLng]) -> float:
+    """
+    경로 중 이미 지나온 길을 다시 밟는 길이 (m).
+
+    공원 안쪽 경유지로 들어갔다 같은 길로 나오는 TMAP 경로를 거르는 데 쓴다.
+    바로 직전 구간(RETRACE_GAP_M)은 비교에서 빼서, 꺾이는 모퉁이를 왕복으로 세지 않는다.
+    """
+    line, _, _ = _to_local_meters(polyline)
+    # 10m 간격 점마다, 30m 이상 앞의 지나온 길에서 8m 안이면 다시 밟은 10m 로 센다
+    retraced = 0
+    distance = RETRACE_GAP_M + RETRACE_STEP_M
+    while distance <= line.length:
+        walked = substring(line, 0, distance - RETRACE_GAP_M)
+        if walked.distance(line.interpolate(distance)) < RETRACE_TOLERANCE_M:
+            retraced += 1
+        distance += RETRACE_STEP_M
+    return float(retraced * RETRACE_STEP_M)
 
 
 def _from_local(x: float, y: float, origin: LatLng, scale_lng: float) -> LatLng:

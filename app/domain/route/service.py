@@ -30,6 +30,7 @@ from app.domain.route.scoring import (
     StaticScore,
     apply_sunset,
     meters_per_deg_lng,
+    retrace_m,
     sunset_window,
 )
 
@@ -45,6 +46,8 @@ EVENT_WEIGHT = 1.0
 TAG_WEIGHT = 10.0
 TAG_SUM_CLAMP = 2.0
 MINUTE_PENALTY = 1.5
+# 지나온 길을 이만큼 넘게 다시 밟으면 샛길이 아니라 왕복이라 저장하지 않는다 (#49)
+RETRACE_MAX_M = 100
 
 
 class PreferenceRule(BaseModel):
@@ -195,11 +198,13 @@ class RouteService:
             nearby = await self._places_near(baseline.polyline, city)
             waypoints = shortlist(leg.start, leg.end, nearby, commute.preference)
 
-            # 5. 경유지마다 TMAP → 정적 점수
+            # 5. 경유지마다 TMAP → 정적 점수. 들어갔다 같은 길로 나오는 왕복은 버린다
             for waypoint in waypoints:
                 detoured = await self._tmap.pedestrian_route(
                     leg.start, leg.end, pass_points=waypoint.pass_points
                 )
+                if retrace_m(detoured.polyline) > RETRACE_MAX_M:
+                    continue
                 routes.append(
                     await self._build_route(
                         commute, leg, detoured, list(waypoint.places), baseline, city

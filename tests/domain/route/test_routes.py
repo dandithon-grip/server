@@ -247,6 +247,23 @@ async def add_stations(session: AsyncSession, coords: list[tuple[float, float]])
     return stations
 
 
+@dataclass
+class SpurTmap(FakeTmap):
+    """경유지가 있으면 출발 → 경유지 → 같은 길로 출발점 → 도착. 공원 안쪽 경유지를 흉내 낸다."""
+
+    async def pedestrian_route(
+        self, start: LatLng, end: LatLng, pass_points: list[LatLng] | None = None
+    ) -> PedestrianRoute:
+        if not pass_points:
+            return await super().pedestrian_route(start, end)
+        path = [start, *pass_points, start, end]
+        self.calls.append(path)
+        length = sum(distance_m(a, b) for a, b in zip(path, path[1:], strict=False))
+        return PedestrianRoute(
+            minutes=length / WALK_SPEED_M_PER_MIN, distance_m=int(length), polyline=path
+        )
+
+
 def use_fake_tmap() -> FakeTmap:
     fake = FakeTmap()
     app.dependency_overrides[get_tmap_client] = lambda: fake
@@ -373,3 +390,21 @@ async def test_generate_transit_makes_three_legs_with_at_most_7_calls_each(
     assert {r["leg_type"] for r in body["candidates"]} <= {"front_walk", "back_walk"}
     alight = next(r for r in body["shortest"] if r["leg_type"] == "alight_early")
     assert UUID(alight["alight_station_id"]) == stations[1].id
+
+
+async def test_round_trip_into_park_is_not_stored(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 출발점 북쪽 150m 다리C 는 이벤트 10, 왕복해도 +3.75분이라 원래 후보다.
+    # TMAP 이 들어갔다 같은 길로 나오는 경로를 주면 저장하지 않는다 (#49)
+    db_session.add(place("다리C", A.lat + 150 / 110_540, A.lng, [PlaceType.BRIDGE]))
+    await db_session.flush()
+    app.dependency_overrides[get_tmap_client] = lambda: SpurTmap()
+    headers = bearer(make_token())
+    await client.put("/commutes/me", json=walk_commute(), headers=headers)
+
+    response = await client.post("/commutes/me/routes", headers=headers)
+
+    assert response.status_code == 200
+    # 걷는 구간 후보가 없다 (도착 후 구간은 경유지 없이 한 방향이라 왕복이 아니다)
+    assert all(r["leg_type"] != "walk_all" for r in response.json()["candidates"])
