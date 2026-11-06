@@ -267,6 +267,7 @@ KMA_SERVICE_KEY=
 LLM_API_KEY=
 LLM_MODEL=claude-opus-5-5
 APP_ENV=dev
+CORS_ORIGINS=http://localhost:3000
 # scripts/seed_demo.py 전용. 앱 런타임은 읽지 않는다
 SUPABASE_SERVICE_ROLE_KEY=
 DEMO_EMAIL=
