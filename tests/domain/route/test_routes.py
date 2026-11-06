@@ -6,11 +6,12 @@ Place·정류장은 테스트 트랜잭션 안에 넣는다.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from geoalchemy2.shape import from_shape
 from httpx import AsyncClient
 from shapely.geometry import LineString, Point
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.tmap import LatLng, PedestrianRoute, get_tmap_client
@@ -247,6 +248,23 @@ async def add_stations(session: AsyncSession, coords: list[tuple[float, float]])
     return stations
 
 
+@dataclass
+class SpurTmap(FakeTmap):
+    """경유지가 있으면 출발 → 경유지 → 같은 길로 출발점 → 도착. 공원 안쪽 경유지를 흉내 낸다."""
+
+    async def pedestrian_route(
+        self, start: LatLng, end: LatLng, pass_points: list[LatLng] | None = None
+    ) -> PedestrianRoute:
+        if not pass_points:
+            return await super().pedestrian_route(start, end)
+        path = [start, *pass_points, start, end]
+        self.calls.append(path)
+        length = sum(distance_m(a, b) for a, b in zip(path, path[1:], strict=False))
+        return PedestrianRoute(
+            minutes=length / WALK_SPEED_M_PER_MIN, distance_m=int(length), polyline=path
+        )
+
+
 def use_fake_tmap() -> FakeTmap:
     fake = FakeTmap()
     app.dependency_overrides[get_tmap_client] = lambda: fake
@@ -284,8 +302,9 @@ async def test_generate_walk_stores_baseline_and_bridge_candidate(
     assert response.status_code == 200
     body = response.json()
     assert body["preference"] == "full"
-    # 기준선 1 + 경유지 2 + 도착지 반경 1 (공원A 는 왕복 우회량 1,264m 라 규칙 ② 에서 제외)
-    assert len(fake.calls) == 1 + 2 + 1
+    # 기준선 1 + 경유지 2 + 도착 후 회사 쪽 1 + 집 쪽 1 (#56)
+    # (도착 후 반경에서 공원A 는 왕복 우회량 1,264m 라 규칙 ② 에서 제외)
+    assert len(fake.calls) == 1 + 2 + 1 + 1
     assert [r["leg_type"] for r in body["shortest"]] == ["walk_all"]
     assert body["shortest"][0]["is_baseline"] is True
     # 녹지 데이터가 없어 공원A 는 후보 조건 미달, 다리B 는 이벤트 10 으로 후보
@@ -342,9 +361,10 @@ async def test_get_reranks_with_preference_chip_without_calling_tmap(
     assert len(fake.calls) == calls_after_generate
 
 
-async def test_generate_transit_makes_three_legs_with_at_most_7_calls_each(
+async def test_generate_transit_with_seeded_stations_adds_skip_legs(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
+    # 시드 정류장 3개(역0→역2): 먼저 내리기·늦게 타기 모두 가운데 역1 하나
     stations = await add_stations(
         db_session, [(35.8600, 128.6030), (35.8600, 128.6060), (35.8600, 128.6090)]
     )
@@ -364,12 +384,34 @@ async def test_generate_transit_makes_three_legs_with_at_most_7_calls_each(
 
     assert response.status_code == 200
     body = response.json()
-    leg_types = {r["leg_type"] for r in body["shortest"]}
-    assert leg_types == {"front_walk", "back_walk", "alight_early"}
-    assert len(fake.calls) <= 4 * (1 + MAX_WAYPOINTS)  # 3구간 + 도착지 반경
-    # 뒤 도보 구간에 다리B 후보가 있어 F-15 1단계(돌아가기)가 이긴다
+    assert {r["leg_type"] for r in body["shortest"]} == {"front_walk", "back_walk"}
+    # 앞·뒤 도보 + 먼저 내리기 1 + 늦게 타기 1 + 도착지 반경
+    assert len(fake.calls) <= 5 * (1 + MAX_WAYPOINTS)
+    skipped = list(
+        (
+            await db_session.execute(
+                select(Route).where(Route.leg_type.in_(["alight_early", "board_late"]))
+            )
+        ).scalars()
+    )
+    assert {r.skip_stops for r in skipped} == {1}
+    assert {r.alight_station_id or r.board_station_id for r in skipped} == {stations[1].id}
     assert body["fallback_level"] == 1
-    assert body["action_type"] == "detour"
-    assert {r["leg_type"] for r in body["candidates"]} <= {"front_walk", "back_walk"}
-    alight = next(r for r in body["shortest"] if r["leg_type"] == "alight_early")
-    assert UUID(alight["alight_station_id"]) == stations[1].id
+
+
+async def test_round_trip_into_park_is_not_stored(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 출발점 북쪽 150m 다리C 는 이벤트 10, 왕복해도 +3.75분이라 원래 후보다.
+    # TMAP 이 들어갔다 같은 길로 나오는 경로를 주면 저장하지 않는다 (#49)
+    db_session.add(place("다리C", A.lat + 150 / 110_540, A.lng, [PlaceType.BRIDGE]))
+    await db_session.flush()
+    app.dependency_overrides[get_tmap_client] = lambda: SpurTmap()
+    headers = bearer(make_token())
+    await client.put("/commutes/me", json=walk_commute(), headers=headers)
+
+    response = await client.post("/commutes/me/routes", headers=headers)
+
+    assert response.status_code == 200
+    # 걷는 구간 후보가 없다 (도착 후 구간은 경유지 없이 한 방향이라 왕복이 아니다)
+    assert all(r["leg_type"] != "walk_all" for r in response.json()["candidates"])

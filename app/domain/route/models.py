@@ -8,6 +8,7 @@ from sqlalchemy import (
     CheckConstraint,
     Float,
     ForeignKey,
+    SmallInteger,
     String,
     UniqueConstraint,
     Uuid,
@@ -113,15 +114,35 @@ class LegType(StrEnum):
     WALK_ALL = "walk_all"  # 도보 통근: 출발 → 도착 전체
     FRONT_WALK = "front_walk"  # 대중교통: 출발 → 첫 정류장
     BACK_WALK = "back_walk"  # 대중교통: 마지막 정류장 → 도착
-    ALIGHT_EARLY = "alight_early"  # 대중교통: 한 정거장 먼저 내려 → 도착
+    ALIGHT_EARLY = "alight_early"  # 대중교통: 1~3 정거장 먼저 내려 → 도착
+    BOARD_LATE = "board_late"  # 대중교통: 출발 → 1~3 정거장 걸어가서 타기
     AFTER_ARRIVAL = "after_arrival"  # 자동차: 도착 후 반경 10분
+
+
+class Direction(StrEnum):
+    """걷는 방향 (#56). 동선은 집 → 회사(출근)로 저장하고, 경로도 그 방향 한 벌만 만든다."""
+
+    TO_WORK = "to_work"  # 출근: 집 → 회사
+    TO_HOME = "to_home"  # 퇴근: 회사 → 집. 오늘 카드의 방향
+
+
+# 퇴근 방향으로 볼 때 맞바뀌는 구간. 출근의 회사 쪽 "먼저 내리기" 는 퇴근의 회사 쪽 "걸어가서 타기"
+MIRROR_LEG = {
+    LegType.WALK_ALL: LegType.WALK_ALL,
+    LegType.FRONT_WALK: LegType.BACK_WALK,
+    LegType.BACK_WALK: LegType.FRONT_WALK,
+    LegType.ALIGHT_EARLY: LegType.BOARD_LATE,
+    LegType.BOARD_LATE: LegType.ALIGHT_EARLY,
+    LegType.AFTER_ARRIVAL: LegType.AFTER_ARRIVAL,
+}
 
 
 class ActionType(StrEnum):
     """오늘 카드의 행동 유형. F-15 단계가 정하고 F-05 LLM 출력 스키마가 같은 값을 쓴다."""
 
     DETOUR = "detour"  # 돌아가기
-    ALIGHT_EARLY = "alight_early"  # 한 정거장 먼저
+    ALIGHT_EARLY = "alight_early"  # 1~3 정거장 먼저 내리기
+    BOARD_LATE = "board_late"  # 1~3 정거장 걸어가서 타기
     DELAY = "delay"  # 늦추기 (곧 노을)
     GLANCE = "glance"  # 고개 돌리기 (기준선에 이벤트)
     AFTER_ARRIVAL = "after_arrival"  # 도착 후
@@ -159,6 +180,35 @@ class Route(TimestampMixin, Base):
     alight_station_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("stations.id", ondelete="SET NULL"), nullable=True
     )
+    board_station_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("stations.id", ondelete="SET NULL"), nullable=True
+    )
+    # 먼저 내리기·늦게 타기에서 건너뛴 정거장 수 (1~3). 그 밖의 구간은 0
+    skip_stops: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
+    # 저장된 경로선의 방향. 걷는 구간은 출근 방향 한 벌, 도착 후 구간만 방향마다 따로 (#56)
+    direction: Mapped[Direction] = mapped_column(
+        String(10), default=Direction.TO_WORK, server_default=Direction.TO_WORK.value
+    )
+    # 반대 방향으로 걸을 때의 일몰 방향 비율과 이름 ("삼덕교회까지 걸어가서 타기")
+    sunset_ratio_reverse: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    name_reverse: Mapped[str | None] = mapped_column(String(60), nullable=True)
+
+    @property
+    def stored_direction(self) -> Direction:
+        """경로선이 만들어진 방향. 저장 전(기본값 미적용)이면 출근."""
+        return Direction(self.direction) if self.direction else Direction.TO_WORK
+
+    def name_for(self, direction: Direction) -> str:
+        """그 방향으로 걸을 때의 이름."""
+        if direction == self.stored_direction:
+            return self.name
+        return self.name_reverse or self.name
+
+    def sunset_ratio_for(self, direction: Direction) -> float:
+        """그 방향으로 걸을 때 일몰 방향으로 걷는 비율."""
+        if direction == self.stored_direction:
+            return self.sunset_ratio
+        return self.sunset_ratio_reverse or 0.0
 
     @property
     def points(self) -> list[tuple[float, float]]:

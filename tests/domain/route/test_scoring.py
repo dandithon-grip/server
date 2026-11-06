@@ -17,6 +17,7 @@ from app.domain.route.scoring import (
     ScoringService,
     heading_deg,
     meters_per_deg_lng,
+    retrace_m,
     sample_points,
     sunset_ratio,
     sunset_window,
@@ -259,3 +260,31 @@ def test_utc_datetime_is_accepted() -> None:
     window = sunset_window(SUNSET_EVENING.astimezone(UTC), lat=LAT, lng=LNG0, is_clear=True)
 
     assert window.is_open is True
+
+
+# --- 왕복 (#49) ---------------------------------------------------------------
+
+
+def north(point: LatLng, meters: float) -> LatLng:
+    return LatLng(lat=point.lat + meters / 110_540, lng=point.lng)
+
+
+def test_straight_route_has_no_retrace() -> None:
+    assert retrace_m(exact_east_line(1000)) == 0
+
+
+def test_v_shaped_detour_has_no_retrace() -> None:
+    # 공원을 꼭짓점으로 돌아가는 V 자 경로는 같은 길을 다시 밟지 않는다
+    start, end = exact_east_line(1000)
+    apex = north(LatLng(lat=start.lat, lng=(start.lng + end.lng) / 2), 300)
+
+    assert retrace_m([start, apex, end]) <= 20
+
+
+def test_spur_into_park_and_back_counts_the_return() -> None:
+    # 출발 → 북쪽 300m 공원 안 → 같은 길로 출발점 복귀 → 동쪽 1km 도착.
+    # 되돌아오는 300m 중 꺾인 직후 30m 를 뺀 만큼이 다시 밟은 길이다
+    start, end = exact_east_line(1000)
+    park = north(start, 300)
+
+    assert 250 <= retrace_m([start, park, start, end]) <= 300

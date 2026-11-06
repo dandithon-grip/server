@@ -14,7 +14,7 @@ class TodayCardResponse(BaseModel):
     date: date
     preference: Preference
     action_type: ActionType
-    fallback_level: int = Field(..., ge=1, le=5)
+    fallback_level: int = Field(..., ge=1, le=4)
     reason_tag: ReasonTag
     text: str = Field(..., description="카드 문장 (두 문장)")
     deviation: str | None = Field(None, description="AI 가 점수 1위와 다르게 고른 이유")

@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends
 
 from app.core.security import get_current_user
-from app.domain.feedback.models import Thumbs
 from app.domain.feedback.schemas import (
     CreateFeedbackRequest,
     FeedbackResponse,
@@ -17,10 +16,12 @@ tag_weights_router = APIRouter(prefix="/users/me/tag-weights", tags=["Feedback"]
 @feedback_router.post(
     "",
     response_model=FeedbackResponse,
-    summary="걷고 나서 👍/👎",
+    summary="걷고 나서 별점 1~5",
     description=(
-        "경로의 태그(river·park·trees·sunset·bridge)마다 👍 +0.2 / 👎 −0.2, 범위 −1.0~+1.0. "
-        "같은 날 같은 경로에 다시 누르면 덮어쓴다. 가중치는 다음 샛길 점수에 반영된다."
+        "경로의 태그(river·park·trees·sunset·bridge)마다 (별점 − 3) × 0.1 을 더한다. "
+        "5점 +0.2, 4점 +0.1, 3점 0, 2점 −0.1, 1점 −0.2. 범위 −1.0~+1.0. "
+        "같은 날 같은 경로에 다시 주면 이전 별점과의 차이만 반영한다. "
+        "가중치는 다음 샛길 점수에 반영된다."
     ),
     responses={
         401: {"description": "토큰 없음 또는 만료"},
@@ -32,11 +33,11 @@ async def give_feedback(
     current_user: User = Depends(get_current_user),
     service: FeedbackService = Depends(get_feedback_service),
 ) -> FeedbackResponse:
-    feedback = await service.give_feedback(current_user, request.route_id, request.thumbs)
+    feedback = await service.give_feedback(current_user, request.route_id, request.rating)
     return FeedbackResponse(
-        route_id=feedback.route_id,
+        route_id=request.route_id,
         date=feedback.date,
-        thumbs=Thumbs(feedback.thumbs),
+        rating=feedback.rating,
         weights=current_user.tag_weights,
     )
 
@@ -45,7 +46,9 @@ async def give_feedback(
     "",
     response_model=TagWeightsResponse,
     summary="내 태그 가중치와 취향 제안",
-    description="마이 › 취향 설정. 같은 태그 👍 3회 누적이면 hint 에 제안 문구가 온다.",
+    description=(
+        "마이 › 취향 설정. 같은 태그에 4점 이상 평가가 3회 쌓이면 hint 에 제안 문구가 온다."
+    ),
     responses={401: {"description": "토큰 없음 또는 만료"}},
 )
 async def get_tag_weights(

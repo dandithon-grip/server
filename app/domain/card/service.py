@@ -33,8 +33,8 @@ from app.domain.card.prompt import (
 from app.domain.commute.models import Commute, Preference
 from app.domain.commute.service import CommuteService, get_commute_service
 from app.domain.feedback.service import top_tags
-from app.domain.route.fallback import FallbackResult, decide_fallback
-from app.domain.route.models import ActionType, LegType, PlaceType, Route
+from app.domain.route.fallback import LEG_ACTION, FallbackResult, decide_fallback
+from app.domain.route.models import ActionType, Direction, PlaceType, Route
 from app.domain.route.scoring import sunset_window
 from app.domain.route.service import RankedRoute, RouteService, get_route_service
 from app.domain.user.models import User
@@ -45,14 +45,6 @@ logger = logging.getLogger(__name__)
 LOCAL_TZ = ZoneInfo("Asia/Seoul")
 RECENT_DAYS = 3
 NO_NATURE_TEXT = "오늘 동선엔 자연이 없어요. 내일 다시 찾아볼게요."
-
-LEG_ACTION = {
-    LegType.WALK_ALL: ActionType.DETOUR,
-    LegType.FRONT_WALK: ActionType.DETOUR,
-    LegType.BACK_WALK: ActionType.DETOUR,
-    LegType.ALIGHT_EARLY: ActionType.ALIGHT_EARLY,
-    LegType.AFTER_ARRIVAL: ActionType.AFTER_ARRIVAL,
-}
 
 
 @dataclass(frozen=True)
@@ -156,22 +148,26 @@ class CardService:
         window = sunset_window(at, lat=commute.from_lat, lng=commute.from_lng, is_clear=is_clear)
 
         # 2. 후보·대체 단계 (DB 미접근)
+        # 오늘 카드는 퇴근 카드다 (11/3 결정). 출근 방향으로 저장된 경로를 거꾸로 본다 (#56)
         ranked = self._routes.rank(
-            routes, preference=preference, at=at, is_clear=is_clear, tag_weights=user.tag_weights
+            routes,
+            preference=preference,
+            at=at,
+            is_clear=is_clear,
+            tag_weights=user.tag_weights,
+            direction=Direction.TO_HOME,
         )
-        decided = decide_fallback(
-            ranked, transport_mode=commute.transport_mode, at=at, is_clear=is_clear
-        )
+        decided = decide_fallback(ranked, at=at, is_clear=is_clear)
         context = CardContext(commute, routes, decided, at, window.sunset_at, weather, air)
 
-        # 3. 후보가 있으면 LLM 이 고르고, 없으면(3·5단계) 템플릿
+        # 3. 후보가 있으면 LLM 이 고르고, 없으면(2·4단계) 템플릿
         choice: CardChoice | None = None
         by_llm = False
         if decided.candidates:
             choice = await self._ask_llm(context, user)
             by_llm = choice is not None
         if choice is None:
-            choice = self._template_choice(context)
+            choice = await self._template_choice(context)
 
         # 4. 저장 (user_id, date) upsert
         chosen = decided.candidates[choice.choice] if decided.candidates else None
@@ -205,7 +201,7 @@ class CardService:
         """LLM 1회. 실패·검증 실패면 None (폴백은 호출하는 쪽)."""
         # 1. 입력 조립
         card_input = await self._card_input(context, user)
-        allowed_names = self._names_in_input(context)
+        allowed_names = _names_in_input(card_input)
 
         # 2. 호출
         try:
@@ -231,24 +227,23 @@ class CardService:
         if foreign:
             logger.warning("카드 LLM 문장에 입력에 없는 장소: %s", foreign)
             return None
-        return choice
+        # 4. 행동 유형은 고른 후보의 구간이 정한다 (1단계에 걷기·먼저 내리기·늦게 타기가 섞인다)
+        chosen = context.decided.candidates[choice.choice]
+        return choice.model_copy(update={"action_type": LEG_ACTION[chosen.leg_type]})
 
     async def _card_input(self, context: CardContext, user: User) -> CardInput:
         candidates: list[CandidateInput] = []
         for index, ranked in enumerate(context.decided.candidates):
             places = await self._routes.list_places(ranked.route.spots)
-            station = (
-                await self._commutes.get_station(ranked.route.alight_station_id)
-                if ranked.route.alight_station_id
-                else None
-            )
+            station_id = ranked.alight_station_id or ranked.board_station_id
+            station = await self._commutes.get_station(station_id) if station_id else None
             candidates.append(
                 CandidateInput(
                     index=index,
                     route_id=str(ranked.route.id),
-                    name=ranked.route.name,
-                    leg_type=str(ranked.route.leg_type),
-                    action_type=str(LEG_ACTION[LegType(ranked.route.leg_type)]),
+                    name=ranked.name,
+                    leg_type=str(ranked.leg_type),
+                    action_type=str(LEG_ACTION[ranked.leg_type]),
                     # 문장에 "8.0분", "37.0%" 가 그대로 나오지 않게 정수로 넘긴다
                     add_minutes=round(ranked.route.add_minutes),
                     green_pct=round(ranked.route.green_pct),
@@ -257,7 +252,8 @@ class CardService:
                     tags=[str(tag) for tag in ranked.tags],
                     highlights=ranked.route.highlights,
                     season_tags=[p.season_tag for p in places if p.season_tag],
-                    alight_station=station.name if station else None,
+                    station=station.name if station else None,
+                    skip_stops=ranked.route.skip_stops,
                 )
             )
         recent = await self._recent_route_ids(user.id, context.at.date())
@@ -272,29 +268,33 @@ class CardService:
             recent_route_ids=[str(route_id) for route_id in recent],
         )
 
-    def _names_in_input(self, context: CardContext) -> set[str]:
-        """입력에 등장한 장소·정류장 이름. LLM 문장에 이 밖의 이름이 있으면 폴백."""
-        names: set[str] = set()
-        for ranked in context.decided.candidates:
-            names.add(ranked.route.name)
-            names.update(ranked.route.highlights)
-        return names
-
-    def _template_choice(self, context: CardContext) -> CardChoice:
+    async def _template_choice(self, context: CardContext) -> CardChoice:
         """규칙 기반 문장. LLM 없이 점수 1위 + 템플릿."""
         decided = context.decided
         if decided.candidates:
             top = decided.candidates[0]
             route = top.route
-            place = route.highlights[0] if route.highlights else route.name
+            place = route.highlights[0] if route.highlights else top.name
             minutes = int(round(route.add_minutes))
-            action = LEG_ACTION[LegType(route.leg_type)]
+            action = LEG_ACTION[top.leg_type]
+            station_id = top.alight_station_id or top.board_station_id
+            station = await self._commutes.get_station(station_id) if station_id else None
+            station_name = station.name if station else ""
+            stops = route.skip_stops
             if action == ActionType.ALIGHT_EARLY:
-                text = f"한 정거장 먼저 내리면 +{minutes}분, {route.name}. {place}"
+                text = (
+                    f"{stops}정거장 먼저 {station_name}에서 내리면 +{minutes}분, "
+                    f"{top.name}. {place}"
+                )
+            elif action == ActionType.BOARD_LATE:
+                text = (
+                    f"{stops}정거장 걸어가서 {station_name}에서 타면 +{minutes}분, "
+                    f"{top.name}. {place}"
+                )
             elif action == ActionType.AFTER_ARRIVAL:
-                text = f"도착 후 {minutes}분 걸으면 {route.name}. {place}"
+                text = f"도착 후 {minutes}분 걸으면 {top.name}. {place}"
             else:
-                text = f"{minutes}분 돌아가면 {route.name}. {place}"
+                text = f"{minutes}분 돌아가면 {top.name}. {place}"
             return CardChoice(
                 choice=0,
                 action_type=action,
@@ -302,7 +302,7 @@ class CardService:
                 text=text[:120],
                 deviation=None,
             )
-        if decided.level == 3:
+        if decided.level == 2:
             if decided.action_type == ActionType.DELAY:
                 text = "10분만 늦추면 퇴근길 서쪽 하늘에 노을이 걸립니다. 오늘은 맑습니다."
                 tag = ReasonTag.SUNSET
@@ -376,12 +376,22 @@ class CardService:
             at=at,
             is_clear=is_clear,
             tag_weights=user_weights,
+            direction=Direction.TO_HOME,
         )
-        decided = decide_fallback(
-            ranked, transport_mode=commute.transport_mode, at=at, is_clear=is_clear
-        )
+        decided = decide_fallback(ranked, at=at, is_clear=is_clear)
         chosen = next((r for r in ranked.eligible if r.route.id == card.route_id), None)
         return CardResult(card, chosen, decided.candidates, decided.shortest)
+
+
+def _names_in_input(card_input: CardInput) -> set[str]:
+    """입력에 등장한 장소·정류장 이름. LLM 문장에 이 밖의 이름이 있으면 폴백."""
+    names: set[str] = set()
+    for candidate in card_input.candidates:
+        names.add(candidate.name)
+        names.update(candidate.highlights)
+        if candidate.station:
+            names.add(candidate.station)
+    return names
 
 
 def _reason_from_tags(tags: list[PlaceType]) -> ReasonTag:

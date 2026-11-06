@@ -45,14 +45,12 @@ class TransitLegInput(BaseModel):
 class SaveCommuteRequest(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    from_lat: float = Field(..., ge=-90, le=90, description="출발 위도")
-    from_lng: float = Field(..., ge=-180, le=180, description="출발 경도")
-    to_lat: float = Field(..., ge=-90, le=90, description="도착 위도")
-    to_lng: float = Field(..., ge=-180, le=180, description="도착 경도")
-    from_area: str = Field(
-        ..., min_length=1, max_length=AREA_MAX_LENGTH, description="출발 동 이름"
-    )
-    to_area: str = Field(..., min_length=1, max_length=AREA_MAX_LENGTH, description="도착 동 이름")
+    from_lat: float = Field(..., ge=-90, le=90, description="집 위도 (출근 출발)")
+    from_lng: float = Field(..., ge=-180, le=180, description="집 경도 (출근 출발)")
+    to_lat: float = Field(..., ge=-90, le=90, description="회사 위도 (출근 도착)")
+    to_lng: float = Field(..., ge=-180, le=180, description="회사 경도 (출근 도착)")
+    from_area: str = Field(..., min_length=1, max_length=AREA_MAX_LENGTH, description="집 동 이름")
+    to_area: str = Field(..., min_length=1, max_length=AREA_MAX_LENGTH, description="회사 동 이름")
     go_time: time = Field(..., description="출근 시각 (HH:MM)")
     leave_time: time = Field(..., description="퇴근 시각 (HH:MM)")
     transport_mode: TransportMode = Field(..., description="walk | transit | car")

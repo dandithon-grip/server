@@ -7,17 +7,21 @@
 
 import math
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from astral import Observer
 from astral.sun import azimuth as sun_azimuth
 from astral.sun import sun
-from geoalchemy2 import Geography, Geometry
+from geoalchemy2 import Geography, Geometry, WKBElement
 from geoalchemy2.shape import from_shape
 from pydantic import BaseModel, ConfigDict, Field
 from shapely.geometry import LineString
+from shapely.ops import substring
 from sqlalchemy import cast, column, exists, func, select
 from sqlalchemy.dialects.postgresql import array
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import QueryableAttribute
+from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.selectable import TableValuedAlias
 
 from app.clients.tmap import LatLng
@@ -38,8 +42,14 @@ SUNSET_HEADING_TOLERANCE_DEG = 30
 # 이 비율 이상이어야 경로의 "성격" 태그로 인정한다 (F-16 가중치용)
 TAG_RATIO_THRESHOLD = 0.3
 
+# 왕복 판정 (#49). 10m 간격 점이 30m 이상 앞서 지나온 길에서 8m 안이면 "다시 밟은 길"
+RETRACE_STEP_M = 10
+RETRACE_TOLERANCE_M = 8
+RETRACE_GAP_M = 30
+
 METERS_PER_DEG_LAT = 110_540
 METERS_PER_DEG_LNG_AT_EQUATOR = 111_320
+BBOX_MARGIN = 1.1  # 인덱스 사전 필터는 넉넉하게. 정확한 판정은 ST_DWithin 이 한다
 
 LANDMARK_TYPES = (PlaceType.BRIDGE.value, PlaceType.VIEW.value)
 # 거리 계산용 타입. geography 로 캐스트해야 ST_DWithin 의 단위가 미터가 된다
@@ -59,6 +69,9 @@ class StaticScore(BaseModel):
     water_score: float = Field(..., ge=0, le=WATER_WEIGHT, description="하천 50m 안 비율 × 10")
     landmark_score: float = Field(..., ge=0, le=LANDMARK_BONUS, description="다리·전망 +10")
     sunset_ratio: float = Field(..., ge=0, le=1, description="일몰 방향으로 걷는 구간 비율")
+    sunset_ratio_reverse: float = Field(
+        0.0, ge=0, le=1, description="같은 길을 반대로 걸을 때의 일몰 방향 비율 (#56)"
+    )
     tags: list[PlaceType] = Field(..., description="river·park·trees·bridge·view. sunset 은 동적")
 
 
@@ -114,6 +127,25 @@ def _to_local_meters(polyline: list[LatLng]) -> tuple[LineString, LatLng, float]
         ]
     )
     return line, origin, scale_lng
+
+
+def retrace_m(polyline: list[LatLng]) -> float:
+    """
+    경로 중 이미 지나온 길을 다시 밟는 길이 (m).
+
+    공원 안쪽 경유지로 들어갔다 같은 길로 나오는 TMAP 경로를 거르는 데 쓴다.
+    바로 직전 구간(RETRACE_GAP_M)은 비교에서 빼서, 꺾이는 모퉁이를 왕복으로 세지 않는다.
+    """
+    line, _, _ = _to_local_meters(polyline)
+    # 10m 간격 점마다, 30m 이상 앞의 지나온 길에서 8m 안이면 다시 밟은 10m 로 센다
+    retraced = 0
+    distance = RETRACE_GAP_M + RETRACE_STEP_M
+    while distance <= line.length:
+        walked = substring(line, 0, distance - RETRACE_GAP_M)
+        if walked.distance(line.interpolate(distance)) < RETRACE_TOLERANCE_M:
+            retraced += 1
+        distance += RETRACE_STEP_M
+    return float(retraced * RETRACE_STEP_M)
 
 
 def _from_local(x: float, y: float, origin: LatLng, scale_lng: float) -> LatLng:
@@ -183,6 +215,23 @@ def sunset_window(at: datetime, *, lat: float, lng: float, is_clear: bool | None
 # --- DB 질의 ---------------------------------------------------------------
 
 
+def bbox_near(
+    column: QueryableAttribute[WKBElement] | ColumnElement[Any],
+    target: ColumnElement[Any] | WKBElement,
+    radius_m: float,
+    lat: float,
+) -> ColumnElement[bool]:
+    """
+    GIST 인덱스로 먼저 거르는 조건 (#54). ST_DWithin(geography) 앞에 붙인다.
+
+    geography 로 캐스트하면 geom 의 GIST 인덱스를 못 쓴다. 대상의 바운딩 박스를 반경만큼 넓혀
+    겹치는 행만 남긴 뒤 정확한 거리를 잰다. 경도 1도가 위도 1도보다 짧으므로 경도 기준으로 넓히면
+    위도 방향도 빠짐없이 덮는다.
+    """
+    degrees = radius_m * BBOX_MARGIN / meters_per_deg_lng(lat)
+    return column.op("&&")(func.ST_Expand(target, degrees))
+
+
 def _sample_table(points: list[LatLng]) -> TableValuedAlias:
     """점 배열을 unnest 해 행 집합(컬럼 pt)으로 쓴다. 한 쿼리로 모든 점을 검사하기 위해서다."""
     geoms = array([func.ST_SetSRID(func.ST_MakePoint(p.lng, p.lat), 4326) for p in points])
@@ -222,6 +271,7 @@ class ScoringService:
             _NOON_REFERENCE, lat=polyline[0].lat, lng=polyline[0].lng, is_clear=None
         ).azimuth_deg
         facing_ratio = sunset_ratio(polyline, azimuth)
+        facing_ratio_reverse = sunset_ratio(list(reversed(polyline)), azimuth)
 
         # 6. 태그: 비율이 기준을 넘는 성격만
         tags: list[PlaceType] = []
@@ -238,6 +288,7 @@ class ScoringService:
             water_score=round(water_ratio * WATER_WEIGHT, 1),
             landmark_score=LANDMARK_BONUS if landmark_types else 0,
             sunset_ratio=round(facing_ratio, 3),
+            sunset_ratio_reverse=round(facing_ratio_reverse, 3),
             tags=tags,
         )
 
@@ -269,6 +320,7 @@ class ScoringService:
             .select_from(GreenArea)
             .where(
                 GreenArea.city == city,
+                bbox_near(GreenArea.geom, samples.c.pt, radius_m, points[0].lat),
                 func.ST_DWithin(
                     cast(GreenArea.geom, GEOGRAPHY), cast(samples.c.pt, GEOGRAPHY), radius_m
                 ),
@@ -288,9 +340,10 @@ class ScoringService:
             select(1)
             .select_from(samples)
             .where(
+                bbox_near(GreenArea.geom, samples.c.pt, radius_m, points[0].lat),
                 func.ST_DWithin(
                     cast(GreenArea.geom, GEOGRAPHY), cast(samples.c.pt, GEOGRAPHY), radius_m
-                )
+                ),
             )
         )
         stmt = (
@@ -305,6 +358,7 @@ class ScoringService:
         stmt = select(func.unnest(Place.types).label("place_type")).where(
             Place.city == city,
             Place.types.overlap(list(LANDMARK_TYPES)),
+            bbox_near(Place.location, line, LANDMARK_RADIUS_M, polyline[0].lat),
             func.ST_DWithin(
                 cast(Place.location, GEOGRAPHY), cast(line, GEOGRAPHY), LANDMARK_RADIUS_M
             ),

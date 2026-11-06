@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from uuid import UUID
 
 from fastapi import Depends
@@ -14,6 +15,27 @@ from app.core.exceptions import AppException, ErrorCode
 from app.core.geo import make_point
 from app.domain.commute.models import Commute, Station, TransportMode
 from app.domain.commute.schemas import SaveCommuteRequest, TransitLegInput, TransitStopInput
+
+MAX_SKIP_STOPS = 3  # 먼저 내리기·늦게 타기로 건너뛰는 정거장 상한 (#51)
+
+
+@dataclass(frozen=True)
+class SkipStations:
+    """늦게 탈 정류장(탑승역에서 가까운 순)과 먼저 내릴 정류장(하차역에서 가까운 순)."""
+
+    board_late: list[UUID] = field(default_factory=list)
+    alight_early: list[UUID] = field(default_factory=list)
+
+
+def skip_stations(first_ride: list[UUID], last_ride: list[UUID]) -> SkipStations:
+    """
+    첫 탑승 구간의 정류장 목록과 마지막 탑승 구간의 정류장 목록에서 1~3 정거장을 고른다.
+
+    구간의 탑승역·하차역 자체는 건너뛸 수 없다 (그러면 타지 않는 것이다).
+    """
+    board_late = first_ride[1:-1][:MAX_SKIP_STOPS]
+    alight_early = list(reversed(last_ride[1:-1]))[:MAX_SKIP_STOPS]
+    return SkipStations(board_late=board_late, alight_early=alight_early)
 
 
 class CommuteService:
@@ -49,13 +71,12 @@ class CommuteService:
         if is_transit and not request.station_ids and not request.transit_legs:
             raise AppException(ErrorCode.STATION_REQUIRED)
         station_ids: list[UUID] = []
-        alight_early_station_id: UUID | None = None
+        skips = SkipStations()
         line = request.line if is_transit else None
         if is_transit and request.transit_legs:
             # 고른 경로의 탑승 구간들을 stations 에 넣고 구간마다 탑승·하차 역 id 를 순서대로.
-            # 한 정거장 먼저 내릴 정류장도 이 사용자의 구간에서 지금 정한다
-            stored = await self._store_transit_legs(request.transit_legs, city)
-            station_ids, line, alight_early_station_id = stored
+            # 1~3 정거장 먼저 내리기·늦게 타기 정류장도 이 사용자의 구간에서 지금 정한다
+            station_ids, line, skips = await self._store_transit_legs(request.transit_legs, city)
         elif is_transit:
             station_ids = list(request.station_ids)
 
@@ -68,7 +89,11 @@ class CommuteService:
             if found != len(set(station_ids)):
                 raise AppException(ErrorCode.STATION_NOT_FOUND)
 
-        # 3. upsert. user_id unique 충돌이면 모든 값을 갱신한다
+        # 3. 시드 정류장 동선은 노선 순번으로 1~3 정거장을 찾는다
+        if station_ids and not request.transit_legs:
+            skips = await self._seeded_skip_stations(station_ids[0], station_ids[-1])
+
+        # 4. upsert. user_id unique 충돌이면 모든 값을 갱신한다
         values = {
             "user_id": user_id,
             "from_location": from_shape(Point(request.from_lng, request.from_lat), srid=4326),
@@ -80,7 +105,8 @@ class CommuteService:
             "transport_mode": request.transport_mode.value,
             "line": line,
             "station_ids": station_ids,
-            "alight_early_station_id": alight_early_station_id,
+            "alight_early_station_ids": skips.alight_early,
+            "board_late_station_ids": skips.board_late,
             "preference": request.preference.value,
         }
         upsert_stmt = insert(Commute).values(**values)
@@ -90,7 +116,7 @@ class CommuteService:
         )
         await self._session.execute(upsert_stmt)
 
-        # 4. 저장된 행을 읽고 commit
+        # 5. 저장된 행을 읽고 commit
         commute = await self._find_by_user(user_id)
         await self._session.commit()
         assert commute is not None
@@ -110,14 +136,14 @@ class CommuteService:
 
     async def _store_transit_legs(
         self, legs: list[TransitLegInput], city: str
-    ) -> tuple[list[UUID], str, UUID | None]:
+    ) -> tuple[list[UUID], str, SkipStations]:
         """탑승 구간의 정류장을 ODsay stationID 기준으로 upsert 한다.
 
         :return: [탑승, 하차, 탑승, 하차, ...] 순서의 id 목록, 마지막 노선,
-                 마지막 구간의 하차 직전 정류장 id (탑승역과 같으면 None)
+                 첫 구간에서 늦게 탈 정류장 · 마지막 구간에서 먼저 내릴 정류장 (각 1~3개)
         """
         station_ids: list[UUID] = []
-        alight_early_id: UUID | None = None
+        stop_ids: list[list[UUID]] = []  # 구간별 정류장 id, 순서대로
         for leg in legs:
             # 1. upsert. 순환 버스처럼 같은 정류장이 두 번 나오면 첫 번째만 넣는다
             #    (한 INSERT 문에 같은 키가 둘이면 Postgres 가 에러를 낸다)
@@ -153,16 +179,38 @@ class CommuteService:
                 Station.external_id.in_(list(unique_stops)),
             )
             id_of = {ext: sid for ext, sid in (await self._session.execute(stmt)).all()}
-            board, alight = leg.stops[0], leg.stops[-1]
-            station_ids += [id_of[board.external_id], id_of[alight.external_id]]
+            ids = [id_of[stop.external_id] for stop in leg.stops]
+            station_ids += [ids[0], ids[-1]]
+            stop_ids.append(ids)
 
-            # 3. 하차 직전 정류장. 마지막 구간 것만 남는다.
-            #    두 정거장 구간이면 직전이 탑승역이라 없음
-            before = leg.stops[-2]
-            alight_early_id = (
-                id_of[before.external_id] if before.external_id != board.external_id else None
-            )
-        return station_ids, legs[-1].line, alight_early_id
+        # 3. 늦게 타기는 첫 구간, 먼저 내리기는 마지막 구간
+        return station_ids, legs[-1].line, skip_stations(stop_ids[0], stop_ids[-1])
+
+    async def _seeded_skip_stations(self, board_id: UUID, alight_id: UUID) -> SkipStations:
+        """시드 정류장(stationID 없음) 동선. 같은 노선 순번으로 탑승·하차역 사이를 채운다."""
+        # 1. 탑승·하차역
+        stmt = select(Station).where(Station.id.in_([board_id, alight_id]))
+        by_id = {s.id: s for s in (await self._session.execute(stmt)).scalars()}
+        board, alight = by_id[board_id], by_id[alight_id]
+        if board.line != alight.line or board.external_id or alight.external_id:
+            return SkipStations()
+
+        # 2. 같은 노선에서 두 역 사이 정류장을 진행 방향 순서로
+        low, high = sorted((board.order_no, alight.order_no))
+        between_stmt = select(Station).where(
+            Station.city == board.city,
+            Station.line == board.line,
+            Station.external_id.is_(None),
+            Station.order_no > low,
+            Station.order_no < high,
+        )
+        between = sorted(
+            (await self._session.execute(between_stmt)).scalars(), key=lambda s: s.order_no
+        )
+        if board.order_no > alight.order_no:
+            between.reverse()
+        ride = [board.id, *(s.id for s in between), alight.id]
+        return skip_stations(ride, ride)
 
     async def list_stations(self, *, line: str, city: str) -> list[Station]:
         """

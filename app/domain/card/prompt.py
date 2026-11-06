@@ -54,7 +54,10 @@ class CandidateInput(BaseModel):
     tags: list[str]
     highlights: list[str] = Field(..., description="경유 지점 한 줄 설명")
     season_tags: list[str] = Field(..., description="경유 지점의 계절 상태")
-    alight_station: str | None = None
+    station: str | None = Field(
+        None, description="먼저 내리기면 내릴 정류장, 늦게 타기면 걸어가서 탈 정류장"
+    )
+    skip_stops: int = Field(0, description="건너뛴 정거장 수. 걷기 샛길은 0")
 
 
 class CardInput(BaseModel):
