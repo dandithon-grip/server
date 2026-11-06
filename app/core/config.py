@@ -16,14 +16,28 @@ class Settings(BaseSettings):
     database_url: str
     supabase_url: str
     supabase_jwt_audience: str = "authenticated"
+    # 공개 anon 키. Storage 게이트웨이가 apikey 헤더로 요구한다.
+    # service role 키는 런타임 설정에 두지 않는다 (scripts/seed_demo.py 전용)
+    supabase_anon_key: str = ""
+    # 기록 사진이 올라가는 비공개 버킷 이름 (F-11). 프론트의 업로드 대상과 같아야 한다
+    supabase_record_bucket: str = "records"
     default_city: str
 
     tmap_app_key: str = ""
     odsay_api_key: str = ""
     kma_service_key: str = ""
+    airkorea_service_key: str = ""
     llm_api_key: str = ""
+    # 카드·비전·자연어 취향이 쓰는 모델. 데모 중 바꿀 수 있게 env 로 둔다
+    llm_model: str = "claude-opus-5-5"
 
     app_env: Literal["dev", "test", "prod"] = "dev"
+    # 프론트 origin. 쉼표로 여러 개. 브라우저가 preflight 에서 이 값을 확인한다
+    cors_origins: str = "http://localhost:3000"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     @property
     def supabase_jwks_url(self) -> str:

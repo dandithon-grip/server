@@ -1,0 +1,2 @@
+from_lat,from_lng,from_area,to_lat,to_lng,to_area,go_time,leave_time,transport_mode,line,station_names,preference
+35.8575,128.6370,수성구 범어동,35.8690,128.5960,중구 동성로,08:30,18:10,transit,2,수성구청|반월당,full

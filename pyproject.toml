@@ -4,6 +4,8 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.1",
+    "anthropic>=2.4.0",
+    "astral>=3.2",
     "asyncpg>=0.32.0",
     "fastapi>=0.162.0",
     "geoalchemy2>=0.20.0",
@@ -11,6 +13,7 @@ dependencies = [
     "pydantic>=2.14.1",
     "pydantic-settings>=2.16.2",
     "pyjwt[crypto]>=2.15.1",
+    "shapely>=2.2.0",
     "sqlalchemy[asyncio]>=2.1.6",
     "uvicorn[standard]>=0.54.0",
 ]
@@ -47,7 +50,7 @@ strict = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["geoalchemy2.*"]
+module = ["geoalchemy2.*", "shapely.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -55,3 +58,5 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 markers = ["integration: 실제 OSM 데이터가 필요한 테스트"]
+# CLAUDE.md 의 `uv run pytest` 는 단위+API 만 돈다. OSM 적재가 필요한 것은 -m integration 으로
+addopts = "-m 'not integration'"
