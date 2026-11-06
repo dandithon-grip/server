@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.commute.models import Preference
-from app.domain.route.models import ActionType, LegType, PlaceType
+from app.domain.route.models import ActionType, Direction, LegType, PlaceType
 
 if TYPE_CHECKING:
     from app.domain.route.service import RankedRoute
@@ -48,6 +48,7 @@ class RoutesResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     preference: Preference = Field(..., description="적용한 취향")
+    direction: Direction = Field(..., description="걷는 방향. to_home 퇴근(기본) · to_work 출근")
     fallback_level: int = Field(..., ge=1, le=4, description="F-15 단계. 1 이면 샛길 후보 있음")
     action_type: ActionType = Field(..., description="오늘 카드의 행동 유형")
     candidates: list[RouteResponse] = Field(..., description="그 단계의 후보 ≤3, 점수순")
@@ -62,9 +63,9 @@ def to_route_response(ranked: "RankedRoute") -> RouteResponse:
     route = ranked.route
     return RouteResponse(
         id=route.id,
-        leg_type=route.leg_type,
+        leg_type=ranked.leg_type,
         is_baseline=route.is_baseline,
-        name=route.name,
+        name=ranked.name,
         minutes=route.minutes,
         add_minutes=route.add_minutes,
         green_pct=route.green_pct,
@@ -72,9 +73,9 @@ def to_route_response(ranked: "RankedRoute") -> RouteResponse:
         score=ranked.score,
         tags=ranked.tags,
         highlights=route.highlights,
-        polyline=[PointResponse(lat=lat, lng=lng) for lat, lng in route.points],
+        polyline=[PointResponse(lat=lat, lng=lng) for lat, lng in ranked.points],
         spots=route.spots,
-        alight_station_id=route.alight_station_id,
-        board_station_id=route.board_station_id,
+        alight_station_id=ranked.alight_station_id,
+        board_station_id=ranked.board_station_id,
         skip_stops=route.skip_stops,
     )

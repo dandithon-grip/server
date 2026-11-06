@@ -7,7 +7,7 @@ from app.core.timezone import LOCAL_TZ
 from app.domain.commute.models import Commute, Preference
 from app.domain.commute.service import CommuteService, get_commute_service
 from app.domain.route.fallback import decide_fallback
-from app.domain.route.models import Route
+from app.domain.route.models import Direction, Route
 from app.domain.route.schemas import RoutesResponse, to_route_response
 from app.domain.route.service import RouteService, get_route_service
 from app.domain.user.models import User
@@ -15,10 +15,11 @@ from app.domain.user.models import User
 router = APIRouter(prefix="/commutes/me/routes", tags=["Route"])
 
 
-def _walk_time(commute: Commute) -> datetime:
-    """오늘 퇴근 시각 (데모는 퇴근 카드만, 11/3 결정)."""
+def _walk_time(commute: Commute, direction: Direction) -> datetime:
+    """오늘 걷는 시각. 퇴근이면 퇴근 시각, 출근이면 출근 시각."""
     today = datetime.now(LOCAL_TZ).date()
-    return datetime.combine(today, commute.leave_time, tzinfo=LOCAL_TZ)
+    clock = commute.leave_time if direction == Direction.TO_HOME else commute.go_time
+    return datetime.combine(today, clock, tzinfo=LOCAL_TZ)
 
 
 def _ranked_response(
@@ -27,14 +28,21 @@ def _ranked_response(
     routes: list[Route],
     preference: Preference,
     tag_weights: dict[str, float],
+    direction: Direction,
 ) -> RoutesResponse:
-    at = _walk_time(commute)
+    at = _walk_time(commute, direction)
     ranked = service.rank(
-        routes, preference=preference, at=at, is_clear=None, tag_weights=tag_weights
+        routes,
+        preference=preference,
+        at=at,
+        is_clear=None,
+        tag_weights=tag_weights,
+        direction=direction,
     )
     decided = decide_fallback(ranked, at=at, is_clear=None)
     return RoutesResponse(
         preference=preference,
+        direction=direction,
         fallback_level=decided.level,
         action_type=decided.action_type,
         candidates=[to_route_response(r) for r in decided.candidates],
@@ -48,7 +56,8 @@ def _ranked_response(
     summary="내 동선의 샛길 생성",
     description=(
         "걷는 구간마다 최단 경로와 경유지 후보 경로를 TMAP 으로 받아 저장한다 (동기, 최대 10초). "
-        "기존 경로는 지우고 다시 만든다. 응답은 기본 취향으로 고른 후보 ≤3개 + 최단."
+        "기존 경로는 지우고 다시 만든다. 응답은 기본 취향으로 고른 후보 ≤3개 + 최단. "
+        "경로는 출근 방향으로 한 번 만들고, direction 에 맞춰 뒤집어 보여준다 (기본 퇴근)."
     ),
     responses={
         401: {"description": "토큰 없음 또는 만료"},
@@ -57,6 +66,7 @@ def _ranked_response(
     },
 )
 async def generate_routes(
+    direction: Direction = Query(Direction.TO_HOME, description="to_home 퇴근 · to_work 출근"),
     current_user: User = Depends(get_current_user),
     commute_service: CommuteService = Depends(get_commute_service),
     route_service: RouteService = Depends(get_route_service),
@@ -64,7 +74,7 @@ async def generate_routes(
     commute = await commute_service.get_commute(current_user.id)
     routes = await route_service.generate(commute, current_user.city)
     return _ranked_response(
-        route_service, commute, routes, commute.preference, current_user.tag_weights
+        route_service, commute, routes, commute.preference, current_user.tag_weights, direction
     )
 
 
@@ -83,6 +93,7 @@ async def generate_routes(
 )
 async def list_routes(
     preference: Preference | None = Query(None, description="생략하면 동선의 기본 취향"),
+    direction: Direction = Query(Direction.TO_HOME, description="to_home 퇴근 · to_work 출근"),
     current_user: User = Depends(get_current_user),
     commute_service: CommuteService = Depends(get_commute_service),
     route_service: RouteService = Depends(get_route_service),
@@ -90,5 +101,10 @@ async def list_routes(
     commute = await commute_service.get_commute(current_user.id)
     routes = await route_service.list_routes(commute.id)
     return _ranked_response(
-        route_service, commute, routes, preference or commute.preference, current_user.tag_weights
+        route_service,
+        commute,
+        routes,
+        preference or commute.preference,
+        current_user.tag_weights,
+        direction,
     )
