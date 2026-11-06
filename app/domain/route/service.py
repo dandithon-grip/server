@@ -231,7 +231,7 @@ class RouteService:
             Leg(LegType.FRONT_WALK, start, LatLng(lat=first.lat, lng=first.lng)),
             Leg(LegType.BACK_WALK, LatLng(lat=last.lat, lng=last.lng), end),
         ]
-        previous = await self._previous_station(last_board, last)
+        previous = await self._alight_early_station(commute, last_board, last)
         if previous is not None:
             legs.append(
                 Leg(
@@ -249,14 +249,30 @@ class RouteService:
         by_id = {s.id: s for s in (await self._session.execute(stmt)).scalars()}
         return [by_id[station_id] for station_id in station_ids if station_id in by_id]
 
-    async def _previous_station(self, first: Station, last: Station) -> Station | None:
-        """마지막 정류장 바로 앞 정류장 (진행 방향 기준). 같은 역이거나 없으면 None."""
+    async def _alight_early_station(
+        self, commute: Commute, first: Station, last: Station
+    ) -> Station | None:
+        """한 정거장 먼저 내릴 정류장. 없으면 None.
+
+        ODsay 구간으로 저장한 동선은 저장 시점에 정해 둔 정류장을 쓴다 (#44).
+        순번은 사용자마다 자기 구간 기준이라 노선 전체 순서로 쓸 수 없다.
+        시드 정류장(stationID 없음)만 노선 순번 ±1 로 찾는다.
+        """
+        # 1. 저장 시점에 정한 정류장
+        if commute.alight_early_station_id is not None:
+            stmt = select(Station).where(Station.id == commute.alight_early_station_id)
+            return (await self._session.execute(stmt)).scalar_one_or_none()
+        if last.external_id is not None:
+            return None
+
+        # 2. 시드 정류장: 같은 노선의 진행 방향 바로 앞 순번
         if first.id == last.id or first.line != last.line:
             return None
         direction = 1 if last.order_no > first.order_no else -1
         stmt = select(Station).where(
             Station.city == last.city,
             Station.line == last.line,
+            Station.external_id.is_(None),
             Station.order_no == last.order_no - direction,
         )
         previous = (await self._session.execute(stmt)).scalar_one_or_none()

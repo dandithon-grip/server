@@ -13,7 +13,7 @@ from app.core.database import get_db
 from app.core.exceptions import AppException, ErrorCode
 from app.core.geo import make_point
 from app.domain.commute.models import Commute, Station, TransportMode
-from app.domain.commute.schemas import SaveCommuteRequest, TransitLegInput
+from app.domain.commute.schemas import SaveCommuteRequest, TransitLegInput, TransitStopInput
 
 
 class CommuteService:
@@ -49,10 +49,13 @@ class CommuteService:
         if is_transit and not request.station_ids and not request.transit_legs:
             raise AppException(ErrorCode.STATION_REQUIRED)
         station_ids: list[UUID] = []
+        alight_early_station_id: UUID | None = None
         line = request.line if is_transit else None
         if is_transit and request.transit_legs:
-            # 고른 경로의 탑승 구간들을 stations 에 넣고 구간마다 탑승·하차 역 id 를 순서대로
-            station_ids, line = await self._store_transit_legs(request.transit_legs, city)
+            # 고른 경로의 탑승 구간들을 stations 에 넣고 구간마다 탑승·하차 역 id 를 순서대로.
+            # 한 정거장 먼저 내릴 정류장도 이 사용자의 구간에서 지금 정한다
+            stored = await self._store_transit_legs(request.transit_legs, city)
+            station_ids, line, alight_early_station_id = stored
         elif is_transit:
             station_ids = list(request.station_ids)
 
@@ -77,6 +80,7 @@ class CommuteService:
             "transport_mode": request.transport_mode.value,
             "line": line,
             "station_ids": station_ids,
+            "alight_early_station_id": alight_early_station_id,
             "preference": request.preference.value,
         }
         upsert_stmt = insert(Commute).values(**values)
@@ -106,35 +110,59 @@ class CommuteService:
 
     async def _store_transit_legs(
         self, legs: list[TransitLegInput], city: str
-    ) -> tuple[list[UUID], str]:
-        """탑승 구간의 정류장을 upsert 한다.
+    ) -> tuple[list[UUID], str, UUID | None]:
+        """탑승 구간의 정류장을 ODsay stationID 기준으로 upsert 한다.
 
-        [탑승, 하차, 탑승, 하차, ...] 순서의 id 목록과 마지막 노선을 돌려준다.
+        :return: [탑승, 하차, 탑승, 하차, ...] 순서의 id 목록, 마지막 노선,
+                 마지막 구간의 하차 직전 정류장 id (탑승역과 같으면 None)
         """
         station_ids: list[UUID] = []
+        alight_early_id: UUID | None = None
         for leg in legs:
+            # 1. upsert. 순환 버스처럼 같은 정류장이 두 번 나오면 첫 번째만 넣는다
+            #    (한 INSERT 문에 같은 키가 둘이면 Postgres 가 에러를 낸다)
+            unique_stops: dict[str, tuple[int, TransitStopInput]] = {}
+            for order, stop in enumerate(leg.stops):
+                unique_stops.setdefault(stop.external_id, (order, stop))
             values = [
                 {
                     "city": city,
                     "line": leg.line,
                     "name": stop.name,
+                    "external_id": stop.external_id,
                     "order_no": order,
                     "location": make_point(stop.lat, stop.lng),
                 }
-                for order, stop in enumerate(leg.stops)
+                for order, stop in unique_stops.values()
             ]
             upsert = insert(Station).values(values)
             upsert = upsert.on_conflict_do_update(
-                constraint="uq_stations_city_line_name",
-                set_={"order_no": upsert.excluded.order_no, "location": upsert.excluded.location},
+                constraint="uq_stations_city_line_external",
+                set_={
+                    "name": upsert.excluded.name,
+                    "order_no": upsert.excluded.order_no,
+                    "location": upsert.excluded.location,
+                },
             )
             await self._session.execute(upsert)
-            for stop in (leg.stops[0], leg.stops[-1]):
-                stmt = select(Station.id).where(
-                    Station.city == city, Station.line == leg.line, Station.name == stop.name
-                )
-                station_ids.append((await self._session.execute(stmt)).scalar_one())
-        return station_ids, legs[-1].line
+
+            # 2. 이 구간 정류장의 id 를 stationID 로 찾는다
+            stmt = select(Station.external_id, Station.id).where(
+                Station.city == city,
+                Station.line == leg.line,
+                Station.external_id.in_(list(unique_stops)),
+            )
+            id_of = {ext: sid for ext, sid in (await self._session.execute(stmt)).all()}
+            board, alight = leg.stops[0], leg.stops[-1]
+            station_ids += [id_of[board.external_id], id_of[alight.external_id]]
+
+            # 3. 하차 직전 정류장. 마지막 구간 것만 남는다.
+            #    두 정거장 구간이면 직전이 탑승역이라 없음
+            before = leg.stops[-2]
+            alight_early_id = (
+                id_of[before.external_id] if before.external_id != board.external_id else None
+            )
+        return station_ids, legs[-1].line, alight_early_id
 
     async def list_stations(self, *, line: str, city: str) -> list[Station]:
         """
