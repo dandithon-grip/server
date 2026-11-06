@@ -1,4 +1,4 @@
-"""F-16 피드백 → 태그 가중치 기대 동작."""
+"""F-16 별점 피드백 → 태그 가중치 기대 동작 (#50)."""
 
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ErrorCode
 from app.domain.commute.models import Commute, Preference
-from app.domain.feedback.service import apply_thumbs, top_tags
+from app.domain.feedback.models import Feedback
+from app.domain.feedback.service import apply_delta, rating_delta, top_tags
 from app.domain.route.models import LegType, PlaceType, Route
 from app.domain.route.service import RouteService
 from app.domain.user.models import User
@@ -90,15 +91,19 @@ async def refreshed_weights(session: AsyncSession, user: User) -> dict[str, floa
 # --- 순수 계산 ----------------------------------------------------------------
 
 
-def test_apply_thumbs_adds_and_clamps() -> None:
-    weights = apply_thumbs({}, [PlaceType.RIVER], direction=1)
+def test_rating_delta_is_centered_on_three() -> None:
+    assert [rating_delta(r) for r in (1, 2, 3, 4, 5)] == [-0.2, -0.1, 0.0, 0.1, 0.2]
+
+
+def test_apply_delta_adds_and_clamps() -> None:
+    weights = apply_delta({}, [PlaceType.RIVER], 0.2)
     assert weights == {"river": 0.2}
 
     for _ in range(6):
-        weights = apply_thumbs(weights, [PlaceType.RIVER], direction=1)
+        weights = apply_delta(weights, [PlaceType.RIVER], 0.2)
     assert weights["river"] == 1.0  # 상한
 
-    assert apply_thumbs({"park": -1.0}, [PlaceType.PARK], direction=-1) == {"park": -1.0}
+    assert apply_delta({"park": -1.0}, [PlaceType.PARK], -0.2) == {"park": -1.0}
 
 
 def test_top_tags_returns_positive_top_two() -> None:
@@ -134,63 +139,115 @@ def test_weights_change_ranking_order() -> None:
 # --- API ----------------------------------------------------------------------
 
 
-async def test_thumbs_up_adds_0_2_to_route_tags(
-    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
-) -> None:
-    headers = bearer(make_token())
-    user, river = await prepare(client, db_session, headers)
-
+async def rate(
+    client: AsyncClient, headers: dict[str, str], route: Route, rating: int
+) -> dict[str, object]:
     response = await client.post(
-        "/feedback", json={"route_id": str(river.id), "thumbs": "up"}, headers=headers
+        "/feedback", json={"route_id": str(route.id), "rating": rating}, headers=headers
     )
-
-    assert response.status_code == 200
-    assert response.json()["weights"] == {"river": 0.2, "park": 0.2}
-    assert await refreshed_weights(db_session, user) == {"river": 0.2, "park": 0.2}
-
-
-async def test_thumbs_down_subtracts_and_switching_reverses(
-    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
-) -> None:
-    headers = bearer(make_token())
-    user, river = await prepare(client, db_session, headers)
-    body = {"route_id": str(river.id), "thumbs": "down"}
-
-    await client.post("/feedback", json=body, headers=headers)
-    assert await refreshed_weights(db_session, user) == {"river": -0.2, "park": -0.2}
-
-    # 같은 날 같은 경로에 👍 로 바꾸면 −0.2 를 되돌리고 +0.2
-    await client.post("/feedback", json={**body, "thumbs": "up"}, headers=headers)
-    assert await refreshed_weights(db_session, user) == {"river": 0.2, "park": 0.2}
-
-    # 같은 걸 또 눌러도 변화 없음
-    await client.post("/feedback", json={**body, "thumbs": "up"}, headers=headers)
-    assert await refreshed_weights(db_session, user) == {"river": 0.2, "park": 0.2}
+    assert response.status_code == 200, response.text
+    body: dict[str, object] = response.json()
+    return body
 
 
-async def test_hint_after_three_ups_on_same_tag(
+async def test_five_stars_adds_0_2_and_four_stars_0_1(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
     headers = bearer(make_token())
     user, river = await prepare(client, db_session, headers)
     commute = (await db_session.execute(select(Commute))).scalar_one()
-    more = [make_route(commute.id, tags=[PlaceType.RIVER]) for _ in range(2)]
+    park = make_route(commute.id, tags=[PlaceType.PARK])
+    db_session.add(park)
+    await db_session.flush()
+
+    body = await rate(client, headers, river, 5)
+    await rate(client, headers, park, 4)
+
+    assert body["rating"] == 5
+    assert body["weights"] == {"river": 0.2, "park": 0.2}
+    assert await refreshed_weights(db_session, user) == {"river": 0.2, "park": 0.3}
+
+
+async def test_three_stars_changes_nothing(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    headers = bearer(make_token())
+    user, river = await prepare(client, db_session, headers)
+
+    await rate(client, headers, river, 3)
+
+    assert await refreshed_weights(db_session, user) == {}
+
+
+async def test_rerating_same_day_applies_only_the_difference(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    headers = bearer(make_token())
+    user, river = await prepare(client, db_session, headers)
+
+    await rate(client, headers, river, 1)
+    assert await refreshed_weights(db_session, user) == {"river": -0.2, "park": -0.2}
+
+    # 같은 날 같은 경로를 4점으로 고치면 1점(−0.2)을 되돌리고 4점(+0.1)
+    await rate(client, headers, river, 4)
+    assert await refreshed_weights(db_session, user) == {"river": 0.1, "park": 0.1}
+
+    # 같은 점수를 또 줘도 변화 없음
+    await rate(client, headers, river, 4)
+    assert await refreshed_weights(db_session, user) == {"river": 0.1, "park": 0.1}
+    feedback = list((await db_session.execute(select(Feedback))).scalars())
+    assert [f.rating for f in feedback] == [4]
+
+
+async def test_rating_out_of_range_returns_422(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    headers = bearer(make_token())
+    _, river = await prepare(client, db_session, headers)
+
+    for rating in (0, 6):
+        response = await client.post(
+            "/feedback", json={"route_id": str(river.id), "rating": rating}, headers=headers
+        )
+        assert response.status_code == 422
+
+
+async def test_hint_after_three_ratings_of_four_or_more(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    headers = bearer(make_token())
+    _, river = await prepare(client, db_session, headers)
+    commute = (await db_session.execute(select(Commute))).scalar_one()
+    more = [make_route(commute.id, tags=[PlaceType.RIVER]) for _ in range(3)]
     db_session.add_all(more)
     await db_session.flush()
 
-    for route in [river, *more[:1]]:
-        await client.post(
-            "/feedback", json={"route_id": str(route.id), "thumbs": "up"}, headers=headers
-        )
+    await rate(client, headers, river, 5)
+    await rate(client, headers, more[0], 4)
+    await rate(client, headers, more[1], 3)  # 3점은 좋아한다고 세지 않는다
     before = await client.get("/users/me/tag-weights", headers=headers)
-    await client.post(
-        "/feedback", json={"route_id": str(more[1].id), "thumbs": "up"}, headers=headers
-    )
+    await rate(client, headers, more[2], 4)
     after = await client.get("/users/me/tag-weights", headers=headers)
 
-    assert before.json()["hint"] is None  # 2회
+    assert before.json()["hint"] is None  # 4점 이상 2회
     assert after.json()["hint"] == {"tag": "river", "message": "요즘 하천길을 좋아하시네요"}
-    assert after.json()["weights"]["river"] == 0.6
+
+
+async def test_feedback_survives_route_regeneration(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 동선을 다시 저장해 경로를 새로 만들어도 평가 기록과 그때의 태그는 남는다
+    headers = bearer(make_token())
+    _, river = await prepare(client, db_session, headers)
+    await rate(client, headers, river, 5)
+
+    await db_session.delete(river)
+    await db_session.flush()
+
+    feedback = (await db_session.execute(select(Feedback))).scalar_one()
+    assert feedback.route_id is None
+    assert feedback.rating == 5
+    assert sorted(feedback.tags) == ["park", "river"]
 
 
 async def test_reset_clears_weights_but_keeps_feedback(
@@ -198,15 +255,14 @@ async def test_reset_clears_weights_but_keeps_feedback(
 ) -> None:
     headers = bearer(make_token())
     user, river = await prepare(client, db_session, headers)
-    await client.post(
-        "/feedback", json={"route_id": str(river.id), "thumbs": "up"}, headers=headers
-    )
+    await rate(client, headers, river, 5)
 
     response = await client.delete("/users/me/tag-weights", headers=headers)
 
     assert response.status_code == 200
     assert response.json()["weights"] == {}
     assert await refreshed_weights(db_session, user) == {}
+    assert len(list((await db_session.execute(select(Feedback))).scalars())) == 1
 
 
 async def test_feedback_on_someone_elses_route_returns_404(
@@ -216,7 +272,7 @@ async def test_feedback_on_someone_elses_route_returns_404(
     await prepare(client, db_session, headers)
 
     response = await client.post(
-        "/feedback", json={"route_id": str(uuid4()), "thumbs": "up"}, headers=headers
+        "/feedback", json={"route_id": str(uuid4()), "rating": 5}, headers=headers
     )
 
     assert response.status_code == 404
@@ -224,7 +280,7 @@ async def test_feedback_on_someone_elses_route_returns_404(
 
 
 async def test_feedback_without_token_returns_401(client: AsyncClient) -> None:
-    response = await client.post("/feedback", json={"route_id": str(uuid4()), "thumbs": "up"})
+    response = await client.post("/feedback", json={"route_id": str(uuid4()), "rating": 5})
 
     assert response.status_code == 401
 
@@ -233,20 +289,18 @@ async def test_routes_endpoint_applies_weights(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
     headers = bearer(make_token())
-    user, river = await prepare(client, db_session, headers)
+    _, river = await prepare(client, db_session, headers)
     commute = (await db_session.execute(select(Commute))).scalar_one()
     # 하천길(river·park) 녹지 40, 공원길(park) 녹지 48.
-    # 👍 5번이면 river·park 가중치 1.0 → 하천길 +20, 공원길 +10 으로 역전
+    # 5점 5번이면 river·park 가중치 1.0 → 하천길 +20, 공원길 +10 으로 역전
     park = make_route(commute.id, green_pct=48, tags=[PlaceType.PARK])
-    # 같은 날 같은 경로는 한 번만 세므로, 하천길 5개에 각각 👍
+    # 같은 날 같은 경로는 한 번만 세므로, 하천길 5개에 각각 5점
     others = [make_route(commute.id, tags=[PlaceType.RIVER, PlaceType.PARK]) for _ in range(4)]
     db_session.add_all([park, *others])
     await db_session.flush()
     plain = await client.get("/commutes/me/routes", headers=headers)
     for liked in [river, *others]:
-        await client.post(
-            "/feedback", json={"route_id": str(liked.id), "thumbs": "up"}, headers=headers
-        )
+        await rate(client, headers, liked, 5)
 
     boosted = await client.get("/commutes/me/routes", headers=headers)
 
