@@ -47,10 +47,10 @@ class CandidateInput(BaseModel):
     name: str
     leg_type: str
     action_type: str
-    add_minutes: float
-    green_pct: float
-    event_score: float
-    score: float
+    add_minutes: int
+    green_pct: int
+    event_score: int
+    score: int
     tags: list[str]
     highlights: list[str] = Field(..., description="경유 지점 한 줄 설명")
     season_tags: list[str] = Field(..., description="경유 지점의 계절 상태")

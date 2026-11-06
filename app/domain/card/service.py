@@ -221,7 +221,12 @@ class CardService:
             return None
         known = await self._routes.list_place_names(user.city)
         known |= await self._commutes.list_station_names(user.city)
-        foreign = [name for name in known - allowed_names if name and name in choice.text]
+        # 입력 문자열(경로 이름·설명) 어디에든 들어 있는 이름은 입력에 있는 것이다
+        # (예: 경로 "국채보상운동기념공원 북쪽 입구 샛길" 에 대해 "국채보상운동기념공원")
+        allowed_text = " ".join(allowed_names)
+        foreign = [
+            name for name in known if name and name in choice.text and name not in allowed_text
+        ]
         if foreign:
             logger.warning("카드 LLM 문장에 입력에 없는 장소: %s", foreign)
             return None
@@ -243,10 +248,11 @@ class CardService:
                     name=ranked.route.name,
                     leg_type=str(ranked.route.leg_type),
                     action_type=str(LEG_ACTION[LegType(ranked.route.leg_type)]),
-                    add_minutes=ranked.route.add_minutes,
-                    green_pct=ranked.route.green_pct,
-                    event_score=ranked.event_score,
-                    score=ranked.score,
+                    # 문장에 "8.0분", "37.0%" 가 그대로 나오지 않게 정수로 넘긴다
+                    add_minutes=round(ranked.route.add_minutes),
+                    green_pct=round(ranked.route.green_pct),
+                    event_score=round(ranked.event_score),
+                    score=round(ranked.score),
                     tags=[str(tag) for tag in ranked.tags],
                     highlights=ranked.route.highlights,
                     season_tags=[p.season_tag for p in places if p.season_tag],
