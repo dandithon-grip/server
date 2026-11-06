@@ -1,8 +1,13 @@
 from enum import Enum
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+
+ERROR_SCHEMA_REF = "#/components/schemas/ErrorResponse"
 
 
 class ErrorCode(Enum):
@@ -24,6 +29,14 @@ class ErrorCode(Enum):
     def __init__(self, status: int, message: str) -> None:
         self.status = status
         self.message = message
+
+
+class ErrorResponse(BaseModel):
+    """모든 에러 응답의 형식. 전역 핸들러가 이 모양으로만 내보낸다."""
+
+    message: str = Field(
+        ..., description="사용자에게 그대로 보여줄 메시지", examples=["유효하지 않은 토큰입니다"]
+    )
 
 
 class AppException(Exception):
@@ -54,3 +67,40 @@ def register_exception_handlers(app: FastAPI) -> None:
             status_code=422,
             content={"message": f"요청 값이 올바르지 않습니다 ({location}: {first['msg']})"},
         )
+
+
+def use_error_schema_in_openapi(app: FastAPI) -> None:
+    """Swagger 의 모든 4xx·5xx 응답에 ErrorResponse 스키마를 붙인다.
+
+    라우터의 responses 는 설명만 적고, 형식은 여기서 한 번에 맞춘다.
+    FastAPI 기본 422 스키마({"detail": [...]})는 실제 응답과 달라 명세에서 뺀다.
+    """
+
+    def openapi() -> dict[str, Any]:
+        if app.openapi_schema:
+            return app.openapi_schema
+        # 1. 기본 명세 생성
+        schema = get_openapi(
+            title=app.title, version=app.version, description=app.description, routes=app.routes
+        )
+        components = schema.setdefault("components", {}).setdefault("schemas", {})
+
+        # 2. 에러 응답을 전부 ErrorResponse 로
+        components["ErrorResponse"] = ErrorResponse.model_json_schema()
+        for operations in schema["paths"].values():
+            for operation in operations.values():
+                for code, response in operation["responses"].items():
+                    if int(code) >= 400:
+                        response["content"] = {
+                            "application/json": {"schema": {"$ref": ERROR_SCHEMA_REF}}
+                        }
+                        if code == "422" and response.get("description") == "Validation Error":
+                            response["description"] = "요청 값이 형식·범위에 맞지 않음"
+
+        # 3. 쓰지 않게 된 기본 422 스키마 제거
+        components.pop("HTTPValidationError", None)
+        components.pop("ValidationError", None)
+        app.openapi_schema = schema
+        return schema
+
+    app.openapi = openapi  # type: ignore[method-assign]

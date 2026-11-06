@@ -44,6 +44,10 @@ async def save_commute(
     "/me",
     response_model=CommuteResponse,
     summary="내 출퇴근 동선 조회",
+    description=(
+        "저장한 동선을 돌려준다. 출발·도착 좌표는 본인에게만 내보낸다. "
+        "설정 화면을 채울 때와 저장 여부 확인에 쓴다."
+    ),
     responses={
         401: {"description": "토큰 없음 또는 만료"},
         404: {"description": "아직 저장한 동선이 없음"},

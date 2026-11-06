@@ -60,6 +60,7 @@ async def get_tag_weights(
     "",
     response_model=TagWeightsResponse,
     summary="태그 가중치 초기화",
+    description="👍/👎 로 쌓인 태그 가중치를 모두 0 으로 되돌린다. 피드백 기록은 남는다.",
     responses={401: {"description": "토큰 없음 또는 만료"}},
 )
 async def reset_tag_weights(
