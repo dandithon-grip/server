@@ -362,12 +362,6 @@ class RouteService:
         )
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
-    async def list_routes_by_ids(self, route_ids: list[UUID]) -> list[Route]:
-        if not route_ids:
-            return []
-        stmt = select(Route).where(Route.id.in_(route_ids))
-        return list((await self._session.execute(stmt)).scalars())
-
     async def list_places(self, place_ids: list[UUID]) -> list[Place]:
         """id 목록의 Place. 카드가 경유지의 계절 태그·이름을 쓴다."""
         if not place_ids:
