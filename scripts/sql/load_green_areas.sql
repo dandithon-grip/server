@@ -18,6 +18,7 @@ WITH bounds AS (
 areas AS (
     SELECT
         p.osm_id,
+        NULLIF(p.name, '') AS name,
         CASE
             WHEN p.leisure = 'park' THEN 'park'
             WHEN p.landuse = 'forest' OR p."natural" = 'wood' THEN 'forest'
@@ -44,6 +45,7 @@ areas AS (
 lines AS (
     SELECT
         l.osm_id,
+        NULLIF(l.name, '') AS name,
         CASE
             WHEN l.waterway = 'river' THEN 'river'
             WHEN l."natural" = 'tree_row' THEN 'trees'
@@ -57,19 +59,20 @@ lines AS (
 picked AS (
     -- 한 way 에 녹지 태그가 여럿이면 kind 가 같은 행이 두 번 나올 수 있다.
     -- 같은 (osm_id, kind) 를 한 INSERT 안에서 두 번 갱신하면 Postgres 가 거부하므로 하나만 둔다
-    SELECT DISTINCT ON (osm_id, kind) osm_id, kind, geom
+    SELECT DISTINCT ON (osm_id, kind) osm_id, name, kind, geom
     FROM (
-        SELECT osm_id, kind, geom FROM areas
+        SELECT osm_id, name, kind, geom FROM areas
         UNION ALL
-        SELECT osm_id, kind, geom FROM lines
+        SELECT osm_id, name, kind, geom FROM lines
     ) AS candidates
     WHERE kind IS NOT NULL
       AND NOT ST_IsEmpty(geom)
     ORDER BY osm_id, kind
 )
-INSERT INTO green_areas (id, kind, geom, osm_id, city)
-SELECT gen_random_uuid(), kind, geom, osm_id, CAST(:city AS varchar(20))
+INSERT INTO green_areas (id, kind, name, geom, osm_id, city)
+SELECT gen_random_uuid(), kind, name, geom, osm_id, CAST(:city AS varchar(20))
 FROM picked
 ON CONFLICT (osm_id, kind) DO UPDATE
 SET geom = EXCLUDED.geom,
+    name = EXCLUDED.name,
     city = EXCLUDED.city
