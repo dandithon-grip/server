@@ -28,7 +28,7 @@ from app.domain.feedback.models import (
     Feedback,
 )
 from app.domain.feedback.schemas import PreferenceHint
-from app.domain.route.models import PlaceType, Route
+from app.domain.route.models import Direction, PlaceType, Route
 from app.domain.route.scoring import TAG_RATIO_THRESHOLD
 from app.domain.route.service import RouteService, get_route_service
 from app.domain.user.models import User
@@ -44,9 +44,13 @@ HINT_MESSAGES = {
 
 
 def route_feedback_tags(route: Route) -> list[PlaceType]:
-    """가중치가 붙는 경로 태그. 저장된 정적 태그 + 일몰 방향 비율이 높으면 sunset."""
+    """가중치가 붙는 경로 태그. 저장된 정적 태그 + 퇴근 방향 일몰 비율이 높으면 sunset.
+
+    평가는 퇴근 카드로 걸은 뒤에 한다 (#56).
+    """
     tags = [PlaceType(value) for value in route.tags if PlaceType(value) in FEEDBACK_TAGS]
-    if route.sunset_ratio >= TAG_RATIO_THRESHOLD and PlaceType.SUNSET not in tags:
+    facing = route.sunset_ratio_for(Direction.TO_HOME)
+    if facing >= TAG_RATIO_THRESHOLD and PlaceType.SUNSET not in tags:
         tags.append(PlaceType.SUNSET)
     return tags
 

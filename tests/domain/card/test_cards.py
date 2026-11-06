@@ -108,6 +108,7 @@ def make_route(
     highlights: list[str] | None = None,
     spots: list[UUID] | None = None,
     leg_type: LegType = LegType.WALK_ALL,
+    name_reverse: str | None = None,
     skip_stops: int = 0,
     board_station_id: UUID | None = None,
     alight_station_id: UUID | None = None,
@@ -115,6 +116,7 @@ def make_route(
     return Route(
         commute_id=commute_id,
         leg_type=leg_type,
+        name_reverse=name_reverse,
         skip_stops=skip_stops,
         board_station_id=board_station_id,
         alight_station_id=alight_station_id,
@@ -496,12 +498,14 @@ async def test_board_late_template_names_stops_and_station(
     db_session.add_all(
         [
             make_route(commute.id, name="최단 경로", is_baseline=True),
+            # 출근 방향 "회사 쪽 2정거장 먼저 내리기" 는 퇴근 카드에서 "걸어가서 타기" (#56)
             make_route(
                 commute.id,
-                name="수성구청건너까지 걸어가서 타기",
-                leg_type=LegType.BOARD_LATE,
+                name="수성구청건너에서 내려 걷기",
+                name_reverse="수성구청건너까지 걸어가서 타기",
+                leg_type=LegType.ALIGHT_EARLY,
                 skip_stops=2,
-                board_station_id=station.id,
+                alight_station_id=station.id,
                 add_minutes=6,
                 green_pct=40,
             ),
@@ -529,12 +533,14 @@ async def test_card_action_follows_chosen_candidate_not_llm_label(
     db_session.add_all(
         [
             make_route(commute.id, name="최단 경로", is_baseline=True),
+            # 출근 방향 "집 쪽 걸어가서 타기" 는 퇴근 카드에서 "먼저 내리기" (#56)
             make_route(
                 commute.id,
-                name="삼덕교회에서 내려 걷기",
-                leg_type=LegType.ALIGHT_EARLY,
+                name="삼덕교회까지 걸어가서 타기",
+                name_reverse="삼덕교회에서 내려 걷기",
+                leg_type=LegType.BOARD_LATE,
                 skip_stops=1,
-                alight_station_id=station.id,
+                board_station_id=station.id,
                 add_minutes=3,
                 green_pct=50,
             ),

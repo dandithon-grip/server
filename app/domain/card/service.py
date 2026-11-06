@@ -34,7 +34,7 @@ from app.domain.commute.models import Commute, Preference
 from app.domain.commute.service import CommuteService, get_commute_service
 from app.domain.feedback.service import top_tags
 from app.domain.route.fallback import LEG_ACTION, FallbackResult, decide_fallback
-from app.domain.route.models import ActionType, LegType, PlaceType, Route
+from app.domain.route.models import ActionType, Direction, PlaceType, Route
 from app.domain.route.scoring import sunset_window
 from app.domain.route.service import RankedRoute, RouteService, get_route_service
 from app.domain.user.models import User
@@ -148,8 +148,14 @@ class CardService:
         window = sunset_window(at, lat=commute.from_lat, lng=commute.from_lng, is_clear=is_clear)
 
         # 2. 후보·대체 단계 (DB 미접근)
+        # 오늘 카드는 퇴근 카드다 (11/3 결정). 출근 방향으로 저장된 경로를 거꾸로 본다 (#56)
         ranked = self._routes.rank(
-            routes, preference=preference, at=at, is_clear=is_clear, tag_weights=user.tag_weights
+            routes,
+            preference=preference,
+            at=at,
+            is_clear=is_clear,
+            tag_weights=user.tag_weights,
+            direction=Direction.TO_HOME,
         )
         decided = decide_fallback(ranked, at=at, is_clear=is_clear)
         context = CardContext(commute, routes, decided, at, window.sunset_at, weather, air)
@@ -222,22 +228,22 @@ class CardService:
             logger.warning("카드 LLM 문장에 입력에 없는 장소: %s", foreign)
             return None
         # 4. 행동 유형은 고른 후보의 구간이 정한다 (1단계에 걷기·먼저 내리기·늦게 타기가 섞인다)
-        chosen = context.decided.candidates[choice.choice].route
-        return choice.model_copy(update={"action_type": LEG_ACTION[LegType(chosen.leg_type)]})
+        chosen = context.decided.candidates[choice.choice]
+        return choice.model_copy(update={"action_type": LEG_ACTION[chosen.leg_type]})
 
     async def _card_input(self, context: CardContext, user: User) -> CardInput:
         candidates: list[CandidateInput] = []
         for index, ranked in enumerate(context.decided.candidates):
             places = await self._routes.list_places(ranked.route.spots)
-            station_id = ranked.route.alight_station_id or ranked.route.board_station_id
+            station_id = ranked.alight_station_id or ranked.board_station_id
             station = await self._commutes.get_station(station_id) if station_id else None
             candidates.append(
                 CandidateInput(
                     index=index,
                     route_id=str(ranked.route.id),
-                    name=ranked.route.name,
-                    leg_type=str(ranked.route.leg_type),
-                    action_type=str(LEG_ACTION[LegType(ranked.route.leg_type)]),
+                    name=ranked.name,
+                    leg_type=str(ranked.leg_type),
+                    action_type=str(LEG_ACTION[ranked.leg_type]),
                     # 문장에 "8.0분", "37.0%" 가 그대로 나오지 않게 정수로 넘긴다
                     add_minutes=round(ranked.route.add_minutes),
                     green_pct=round(ranked.route.green_pct),
@@ -268,27 +274,27 @@ class CardService:
         if decided.candidates:
             top = decided.candidates[0]
             route = top.route
-            place = route.highlights[0] if route.highlights else route.name
+            place = route.highlights[0] if route.highlights else top.name
             minutes = int(round(route.add_minutes))
-            action = LEG_ACTION[LegType(route.leg_type)]
-            station_id = route.alight_station_id or route.board_station_id
+            action = LEG_ACTION[top.leg_type]
+            station_id = top.alight_station_id or top.board_station_id
             station = await self._commutes.get_station(station_id) if station_id else None
             station_name = station.name if station else ""
             stops = route.skip_stops
             if action == ActionType.ALIGHT_EARLY:
                 text = (
                     f"{stops}정거장 먼저 {station_name}에서 내리면 +{minutes}분, "
-                    f"{route.name}. {place}"
+                    f"{top.name}. {place}"
                 )
             elif action == ActionType.BOARD_LATE:
                 text = (
                     f"{stops}정거장 걸어가서 {station_name}에서 타면 +{minutes}분, "
-                    f"{route.name}. {place}"
+                    f"{top.name}. {place}"
                 )
             elif action == ActionType.AFTER_ARRIVAL:
-                text = f"도착 후 {minutes}분 걸으면 {route.name}. {place}"
+                text = f"도착 후 {minutes}분 걸으면 {top.name}. {place}"
             else:
-                text = f"{minutes}분 돌아가면 {route.name}. {place}"
+                text = f"{minutes}분 돌아가면 {top.name}. {place}"
             return CardChoice(
                 choice=0,
                 action_type=action,
@@ -370,6 +376,7 @@ class CardService:
             at=at,
             is_clear=is_clear,
             tag_weights=user_weights,
+            direction=Direction.TO_HOME,
         )
         decided = decide_fallback(ranked, at=at, is_clear=is_clear)
         chosen = next((r for r in ranked.eligible if r.route.id == card.route_id), None)

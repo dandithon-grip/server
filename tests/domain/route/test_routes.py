@@ -302,8 +302,9 @@ async def test_generate_walk_stores_baseline_and_bridge_candidate(
     assert response.status_code == 200
     body = response.json()
     assert body["preference"] == "full"
-    # 기준선 1 + 경유지 2 + 도착지 반경 1 (공원A 는 왕복 우회량 1,264m 라 규칙 ② 에서 제외)
-    assert len(fake.calls) == 1 + 2 + 1
+    # 기준선 1 + 경유지 2 + 도착 후 회사 쪽 1 + 집 쪽 1 (#56)
+    # (도착 후 반경에서 공원A 는 왕복 우회량 1,264m 라 규칙 ② 에서 제외)
+    assert len(fake.calls) == 1 + 2 + 1 + 1
     assert [r["leg_type"] for r in body["shortest"]] == ["walk_all"]
     assert body["shortest"][0]["is_baseline"] is True
     # 녹지 데이터가 없어 공원A 는 후보 조건 미달, 다리B 는 이벤트 10 으로 후보

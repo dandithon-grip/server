@@ -9,7 +9,7 @@ rank:     저장된 Route → 오늘의 노을 창·취향·태그 가중치 적
 import asyncio
 import math
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from uuid import UUID
 
@@ -24,7 +24,7 @@ from app.clients.tmap import LatLng, PedestrianRoute, TmapClient, get_tmap_clien
 from app.core.database import get_db
 from app.core.geo import make_point
 from app.domain.commute.models import Commute, Preference, Station, TransportMode
-from app.domain.route.models import LegType, Place, PlaceType, Route
+from app.domain.route.models import MIRROR_LEG, Direction, LegType, Place, PlaceType, Route
 from app.domain.route.scoring import (
     GEOGRAPHY,
     METERS_PER_DEG_LAT,
@@ -88,6 +88,7 @@ class Leg:
     board_station_id: UUID | None = None
     skip_stops: int = 0  # 먼저 내리기·늦게 타기에서 건너뛴 정거장 수
     station_name: str | None = None
+    direction: Direction = Direction.TO_WORK  # 경로선을 만드는 방향
 
     @property
     def reference(self) -> LegType:
@@ -109,10 +110,39 @@ class Waypoint:
 
 @dataclass(frozen=True)
 class RankedRoute:
+    """오늘 조건을 적용한 경로. 구간·이름·정류장·좌표는 걷는 방향 기준이다 (#56)."""
+
     route: Route
     score: float
     event_score: float
     tags: list[PlaceType]
+    leg_type: LegType
+    name: str
+    points: list[tuple[float, float]]
+    alight_station_id: UUID | None
+    board_station_id: UUID | None
+    sunset_ratio: float
+
+
+def oriented(
+    route: Route, direction: Direction, *, score: float, event_score: float, tags: list[PlaceType]
+) -> RankedRoute:
+    """저장된 경로를 걷는 방향으로 본다. 반대 방향이면 구간·정류장·좌표를 뒤집는다."""
+    stored = LegType(route.leg_type)
+    same = direction == route.stored_direction
+    points = route.points if same else list(reversed(route.points))
+    return RankedRoute(
+        route=route,
+        score=score,
+        event_score=event_score,
+        tags=tags,
+        leg_type=stored if same else MIRROR_LEG[stored],
+        name=route.name_for(direction),
+        points=points,
+        alight_station_id=route.alight_station_id if same else route.board_station_id,
+        board_station_id=route.board_station_id if same else route.alight_station_id,
+        sunset_ratio=route.sunset_ratio_for(direction),
+    )
 
 
 @dataclass(frozen=True)
@@ -266,14 +296,18 @@ class RouteService:
         return list(await asyncio.gather(*(walk(*request) for request in requests)))
 
     async def _legs(self, commute: Commute) -> list[Leg]:
-        """걷는 구간. 도착지 반경 구간(F-15 3단계용)은 모든 교통수단에 붙인다."""
+        """걷는 구간 (출근 방향). 도착지 반경 구간(F-15 3단계)은 방향마다 모든 교통수단에 붙인다."""
         start = LatLng(lat=commute.from_lat, lng=commute.from_lng)
         end = LatLng(lat=commute.to_lat, lng=commute.to_lng)
-        after_arrival = Leg(LegType.AFTER_ARRIVAL, end, end)
+        # 도착 후는 방향마다 다른 곳이다: 출근이면 회사 주변, 퇴근이면 집 주변 (#56)
+        after_arrival = [
+            Leg(LegType.AFTER_ARRIVAL, end, end, direction=Direction.TO_WORK),
+            Leg(LegType.AFTER_ARRIVAL, start, start, direction=Direction.TO_HOME),
+        ]
         if commute.transport_mode == TransportMode.WALK:
-            return [Leg(LegType.WALK_ALL, start, end), after_arrival]
+            return [Leg(LegType.WALK_ALL, start, end), *after_arrival]
         if commute.transport_mode == TransportMode.CAR:
-            return [after_arrival]
+            return after_arrival
 
         # transit: 앞 도보(출발→첫 탑승) · 뒤 도보(마지막 하차→도착)
         # · 1~3 정거장 먼저 내려 걷기 · 1~3 정거장 걸어가서 타기.
@@ -314,7 +348,7 @@ class RouteService:
                         station_name=station[station_id].name,
                     )
                 )
-        legs.append(after_arrival)
+        legs += after_arrival
         return legs
 
     async def _stations(self, station_ids: list[UUID]) -> dict[UUID, Station]:
@@ -384,6 +418,9 @@ class RouteService:
             alight_station_id=leg.alight_station_id,
             board_station_id=leg.board_station_id,
             skip_stops=leg.skip_stops,
+            direction=leg.direction,
+            sunset_ratio_reverse=static.sunset_ratio_reverse,
+            name_reverse=_route_name(replace(leg, leg_type=MIRROR_LEG[leg.leg_type]), places),
         )
 
     async def get_place(self, place_id: UUID) -> Place | None:
@@ -452,18 +489,28 @@ class RouteService:
         at: datetime,
         is_clear: bool | None,
         tag_weights: dict[str, float] | None = None,
+        direction: Direction = Direction.TO_WORK,
     ) -> RankedRoutes:
         """
         저장된 경로에 오늘의 조건을 적용해 후보 ≤3개를 고른다. DB 를 읽지 않는다.
+
+        경로는 출근 방향으로 저장돼 있다. direction 이 퇴근이면 같은 길을 거꾸로 걷는 것으로 보고
+        구간·이름·정류장·좌표·노을 비율을 뒤집는다. 도착 후 구간은 그 방향 것만 쓴다 (#56).
 
         :param routes: 한 동선의 Route 전부 (기준선 포함)
         :param preference: 취향. 기본 취향 또는 취향 칩
         :param at: 걷는 시각 (tz-aware). 노을 창 판정
         :param is_clear: 맑음 여부. None 이면 노을 가산 없음
         :param tag_weights: F-16 태그 가중치. 없으면 0
+        :param direction: 걷는 방향. 오늘 카드는 퇴근
         """
         rule = PREFERENCE_RULES[preference]
         weights = tag_weights or {}
+        routes = [
+            r
+            for r in routes
+            if LegType(r.leg_type) != LegType.AFTER_ARRIVAL or r.stored_direction == direction
+        ]
 
         # 1. 구간별 기준선 녹지 %
         base_green = {r.leg_type: r.green_pct for r in routes if r.is_baseline}
@@ -477,13 +524,22 @@ class RouteService:
         ranked: list[RankedRoute] = []
         shortest: list[RankedRoute] = []
         for route in routes:
-            score_today = apply_sunset(_static_of(route), window_open=window_open)
+            score_today = apply_sunset(_static_of(route, direction), window_open=window_open)
             if route.is_baseline:
-                shortest.append(RankedRoute(route, 0.0, score_today.event_score, score_today.tags))
+                shortest.append(
+                    oriented(
+                        route,
+                        direction,
+                        score=0.0,
+                        event_score=score_today.event_score,
+                        tags=score_today.tags,
+                    )
+                )
                 continue
 
             # 3. 후보 조건: 추가 시간 상한 그리고 (녹지 기준 또는 이벤트 ≥ 10)
-            # 건너뛰기 구간은 원래 계획(앞·뒤 도보 최단)의 녹지와 비교한다
+            # 건너뛰기 구간은 원래 계획(앞·뒤 도보 최단)의 녹지와 비교한다.
+            # 저장된 방향끼리 비교하므로 걷는 방향과 무관하다
             reference = REFERENCE_LEG.get(LegType(route.leg_type), LegType(route.leg_type))
             green_gain = route.green_pct - base_green.get(reference, 0.0)
             if route.add_minutes > rule.max_add_minutes:
@@ -504,7 +560,13 @@ class RouteService:
                 - route.add_minutes * MINUTE_PENALTY
             )
             ranked.append(
-                RankedRoute(route, round(score, 1), score_today.event_score, score_today.tags)
+                oriented(
+                    route,
+                    direction,
+                    score=round(score, 1),
+                    event_score=score_today.event_score,
+                    tags=score_today.tags,
+                )
             )
 
         # 5. 상위 3개
@@ -512,12 +574,12 @@ class RouteService:
         return RankedRoutes(candidates=ranked[:MAX_CANDIDATES], shortest=shortest, eligible=ranked)
 
 
-def _static_of(route: Route) -> StaticScore:
+def _static_of(route: Route, direction: Direction) -> StaticScore:
     return StaticScore(
         green_pct=route.green_pct,
         water_score=route.water_score,
         landmark_score=route.landmark_score,
-        sunset_ratio=route.sunset_ratio,
+        sunset_ratio=route.sunset_ratio_for(direction),
         tags=[PlaceType(value) for value in route.tags],
     )
 

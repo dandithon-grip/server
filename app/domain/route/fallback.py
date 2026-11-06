@@ -47,9 +47,9 @@ def decide_fallback(
     :param is_clear: 맑음 여부. None 이면 늦추기 없음
     """
     # 1. 이동 중 샛길: 돌아가기·먼저 내리기·늦게 타기가 점수로 경쟁. 행동은 1위의 구간이 정한다
-    moving = [r for r in ranked.eligible if r.route.leg_type in MOVING_LEGS]
+    moving = [r for r in ranked.eligible if r.leg_type in MOVING_LEGS]
     if moving:
-        return _result(1, LEG_ACTION[LegType(moving[0].route.leg_type)], moving, ranked)
+        return _result(1, LEG_ACTION[moving[0].leg_type], moving, ranked)
 
     # 2. 기준선 자체에 이벤트(물가·다리·노을) 가 있음 → 곧 노을이면 늦추기, 아니면 고개 돌리기
     eventful = [r for r in ranked.shortest if r.event_score >= BASELINE_EVENT_MIN]
@@ -60,7 +60,7 @@ def decide_fallback(
         return _result(2, action, [], ranked)
 
     # 3. 도착지 반경 10분 안에 후보 있음 → 도착 후
-    after = [r for r in ranked.eligible if r.route.leg_type == LegType.AFTER_ARRIVAL]
+    after = [r for r in ranked.eligible if r.leg_type == LegType.AFTER_ARRIVAL]
     if after:
         return _result(3, ActionType.AFTER_ARRIVAL, after, ranked)
 
@@ -71,9 +71,9 @@ def decide_fallback(
 def _sunset_opens_soon(baselines: list[RankedRoute], at: datetime, is_clear: bool | None) -> bool:
     """지금은 닫혀 있지만 10분 뒤에는 열리고, 기준선이 일몰 방향으로 걷는 구간이면 True."""
     for ranked in baselines:
-        if ranked.route.sunset_ratio < TAG_RATIO_THRESHOLD:
+        if ranked.sunset_ratio < TAG_RATIO_THRESHOLD:
             continue
-        lat, lng = ranked.route.points[0]
+        lat, lng = ranked.points[0]
         now = sunset_window(at, lat=lat, lng=lng, is_clear=is_clear)
         later = sunset_window(at + DELAY_WINDOW, lat=lat, lng=lng, is_clear=is_clear)
         if not now.is_open and later.is_open:

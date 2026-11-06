@@ -69,6 +69,9 @@ class StaticScore(BaseModel):
     water_score: float = Field(..., ge=0, le=WATER_WEIGHT, description="하천 50m 안 비율 × 10")
     landmark_score: float = Field(..., ge=0, le=LANDMARK_BONUS, description="다리·전망 +10")
     sunset_ratio: float = Field(..., ge=0, le=1, description="일몰 방향으로 걷는 구간 비율")
+    sunset_ratio_reverse: float = Field(
+        0.0, ge=0, le=1, description="같은 길을 반대로 걸을 때의 일몰 방향 비율 (#56)"
+    )
     tags: list[PlaceType] = Field(..., description="river·park·trees·bridge·view. sunset 은 동적")
 
 
@@ -268,6 +271,7 @@ class ScoringService:
             _NOON_REFERENCE, lat=polyline[0].lat, lng=polyline[0].lng, is_clear=None
         ).azimuth_deg
         facing_ratio = sunset_ratio(polyline, azimuth)
+        facing_ratio_reverse = sunset_ratio(list(reversed(polyline)), azimuth)
 
         # 6. 태그: 비율이 기준을 넘는 성격만
         tags: list[PlaceType] = []
@@ -284,6 +288,7 @@ class ScoringService:
             water_score=round(water_ratio * WATER_WEIGHT, 1),
             landmark_score=LANDMARK_BONUS if landmark_types else 0,
             sunset_ratio=round(facing_ratio, 3),
+            sunset_ratio_reverse=round(facing_ratio_reverse, 3),
             tags=tags,
         )
 
