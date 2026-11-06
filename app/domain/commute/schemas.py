@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.clients.odsay import TransitKind, TransitPath
 from app.domain.commute.models import (
     AREA_MAX_LENGTH,
+    EXTERNAL_ID_MAX_LENGTH,
     LINE_MAX_LENGTH,
     STATION_NAME_MAX_LENGTH,
     Preference,
@@ -19,6 +20,12 @@ class TransitStopInput(BaseModel):
     name: str = Field(..., min_length=1, max_length=STATION_NAME_MAX_LENGTH)
     lat: float = Field(..., ge=-90, le=90)
     lng: float = Field(..., ge=-180, le=180)
+    external_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=EXTERNAL_ID_MAX_LENGTH,
+        description="GET /transit/routes 응답의 external_id 그대로. 반대 방향 정류장을 구분한다",
+    )
 
 
 class TransitLegInput(BaseModel):
@@ -98,6 +105,7 @@ class TransitStopResponse(BaseModel):
     name: str
     lat: float
     lng: float
+    external_id: str = Field(..., description="ODsay stationID. 저장 때 그대로 보낸다")
 
 
 class TransitLegResponse(BaseModel):
@@ -147,7 +155,12 @@ def to_transit_path_response(path: TransitPath) -> TransitPathResponse:
                 start_name=leg.start_name,
                 end_name=leg.end_name,
                 minutes=leg.minutes,
-                stops=[TransitStopResponse(name=s.name, lat=s.lat, lng=s.lng) for s in leg.stops],
+                stops=[
+                    TransitStopResponse(
+                        name=s.name, lat=s.lat, lng=s.lng, external_id=s.external_id
+                    )
+                    for s in leg.stops
+                ],
             )
             for leg in path.legs
         ],

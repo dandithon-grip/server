@@ -78,8 +78,10 @@ async def seed_stations(session: AsyncSession, csv_path: Path) -> int:
         for row in rows
     ]
     stmt = insert(Station).values(values)
+    # 시드 정류장은 stationID 가 없다. (도시, 노선, 이름) 부분 unique 인덱스로 upsert 한다
     stmt = stmt.on_conflict_do_update(
-        constraint="uq_stations_city_line_name",
+        index_elements=["city", "line", "name"],
+        index_where=Station.external_id.is_(None),
         set_={"order_no": stmt.excluded.order_no, "location": stmt.excluded.location},
     )
     await session.execute(stmt)
