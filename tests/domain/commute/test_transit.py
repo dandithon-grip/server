@@ -70,7 +70,10 @@ def legs_of(path: TransitPath) -> list[dict[str, object]]:
     return [
         {
             "line": leg.line,
-            "stops": [{"name": s.name, "lat": s.lat, "lng": s.lng} for s in leg.stops],
+            "stops": [
+                {"name": s.name, "lat": s.lat, "lng": s.lng, "external_id": s.external_id}
+                for s in leg.stops
+            ],
         }
         for leg in path.legs
         if leg.kind != "walk"
@@ -117,6 +120,8 @@ async def test_search_returns_paths(client: AsyncClient, make_token: TokenFactor
     assert first["total_minutes"] == 18
     assert [leg["kind"] for leg in first["legs"]] == ["walk", "subway", "walk"]
     assert len(first["legs"][1]["stops"]) == 5
+    # 저장 때 그대로 돌려보낼 수 있게 ODsay 정류장 id 를 내보낸다
+    assert all(stop["external_id"] for stop in first["legs"][1]["stops"])
     assert fake.calls == 1
 
 
@@ -234,3 +239,116 @@ async def test_two_stop_last_ride_has_no_alight_early(
 
     assert response.status_code == 200
     assert all(r["leg_type"] != "alight_early" for r in response.json()["shortest"])
+
+
+# --- 사용자끼리 정류장을 덮어쓰지 않는다 (#44) -------------------------------------
+
+
+def ride(line: str, *stops: tuple[str, float, float, str]) -> dict[str, object]:
+    return {
+        "line": line,
+        "stops": [
+            {"name": name, "lat": lat, "lng": lng, "external_id": external_id}
+            for name, lat, lng, external_id in stops
+        ],
+    }
+
+
+async def test_opposite_direction_stop_with_same_name_is_separate_station(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 309번 정방향 A 와 역방향 B. "신천시장" 은 길 건너편 같은 이름 정류장이다
+    use_fakes()
+    outbound = ride(
+        "309",
+        ("범어네거리", 35.8590, 128.6250, "1001"),
+        ("신천시장", 35.8620, 128.6130, "1002"),
+        ("동신교", 35.8640, 128.6050, "1003"),
+    )
+    inbound = ride(
+        "309",
+        ("동신교", 35.8642, 128.6052, "2003"),
+        ("신천시장", 35.8623, 128.6133, "2002"),
+        ("범어네거리", 35.8593, 128.6253, "2001"),
+    )
+    await client.put(
+        "/commutes/me",
+        json={**commute_body(fixture_paths()[0]), "transit_legs": [outbound]},
+        headers=bearer(make_token(sub="user-a")),
+    )
+
+    await client.put(
+        "/commutes/me",
+        json={**commute_body(fixture_paths()[0]), "transit_legs": [inbound]},
+        headers=bearer(make_token(sub="user-b")),
+    )
+
+    rows = list(
+        (await db_session.execute(select(Station).where(Station.name == "신천시장"))).scalars()
+    )
+    assert sorted((round(s.lat, 4), s.external_id) for s in rows) == [
+        (35.862, "1002"),
+        (35.8623, "2002"),
+    ]
+
+
+async def test_other_users_segment_does_not_change_alight_early(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # A 는 2호선 수성구청→반월당 (하차 직전 경대병원). B 는 같은 노선 다른 구간을 탄다.
+    # 구간마다 0 부터 매긴 순번이 겹쳐도 A 의 "한 정거장 먼저" 는 경대병원이어야 한다
+    use_fakes()
+    headers_a = bearer(make_token(sub="user-a"))
+    await client.put("/commutes/me", json=commute_body(fixture_paths()[0]), headers=headers_a)
+    other = ride(
+        "대구 2호선",
+        ("다사", 35.8600, 128.4600, "9001"),
+        ("대실", 35.8610, 128.4700, "9002"),
+        ("강창", 35.8620, 128.4800, "9003"),
+        ("계명대", 35.8530, 128.4900, "9004"),
+    )
+    await client.put(
+        "/commutes/me",
+        json={**commute_body(fixture_paths()[0]), "transit_legs": [other]},
+        headers=bearer(make_token(sub="user-b")),
+    )
+
+    response = await client.post("/commutes/me/routes", headers=headers_a)
+
+    assert response.status_code == 200
+    alight = next(r for r in response.json()["shortest"] if r["leg_type"] == "alight_early")
+    station = (
+        await db_session.execute(select(Station).where(Station.id == alight["alight_station_id"]))
+    ).scalar_one()
+    assert station.name == "경대병원"
+
+
+async def test_transit_stop_without_external_id_returns_422(
+    client: AsyncClient, make_token: TokenFactory
+) -> None:
+    use_fakes()
+    leg = {"line": "309", "stops": [{"name": "가", "lat": 35.86, "lng": 128.6}] * 2}
+    body = {**commute_body(fixture_paths()[0]), "transit_legs": [leg]}
+
+    response = await client.put("/commutes/me", json=body, headers=bearer(make_token()))
+
+    assert response.status_code == 422
+
+
+async def test_loop_bus_passing_same_stop_twice_saves(
+    client: AsyncClient, make_token: TokenFactory
+) -> None:
+    # 순환 버스는 한 구간에 같은 정류장이 두 번 나온다.
+    # 한 번의 upsert 에 같은 키가 둘이면 500 이었다
+    use_fakes()
+    loop = ride(
+        "순환2",
+        ("가", 35.8600, 128.6000, "3001"),
+        ("나", 35.8610, 128.6010, "3002"),
+        ("가", 35.8600, 128.6000, "3001"),
+    )
+    body = {**commute_body(fixture_paths()[0]), "transit_legs": [loop]}
+
+    response = await client.put("/commutes/me", json=body, headers=bearer(make_token()))
+
+    assert response.status_code == 200
