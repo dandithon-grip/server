@@ -23,10 +23,14 @@ class UserService:
         :param nickname: JWT 의 user_metadata.nickname. 없으면 기본 닉네임으로 만든다
         :return: 조회 또는 생성된 User
         """
-        # 1. 기존 사용자 조회 (대부분의 요청은 여기서 끝난다)
+        # 1. 기존 사용자 조회 (대부분의 요청은 여기서 끝난다).
+        #    마이 › 내 정보 수정은 Supabase 메타데이터를 바꾸므로 JWT 닉네임이 달라지면 따라간다
         stmt = select(User).where(User.supabase_id == supabase_id)
         user = (await self._session.execute(stmt)).scalar_one_or_none()
         if user is not None:
+            if nickname and user.nickname != nickname:
+                user.nickname = nickname
+                await self._session.commit()
             return user
 
         # 2. 최초 로그인 - 생성. 같은 사용자의 첫 요청이 동시에 둘 오면 unique 충돌 대신

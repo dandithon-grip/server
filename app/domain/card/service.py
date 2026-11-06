@@ -4,6 +4,7 @@
 LLM 실패·검증 실패는 점수 1위 + 템플릿으로 폴백한다. 하루 1장을 캐시한다.
 """
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -328,18 +329,22 @@ class CardService:
     async def _weather(
         self, commute: Commute, at: datetime, city: str
     ) -> tuple[Weather, AirQuality]:
-        """날씨·미세먼지. 실패는 로그만 남기고 빈 값으로 (카드는 날씨 없이도 나온다)."""
+        """날씨·미세먼지를 동시에 받는다. 실패는 빈 값으로 (카드는 날씨 없이도 나온다)."""
+        return await asyncio.gather(self._forecast(commute, at), self._air_quality(city))
+
+    async def _forecast(self, commute: Commute, at: datetime) -> Weather:
         try:
-            weather = await self._kma.forecast(commute.from_lat, commute.from_lng, at)
+            return await self._kma.forecast(commute.from_lat, commute.from_lng, at)
         except AppException as exc:
             logger.warning("기상청 실패, 날씨 없이 진행: %s", exc.code.name)
-            weather = Weather()
+            return Weather()
+
+    async def _air_quality(self, city: str) -> AirQuality:
         try:
-            air = await self._airkorea.pm(city)
+            return await self._airkorea.pm(city)
         except AppException as exc:
             logger.warning("에어코리아 실패, 미세먼지 없이 진행: %s", exc.code.name)
-            air = AirQuality()
-        return weather, air
+            return AirQuality()
 
     async def _find_card(self, user_id: UUID, today: date) -> TodayCard | None:
         stmt = select(TodayCard).where(TodayCard.user_id == user_id, TodayCard.date == today)
