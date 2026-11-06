@@ -33,6 +33,7 @@ CREATE TABLE planet_osm_polygon (
     "natural" text,
     waterway text,
     building text,
+    name text,
     way geometry(Geometry, 4326)
 )
 """
@@ -42,6 +43,7 @@ CREATE TABLE planet_osm_line (
     waterway text,
     "natural" text,
     highway text,
+    name text,
     way geometry(Geometry, 4326)
 )
 """

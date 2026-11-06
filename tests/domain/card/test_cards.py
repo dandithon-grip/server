@@ -404,3 +404,25 @@ async def test_demo_card_without_seed_returns_404(client: AsyncClient) -> None:
 
     assert response.status_code == 404
     assert response.json() == {"message": ErrorCode.DEMO_NOT_READY.message}
+
+
+async def test_place_name_inside_route_name_is_allowed(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 경로 이름 "2.28기념중앙공원 샛길" 안의 장소명 "2.28기념중앙공원" 은 입력에 있는 것이다
+    headers = bearer(make_token())
+    await prepare_routes(client, db_session, headers, with_candidates=True)
+    choice = CardChoice(
+        choice=0,
+        action_type=ActionType.DETOUR,
+        reason_tag=ReasonTag.PARK,
+        text="5분만 돌아가면 2.28기념중앙공원 숲을 지납니다. 오늘은 그늘이 좋은 날입니다.",
+        deviation=None,
+    )
+    use_fakes(FakeLlm(choice=choice))
+
+    response = await client.get("/cards/today", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["by_llm"] is True
+    assert response.json()["text"] == choice.text

@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
@@ -55,6 +56,11 @@ class Place(Base):
     # 하천은 진입점·진출점이 한 후보다. 같은 pair_id 두 행이 한 쌍 (F-03)
     pair_id: Mapped[str | None] = mapped_column(String(PAIR_ID_MAX_LENGTH), nullable=True)
     city: Mapped[str] = mapped_column(String(20), index=True)
+    # curated = 팀이 CSV 로 넣음, osm = derive_places 가 녹지에서 자동 추출.
+    # 자동 지점은 큐레이션 행을 덮어쓰지 않는다
+    source: Mapped[str] = mapped_column(
+        String(10), default="curated", server_default=text("'curated'")
+    )
 
     @property
     def lat(self) -> float:
@@ -93,6 +99,8 @@ class GreenArea(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     kind: Mapped[str] = mapped_column(String(10))
+    # OSM name 태그. 이름 있는 녹지만 자동 Place(derive_places) 후보가 된다
+    name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     geom: Mapped[WKBElement] = mapped_column(Geometry("GEOMETRY", srid=4326))
     # OSM 원본 id. 재적재 때 (osm_id, kind) 로 upsert 한다. 수동 입력은 None
     osm_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

@@ -253,6 +253,7 @@ uv run uvicorn app.main:app --reload
 uv run python -m scripts.seed_stations   # 데모 2호선 정류장 (data/stations_daegu_line2.csv)
 uv run python -m scripts.seed_places     # 큐레이션 자연 지점 30곳 (data/places_daegu.csv)
 uv run python -m scripts.seed_demo       # 데모 계정 + 동선(data/demo_commute.csv) + 경로 사전 계산 (TMAP ~20회)
+uv run python -m scripts.derive_places daegu  # OSM 녹지(green_areas)에서 자동 Place 추출. docs/data/osm.md 적재 뒤
 ```
 
 ### 환경변수 (.env)
