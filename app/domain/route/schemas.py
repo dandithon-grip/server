@@ -35,14 +35,20 @@ class RouteResponse(BaseModel):
     highlights: list[str] = Field(..., description="경유 지점 한 줄 설명")
     polyline: list[PointResponse]
     spots: list[UUID] = Field(..., description="경유 Place id")
-    alight_station_id: UUID | None = Field(None, description="한 정거장 먼저일 때 하차역")
+    alight_station_id: UUID | None = Field(
+        None, description="먼저 내리기(alight_early)일 때 내릴 정류장"
+    )
+    board_station_id: UUID | None = Field(
+        None, description="늦게 타기(board_late)일 때 걸어가서 탈 정류장"
+    )
+    skip_stops: int = Field(0, description="먼저 내리기·늦게 타기로 건너뛴 정거장 수 (1~3)")
 
 
 class RoutesResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     preference: Preference = Field(..., description="적용한 취향")
-    fallback_level: int = Field(..., ge=1, le=5, description="F-15 단계. 1 이면 샛길 후보 있음")
+    fallback_level: int = Field(..., ge=1, le=4, description="F-15 단계. 1 이면 샛길 후보 있음")
     action_type: ActionType = Field(..., description="오늘 카드의 행동 유형")
     candidates: list[RouteResponse] = Field(..., description="그 단계의 후보 ≤3, 점수순")
     shortest: list[RouteResponse] = Field(..., description="구간별 최단 경로")
@@ -69,4 +75,6 @@ def to_route_response(ranked: "RankedRoute") -> RouteResponse:
         polyline=[PointResponse(lat=lat, lng=lng) for lat, lng in route.points],
         spots=route.spots,
         alight_station_id=route.alight_station_id,
+        board_station_id=route.board_station_id,
+        skip_stops=route.skip_stops,
     )

@@ -89,10 +89,15 @@ class Commute(TimestampMixin, Base):
     # transit 일 때만 값이 있다. walk/car 는 None, []
     line: Mapped[str | None] = mapped_column(String(LINE_MAX_LENGTH), nullable=True)
     station_ids: Mapped[list[UUID]] = mapped_column(ARRAY(Uuid), default=list)
-    # ODsay 구간으로 저장했을 때 마지막 탑승 구간의 하차 직전 정류장. 저장 시점에 정한다.
-    # 다른 사용자의 저장이 바꾸지 못하게 순번 대신 id 로 둔다. 시드 정류장 동선은 None
-    alight_early_station_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("stations.id", ondelete="SET NULL"), nullable=True
+    # 1~3 정거장 먼저 내릴 정류장 (마지막 탑승 구간, 하차역에서 가까운 순)과
+    # 1~3 정거장 걸어가서 탈 정류장 (첫 탑승 구간, 탑승역에서 가까운 순).
+    # 저장 시점에 정한다 (#44 #51).
+    # 다른 사용자의 저장이 바꾸지 못하게 순번 대신 id 로 둔다. 구간 끝 정류장은 들어가지 않는다
+    alight_early_station_ids: Mapped[list[UUID]] = mapped_column(
+        ARRAY(Uuid), default=list, server_default="{}"
+    )
+    board_late_station_ids: Mapped[list[UUID]] = mapped_column(
+        ARRAY(Uuid), default=list, server_default="{}"
     )
     preference: Mapped[Preference] = mapped_column(String(10), default=Preference.FULL)
 
