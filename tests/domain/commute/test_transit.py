@@ -93,10 +93,21 @@ def commute_body(path: TransitPath) -> dict[str, object]:
 # --- 검색 ---------------------------------------------------------------------
 
 
-async def test_search_returns_paths_without_token(client: AsyncClient) -> None:
+async def test_search_without_token_returns_401(client: AsyncClient) -> None:
     fake = use_fakes()
 
     response = await client.get("/transit/routes", params={**FROM, **TO})
+
+    assert response.status_code == 401
+    assert fake.calls == 0  # ODsay 무료 한도를 비로그인 호출이 소진하지 않는다
+
+
+async def test_search_returns_paths(client: AsyncClient, make_token: TokenFactory) -> None:
+    fake = use_fakes()
+
+    response = await client.get(
+        "/transit/routes", params={**FROM, **TO}, headers=bearer(make_token())
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -109,10 +120,12 @@ async def test_search_returns_paths_without_token(client: AsyncClient) -> None:
     assert fake.calls == 1
 
 
-async def test_search_failure_returns_502(client: AsyncClient) -> None:
+async def test_search_failure_returns_502(client: AsyncClient, make_token: TokenFactory) -> None:
     use_fakes(FakeOdsay(paths=[], error=ErrorCode.EXTERNAL_API_FAILED))
 
-    response = await client.get("/transit/routes", params={**FROM, **TO})
+    response = await client.get(
+        "/transit/routes", params={**FROM, **TO}, headers=bearer(make_token())
+    )
 
     assert response.status_code == 502
 

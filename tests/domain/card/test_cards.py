@@ -426,3 +426,37 @@ async def test_place_name_inside_route_name_is_allowed(
     assert response.status_code == 200
     assert response.json()["by_llm"] is True
     assert response.json()["text"] == choice.text
+
+
+async def test_weather_and_air_are_fetched_concurrently(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    """순차면 [kma 시작, kma 끝, air 시작, ...], 동시면 두 시작이 먼저 온다."""
+    import asyncio
+
+    order: list[str] = []
+
+    class SlowKma:
+        async def forecast(self, lat: float, lng: float, at: datetime) -> Weather:
+            order.append("kma-start")
+            await asyncio.sleep(0)
+            order.append("kma-end")
+            return Weather(sky=WeatherSky.CLEAR, temp_c=10)
+
+    class SlowAir:
+        async def pm(self, city: str) -> AirQuality:
+            order.append("air-start")
+            await asyncio.sleep(0)
+            order.append("air-end")
+            return AirQuality(grade=AirGrade.GOOD)
+
+    headers = bearer(make_token())
+    await prepare_routes(client, db_session, headers, with_candidates=True)
+    app.dependency_overrides[get_llm_client] = lambda: FakeLlm(choice=GOOD_CHOICE)
+    app.dependency_overrides[get_kma_client] = lambda: SlowKma()
+    app.dependency_overrides[get_airkorea_client] = lambda: SlowAir()
+
+    response = await client.get("/cards/today", headers=headers)
+
+    assert response.status_code == 200
+    assert order[:2] == ["kma-start", "air-start"]

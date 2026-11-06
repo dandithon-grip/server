@@ -149,3 +149,15 @@ async def test_optional_user_with_valid_token_returns_user(
 
     assert user is not None
     assert user.supabase_id == sub
+
+
+async def test_changed_nickname_in_token_updates_user(
+    client: AsyncClient, make_token: TokenFactory
+) -> None:
+    # 마이 › 내 정보 수정은 Supabase 메타데이터를 바꾼다. 다음 요청의 JWT 닉네임이 달라지면 따라간다
+    first = await client.get("/users/me", headers=bearer(make_token(nickname="승래")))
+    second = await client.get("/users/me", headers=bearer(make_token(nickname="아기사자어흥")))
+
+    assert first.json()["nickname"] == "승래"
+    assert second.json()["nickname"] == "아기사자어흥"
+    assert first.json()["id"] == second.json()["id"]
