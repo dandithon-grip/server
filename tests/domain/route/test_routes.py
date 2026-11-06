@@ -6,11 +6,12 @@ Place·정류장은 테스트 트랜잭션 안에 넣는다.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from geoalchemy2.shape import from_shape
 from httpx import AsyncClient
 from shapely.geometry import LineString, Point
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.tmap import LatLng, PedestrianRoute, get_tmap_client
@@ -359,9 +360,10 @@ async def test_get_reranks_with_preference_chip_without_calling_tmap(
     assert len(fake.calls) == calls_after_generate
 
 
-async def test_generate_transit_makes_three_legs_with_at_most_7_calls_each(
+async def test_generate_transit_with_seeded_stations_adds_skip_legs(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
+    # 시드 정류장 3개(역0→역2): 먼저 내리기·늦게 타기 모두 가운데 역1 하나
     stations = await add_stations(
         db_session, [(35.8600, 128.6030), (35.8600, 128.6060), (35.8600, 128.6090)]
     )
@@ -381,15 +383,19 @@ async def test_generate_transit_makes_three_legs_with_at_most_7_calls_each(
 
     assert response.status_code == 200
     body = response.json()
-    leg_types = {r["leg_type"] for r in body["shortest"]}
-    assert leg_types == {"front_walk", "back_walk", "alight_early"}
-    assert len(fake.calls) <= 4 * (1 + MAX_WAYPOINTS)  # 3구간 + 도착지 반경
-    # 뒤 도보 구간에 다리B 후보가 있어 F-15 1단계(돌아가기)가 이긴다
+    assert {r["leg_type"] for r in body["shortest"]} == {"front_walk", "back_walk"}
+    # 앞·뒤 도보 + 먼저 내리기 1 + 늦게 타기 1 + 도착지 반경
+    assert len(fake.calls) <= 5 * (1 + MAX_WAYPOINTS)
+    skipped = list(
+        (
+            await db_session.execute(
+                select(Route).where(Route.leg_type.in_(["alight_early", "board_late"]))
+            )
+        ).scalars()
+    )
+    assert {r.skip_stops for r in skipped} == {1}
+    assert {r.alight_station_id or r.board_station_id for r in skipped} == {stations[1].id}
     assert body["fallback_level"] == 1
-    assert body["action_type"] == "detour"
-    assert {r["leg_type"] for r in body["candidates"]} <= {"front_walk", "back_walk"}
-    alight = next(r for r in body["shortest"] if r["leg_type"] == "alight_early")
-    assert UUID(alight["alight_station_id"]) == stations[1].id
 
 
 async def test_round_trip_into_park_is_not_stored(

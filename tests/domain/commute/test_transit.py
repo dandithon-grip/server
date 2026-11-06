@@ -3,6 +3,7 @@
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from uuid import UUID
 
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -13,6 +14,7 @@ from app.clients.tmap import LatLng, PedestrianRoute, get_tmap_client
 from app.core.config import get_settings
 from app.core.exceptions import ErrorCode
 from app.domain.commute.models import Commute, Station
+from app.domain.route.models import LegType, Route
 from app.domain.route.service import distance_m
 from app.main import app
 from tests.conftest import TokenFactory
@@ -90,6 +92,16 @@ def commute_body(path: TransitPath) -> dict[str, object]:
         "leave_time": "18:10",
         "transport_mode": "transit",
         "transit_legs": legs_of(path),
+    }
+
+
+def ride(line: str, *stops: tuple[str, float, float, str]) -> dict[str, object]:
+    return {
+        "line": line,
+        "stops": [
+            {"name": name, "lat": lat, "lng": lng, "external_id": external_id}
+            for name, lat, lng, external_id in stops
+        ],
     }
 
 
@@ -207,51 +219,133 @@ async def test_transit_without_legs_or_ids_returns_400(
     assert response.json() == {"message": ErrorCode.STATION_REQUIRED.message}
 
 
-# --- 한 정거장 먼저 (환승) ------------------------------------------------------
+# --- 1~3 정거장 먼저 내리기 · 늦게 타기 (#51) -------------------------------------
 
 
-async def test_routes_use_last_ride_for_alight_early(
+async def station_names(session: AsyncSession, ids: list[UUID]) -> list[str]:
+    rows = (await session.execute(select(Station).where(Station.id.in_(ids)))).scalars()
+    by_id = {s.id: s.name for s in rows}
+    return [by_id[i] for i in ids]
+
+
+async def skip_routes(session: AsyncSession, leg_type: LegType) -> dict[int, str]:
+    """구간 종류의 경로를 건너뛴 정거장 수 → 정류장 이름으로. 경유지 없는 길만 본다."""
+    rows = list(
+        (
+            await session.execute(
+                select(Route).where(Route.leg_type == leg_type, Route.spots == [])
+            )
+        ).scalars()
+    )
+    result: dict[int, str] = {}
+    for route in rows:
+        station_id = route.alight_station_id or route.board_station_id
+        assert station_id is not None
+        result[route.skip_stops] = (await station_names(session, [station_id]))[0]
+    return result
+
+
+BUS_309 = ride(
+    "309",
+    ("경신고등학교건너", 35.85904, 128.637335, "431197"),
+    ("수성경찰서건너", 35.859007, 128.63336, "431202"),
+    ("수성구청건너", 35.859003, 128.630725, "431200"),
+    ("범어역(1번출구)", 35.859645, 128.621839, "431213"),
+    ("수성네거리1", 35.859817, 128.618187, "431211"),
+    ("대구은행역(1번출구)", 35.860061, 128.61273, "431218"),
+    ("수성교2", 35.860803, 128.610388, "431217"),
+    ("방천시장(김광석길)건너", 35.862774, 128.605698, "431219"),
+    ("경북대학교치과병원", 35.86366, 128.601441, "432063"),
+    ("삼덕교회", 35.866155, 128.600054, "432061"),
+    ("CGV대구한일건너", 35.870851, 128.596335, "432057"),
+)
+
+
+async def test_save_keeps_up_to_three_stops_on_each_side(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    use_fakes()
+    body = {**commute_body(fixture_paths()[0]), "transit_legs": [BUS_309]}
+
+    await client.put("/commutes/me", json=body, headers=bearer(make_token()))
+
+    commute = (await db_session.execute(select(Commute))).scalar_one()
+    assert await station_names(db_session, commute.alight_early_station_ids) == [
+        "삼덕교회",
+        "경북대학교치과병원",
+        "방천시장(김광석길)건너",
+    ]
+    assert await station_names(db_session, commute.board_late_station_ids) == [
+        "수성경찰서건너",
+        "수성구청건너",
+        "범어역(1번출구)",
+    ]
+
+
+async def test_short_ride_cannot_skip_its_own_end_stops(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 3정거장 구간: 먼저 내리기·늦게 타기 모두 가운데 한 정거장뿐
+    use_fakes()
+    short = ride(
+        "410",
+        ("가", 35.8600, 128.6000, "5001"),
+        ("나", 35.8610, 128.6010, "5002"),
+        ("다", 35.8620, 128.6020, "5003"),
+    )
+    body = {**commute_body(fixture_paths()[0]), "transit_legs": [short]}
+
+    await client.put("/commutes/me", json=body, headers=bearer(make_token()))
+
+    commute = (await db_session.execute(select(Commute))).scalar_one()
+    assert await station_names(db_session, commute.alight_early_station_ids) == ["나"]
+    assert await station_names(db_session, commute.board_late_station_ids) == ["나"]
+
+
+async def test_transfer_uses_first_ride_for_board_late_and_last_for_alight_early(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 2호선 수성구청→반월당(5정거장) 환승 1호선 반월당→중앙로(2정거장)
+    use_fakes()
+    await client.put(
+        "/commutes/me", json=commute_body(fixture_paths()[1]), headers=bearer(make_token())
+    )
+
+    commute = (await db_session.execute(select(Commute))).scalar_one()
+    assert await station_names(db_session, commute.board_late_station_ids) == [
+        "범어",
+        "대구은행",
+        "경대병원",
+    ]
+    assert commute.alight_early_station_ids == []  # 마지막 구간이 두 정거장뿐
+
+
+async def test_routes_make_one_leg_per_skipped_stop(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
     use_fakes()
     headers = bearer(make_token())
-    await client.put("/commutes/me", json=commute_body(fixture_paths()[0]), headers=headers)
+    body = {**commute_body(fixture_paths()[0]), "transit_legs": [BUS_309]}
+    await client.put("/commutes/me", json=body, headers=headers)
 
     response = await client.post("/commutes/me/routes", headers=headers)
 
     assert response.status_code == 200
-    alight = next(r for r in response.json()["shortest"] if r["leg_type"] == "alight_early")
-    station = (
-        await db_session.execute(select(Station).where(Station.id == alight["alight_station_id"]))
-    ).scalar_one()
-    assert station.name == "경대병원"  # 반월당 바로 앞
-
-
-async def test_two_stop_last_ride_has_no_alight_early(
-    client: AsyncClient, make_token: TokenFactory
-) -> None:
-    # 환승 경로의 마지막 구간이 반월당→중앙로 두 정거장이면 "한 정거장 먼저" 는 탑승역이라 없음
-    use_fakes()
-    headers = bearer(make_token())
-    await client.put("/commutes/me", json=commute_body(fixture_paths()[1]), headers=headers)
-
-    response = await client.post("/commutes/me/routes", headers=headers)
-
-    assert response.status_code == 200
-    assert all(r["leg_type"] != "alight_early" for r in response.json()["shortest"])
+    assert await skip_routes(db_session, LegType.ALIGHT_EARLY) == {
+        1: "삼덕교회",
+        2: "경북대학교치과병원",
+        3: "방천시장(김광석길)건너",
+    }
+    assert await skip_routes(db_session, LegType.BOARD_LATE) == {
+        1: "수성경찰서건너",
+        2: "수성구청건너",
+        3: "범어역(1번출구)",
+    }
+    # 기준선은 원래 계획의 두 구간뿐이다. 건너뛰고 그냥 걷는 길도 후보 경쟁에 들어간다
+    assert {r["leg_type"] for r in response.json()["shortest"]} == {"front_walk", "back_walk"}
 
 
 # --- 사용자끼리 정류장을 덮어쓰지 않는다 (#44) -------------------------------------
-
-
-def ride(line: str, *stops: tuple[str, float, float, str]) -> dict[str, object]:
-    return {
-        "line": line,
-        "stops": [
-            {"name": name, "lat": lat, "lng": lng, "external_id": external_id}
-            for name, lat, lng, external_id in stops
-        ],
-    }
 
 
 async def test_opposite_direction_stop_with_same_name_is_separate_station(
@@ -316,11 +410,10 @@ async def test_other_users_segment_does_not_change_alight_early(
     response = await client.post("/commutes/me/routes", headers=headers_a)
 
     assert response.status_code == 200
-    alight = next(r for r in response.json()["shortest"] if r["leg_type"] == "alight_early")
-    station = (
-        await db_session.execute(select(Station).where(Station.id == alight["alight_station_id"]))
+    commute_a = (
+        await db_session.execute(select(Commute).order_by(Commute.created_at).limit(1))
     ).scalar_one()
-    assert station.name == "경대병원"
+    assert (await station_names(db_session, commute_a.alight_early_station_ids))[0] == "경대병원"
 
 
 async def test_transit_stop_without_external_id_returns_422(

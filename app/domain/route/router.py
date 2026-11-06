@@ -32,7 +32,7 @@ def _ranked_response(
     ranked = service.rank(
         routes, preference=preference, at=at, is_clear=None, tag_weights=tag_weights
     )
-    decided = decide_fallback(ranked, transport_mode=commute.transport_mode, at=at, is_clear=None)
+    decided = decide_fallback(ranked, at=at, is_clear=None)
     return RoutesResponse(
         preference=preference,
         fallback_level=decided.level,

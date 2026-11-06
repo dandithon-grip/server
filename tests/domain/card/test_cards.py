@@ -21,7 +21,7 @@ from app.core.config import get_settings
 from app.core.exceptions import AppException, ErrorCode
 from app.domain.card.models import ReasonTag, TodayCard
 from app.domain.card.prompt import CardChoice
-from app.domain.commute.models import Commute
+from app.domain.commute.models import Commute, Station
 from app.domain.route.models import ActionType, LegType, Place, PlaceType, Route
 from app.domain.user.models import User
 from app.main import app
@@ -107,10 +107,17 @@ def make_route(
     tags: list[PlaceType] | None = None,
     highlights: list[str] | None = None,
     spots: list[UUID] | None = None,
+    leg_type: LegType = LegType.WALK_ALL,
+    skip_stops: int = 0,
+    board_station_id: UUID | None = None,
+    alight_station_id: UUID | None = None,
 ) -> Route:
     return Route(
         commute_id=commute_id,
-        leg_type=LegType.WALK_ALL,
+        leg_type=leg_type,
+        skip_stops=skip_stops,
+        board_station_id=board_station_id,
+        alight_station_id=alight_station_id,
         is_baseline=is_baseline,
         name=name,
         minutes=12 + add_minutes,
@@ -327,7 +334,7 @@ async def test_choice_out_of_range_falls_back(
     assert response.json()["by_llm"] is False
 
 
-async def test_no_candidates_is_level_5_without_llm(
+async def test_no_candidates_is_level_4_without_llm(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
     headers = bearer(make_token())
@@ -339,7 +346,7 @@ async def test_no_candidates_is_level_5_without_llm(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["fallback_level"] == 5
+    assert body["fallback_level"] == 4
     assert body["action_type"] == "none"
     assert body["route"] is None
     assert "자연이 없어요" in body["text"]
@@ -460,3 +467,91 @@ async def test_weather_and_air_are_fetched_concurrently(
 
     assert response.status_code == 200
     assert order[:2] == ["kma-start", "air-start"]
+
+
+# --- 정거장 건너뛰기 카드 (#51) -------------------------------------------------
+
+
+async def add_station(session: AsyncSession, name: str) -> Station:
+    station = Station(
+        line="309",
+        name=name,
+        location=from_shape(Point(A[1], A[0]), srid=4326),
+        order_no=0,
+        external_id=f"ext-{name}",
+        city=get_settings().default_city,
+    )
+    session.add(station)
+    await session.flush()
+    return station
+
+
+async def test_board_late_template_names_stops_and_station(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    headers = bearer(make_token())
+    await client.put("/commutes/me", json=walk_commute(), headers=headers)
+    commute = await commute_of(db_session, "11111111-1111-1111-1111-111111111111")
+    station = await add_station(db_session, "수성구청건너")
+    db_session.add_all(
+        [
+            make_route(commute.id, name="최단 경로", is_baseline=True),
+            make_route(
+                commute.id,
+                name="수성구청건너까지 걸어가서 타기",
+                leg_type=LegType.BOARD_LATE,
+                skip_stops=2,
+                board_station_id=station.id,
+                add_minutes=6,
+                green_pct=40,
+            ),
+        ]
+    )
+    await db_session.flush()
+    use_fakes(FakeLlm(error=ErrorCode.LLM_FAILED))
+
+    response = await client.get("/cards/today", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["fallback_level"], body["action_type"]) == (1, "board_late")
+    assert body["text"].startswith("2정거장 걸어가서 수성구청건너에서 타면 +6분")
+
+
+async def test_card_action_follows_chosen_candidate_not_llm_label(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 1단계에 걷기·먼저 내리기가 섞이므로 행동 유형은 고른 후보의 구간에서 정한다
+    headers = bearer(make_token())
+    await client.put("/commutes/me", json=walk_commute(), headers=headers)
+    commute = await commute_of(db_session, "11111111-1111-1111-1111-111111111111")
+    station = await add_station(db_session, "삼덕교회")
+    db_session.add_all(
+        [
+            make_route(commute.id, name="최단 경로", is_baseline=True),
+            make_route(
+                commute.id,
+                name="삼덕교회에서 내려 걷기",
+                leg_type=LegType.ALIGHT_EARLY,
+                skip_stops=1,
+                alight_station_id=station.id,
+                add_minutes=3,
+                green_pct=50,
+            ),
+        ]
+    )
+    await db_session.flush()
+    mislabeled = CardChoice(
+        choice=0,
+        action_type=ActionType.DETOUR,
+        reason_tag=ReasonTag.PARK,
+        text="삼덕교회에서 내려 걸어 보세요. 오늘은 공기가 좋습니다.",
+        deviation=None,
+    )
+    use_fakes(FakeLlm(choice=mislabeled))
+
+    response = await client.get("/cards/today", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["by_llm"] is True
+    assert response.json()["action_type"] == "alight_early"

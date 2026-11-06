@@ -8,6 +8,7 @@ from sqlalchemy import (
     CheckConstraint,
     Float,
     ForeignKey,
+    SmallInteger,
     String,
     UniqueConstraint,
     Uuid,
@@ -113,7 +114,8 @@ class LegType(StrEnum):
     WALK_ALL = "walk_all"  # 도보 통근: 출발 → 도착 전체
     FRONT_WALK = "front_walk"  # 대중교통: 출발 → 첫 정류장
     BACK_WALK = "back_walk"  # 대중교통: 마지막 정류장 → 도착
-    ALIGHT_EARLY = "alight_early"  # 대중교통: 한 정거장 먼저 내려 → 도착
+    ALIGHT_EARLY = "alight_early"  # 대중교통: 1~3 정거장 먼저 내려 → 도착
+    BOARD_LATE = "board_late"  # 대중교통: 출발 → 1~3 정거장 걸어가서 타기
     AFTER_ARRIVAL = "after_arrival"  # 자동차: 도착 후 반경 10분
 
 
@@ -121,7 +123,8 @@ class ActionType(StrEnum):
     """오늘 카드의 행동 유형. F-15 단계가 정하고 F-05 LLM 출력 스키마가 같은 값을 쓴다."""
 
     DETOUR = "detour"  # 돌아가기
-    ALIGHT_EARLY = "alight_early"  # 한 정거장 먼저
+    ALIGHT_EARLY = "alight_early"  # 1~3 정거장 먼저 내리기
+    BOARD_LATE = "board_late"  # 1~3 정거장 걸어가서 타기
     DELAY = "delay"  # 늦추기 (곧 노을)
     GLANCE = "glance"  # 고개 돌리기 (기준선에 이벤트)
     AFTER_ARRIVAL = "after_arrival"  # 도착 후
@@ -159,6 +162,11 @@ class Route(TimestampMixin, Base):
     alight_station_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("stations.id", ondelete="SET NULL"), nullable=True
     )
+    board_station_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("stations.id", ondelete="SET NULL"), nullable=True
+    )
+    # 먼저 내리기·늦게 타기에서 건너뛴 정거장 수 (1~3). 그 밖의 구간은 0
+    skip_stops: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
 
     @property
     def points(self) -> list[tuple[float, float]]:
