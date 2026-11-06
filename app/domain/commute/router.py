@@ -80,15 +80,20 @@ async def list_stations(
         "출발·도착 좌표로 ODsay 에서 버스·지하철 경로 후보를 받는다. 사용자가 하나 고르면 "
         "그 경로의 탑승 구간(legs 중 walk 가 아닌 것)을 PUT /commutes/me 의 transit_legs 로 보낸다."
         " "
-        "둘러보기(토큰 없음)도 호출할 수 있다. 무료 키는 하루 30회."
+        "로그인 필수 (ODsay 무료 키가 하루 30회라 공개 호출을 막는다). "
+        "둘러보기는 사전 계산된 데모 동선만 본다."
     ),
-    responses={502: {"description": "ODsay 호출 실패"}},
+    responses={
+        401: {"description": "토큰 없음 또는 만료"},
+        502: {"description": "ODsay 호출 실패"},
+    },
 )
 async def search_transit_routes(
     from_lat: float = Query(..., ge=-90, le=90),
     from_lng: float = Query(..., ge=-180, le=180),
     to_lat: float = Query(..., ge=-90, le=90),
     to_lng: float = Query(..., ge=-180, le=180),
+    _: User = Depends(get_current_user),
     service: CommuteService = Depends(get_commute_service),
 ) -> TransitRoutesResponse:
     paths = await service.search_transit(

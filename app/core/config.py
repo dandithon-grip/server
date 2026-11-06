@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     llm_model: str = "claude-opus-5-5"
 
     app_env: Literal["dev", "test", "prod"] = "dev"
+    # 프론트 origin. 쉼표로 여러 개. 브라우저가 preflight 에서 이 값을 확인한다
+    cors_origins: str = "http://localhost:3000"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     @property
     def supabase_jwks_url(self) -> str:

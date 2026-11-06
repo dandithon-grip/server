@@ -3,7 +3,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import get_settings
 from app.core.database import engine
 from app.core.exceptions import AppException, register_exception_handlers
 from app.core.security import jwks_cache
@@ -33,6 +35,14 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="샛길 API", version="0.1.0", lifespan=lifespan)
+# 프론트(Vercel·localhost)가 브라우저에서 부른다. 허용 origin 은 CORS_ORIGINS 설정
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().cors_origin_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 register_exception_handlers(app)
 app.include_router(user_router)
 app.include_router(commute_router)
