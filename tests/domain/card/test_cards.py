@@ -5,7 +5,7 @@ LLM·날씨·미세먼지는 가짜로 바꾼다. 경로는 Route 행을 직접 
 
 import json
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from uuid import UUID
 
 from geoalchemy2.shape import from_shape
@@ -20,10 +20,12 @@ from app.clients.kma import Weather, WeatherSky, get_kma_client
 from app.clients.llm import LlmReply, get_llm_client
 from app.core.config import get_settings
 from app.core.exceptions import AppException, ErrorCode
+from app.core.timezone import LOCAL_TZ
 from app.domain.card.models import ReasonTag, TodayCard
 from app.domain.card.prompt import CardChoice
 from app.domain.commute.models import Commute, Station
 from app.domain.route.models import LegType, Place, PlaceType, Route
+from app.domain.route.scoring import sunset_window
 from app.domain.user.models import User
 from app.main import app
 from tests.conftest import TokenFactory
@@ -615,3 +617,35 @@ async def test_prompt_is_compact_json_without_route_ids(
     assert "recent_route_ids" not in payload
     assert [c.get("recent", False) for c in payload["candidates"]] == [False, True]
     assert all("leg_type" not in c and "station" not in c for c in payload["candidates"])
+
+
+async def test_prompt_marks_open_sunset_window_for_the_llm(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 노을 창(일몰 ±30분·맑음)은 서버가 계산해 넣는다. LLM 이 시각 계산을 하지 않게 (#61 평가)
+    headers = bearer(make_token())
+    await prepare_routes(client, db_session, headers, with_candidates=True)
+    today = datetime.now(LOCAL_TZ).date()
+    noon = datetime.combine(today, time(12, 0), tzinfo=LOCAL_TZ)
+    sunset = sunset_window(noon, lat=A[0], lng=A[1], is_clear=True).sunset_at.astimezone(LOCAL_TZ)
+    leave = (sunset + timedelta(minutes=5)).strftime("%H:%M")
+    await client.put("/commutes/me", json={**walk_commute(), "leave_time": leave}, headers=headers)
+    llm = FakeLlm(choice=GOOD_CHOICE)
+    use_fakes(llm)
+
+    await client.get("/cards/today", headers=headers)
+
+    assert '"sunset_window_open":true' in llm.calls[0]
+
+
+async def test_prompt_omits_closed_sunset_window(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    headers = bearer(make_token())
+    await prepare_routes(client, db_session, headers, with_candidates=True)
+    llm = FakeLlm(choice=GOOD_CHOICE)
+    use_fakes(llm, kma=FakeKma(weather=Weather(sky=WeatherSky.RAIN, temp_c=10)))
+
+    await client.get("/cards/today", headers=headers)
+
+    assert "sunset_window_open" not in llm.calls[0]

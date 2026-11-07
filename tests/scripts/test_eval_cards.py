@@ -40,6 +40,13 @@ def test_there_are_24_scenarios_with_unique_names() -> None:
     assert len({s.name for s in SCENARIOS}) == 24
 
 
+def test_scenario_candidates_are_score_ordered_like_the_service() -> None:
+    # 서비스는 후보를 점수 내림차순으로 넘긴다. 상황도 같아야 1위 이탈률이 의미 있다
+    for s in SCENARIOS:
+        scores = [c.score for c in s.card_input.candidates]
+        assert scores == sorted(scores, reverse=True), s.name
+
+
 def test_known_names_come_from_curated_places_and_stations() -> None:
     names = known_names()
 
@@ -119,3 +126,19 @@ async def test_summary_counts_tokens_and_latency() -> None:
     assert result.avg_input_tokens == 1700
     assert result.avg_latency_ms == 2000
     assert result.validation_pass_rate == 1.0
+
+
+async def test_claiming_peak_season_breaks_the_stage_rule() -> None:
+    # 입력의 season_tags 는 "억새" 같은 계절 풍경일 뿐, 지금 절정인지는 모른다
+    llm = ScriptedLlm(
+        CardChoice(
+            choice=0,
+            reason_tag=ReasonTag.SEASON,
+            text="억새가 한창이에요. 4분만 더 걸어 보세요.",
+            deviation=None,
+        )
+    )
+
+    result = await evaluate([scenario("clear_good")], llm)
+
+    assert "stage_claim" in result.rows[0].broken
