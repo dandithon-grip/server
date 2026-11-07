@@ -48,6 +48,8 @@ main 푸시 → 자동 배포. develop 은 배포하지 않는다.
    | `LLM_MODEL` | 기본값을 쓰면 생략한다 |
    | `ODSAY_API_KEY` | 해당 이슈가 병합된 뒤에 넣는다 |
    | `CORS_ORIGINS` | 프론트 origin, 쉼표 구분 (`https://xxx.vercel.app,http://localhost:3000`). 없으면 브라우저 호출이 막힌다 |
+   | `FCM_SERVICE_ACCOUNT_JSON` | 퇴근 알림 (#63). Firebase 서비스 계정 키 JSON 한 줄. 없으면 알림만 건너뜀. `docs/notification.md` 참고 |
+   | `FRONTEND_URL` | 알림을 누르면 열 프론트 주소. `https://` 만 |
 
    `SUPABASE_SERVICE_ROLE_KEY` · `DEMO_EMAIL` · `DEMO_PASSWORD` 는 **넣지 않는다.**
    `scripts/seed_demo.py` 전용이고 앱 런타임은 읽지 않는다. 서버 프로세스에 마스터 키를 두지 않기 위해서다.

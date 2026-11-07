@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 import app.domain.card.models  # noqa: F401  (TodayCard 를 metadata 에 등록)
 import app.domain.commute.models  # noqa: F401  (Commute, Station 을 metadata 에 등록)
 import app.domain.feedback.models  # noqa: F401  (Feedback 을 metadata 에 등록)
+import app.domain.notification.models  # noqa: F401  (PushToken 을 metadata 에 등록)
 import app.domain.record.models  # noqa: F401  (Record 를 metadata 에 등록)
 import app.domain.route.models  # noqa: F401  (Place 를 metadata 에 등록)
 import app.domain.user.models  # noqa: F401  (User 를 metadata 에 등록)

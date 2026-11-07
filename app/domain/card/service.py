@@ -17,6 +17,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.airkorea import AirKoreaClient, AirQuality, get_airkorea_client
+from app.clients.fcm import get_fcm_client
 from app.clients.kma import KmaClient, Weather, WeatherSky, get_kma_client
 from app.clients.llm import LlmClient, LlmReply, get_llm_client
 from app.clients.tmap import get_tmap_client
@@ -35,6 +36,7 @@ from app.domain.card.prompt import (
 from app.domain.commute.models import Commute, Preference
 from app.domain.commute.service import CommuteService, get_commute_service
 from app.domain.feedback.service import top_tags
+from app.domain.notification.service import CARD_TITLE, NotificationService
 from app.domain.route.fallback import LEG_ACTION, FallbackResult, decide_fallback
 from app.domain.route.models import ActionType, Direction, PlaceType, Route
 from app.domain.route.scoring import sunset_window
@@ -84,6 +86,7 @@ class CardService:
         llm: LlmClient,
         kma: KmaClient,
         airkorea: AirKoreaClient,
+        notifications: NotificationService | None = None,
     ) -> None:
         self._session = session
         self._commutes = commute_service
@@ -92,6 +95,7 @@ class CardService:
         self._llm = llm
         self._kma = kma
         self._airkorea = airkorea
+        self._notifications = notifications
 
     async def get_today(self, user: User, *, preference: Preference | None = None) -> CardResult:
         """
@@ -121,12 +125,13 @@ class CardService:
 
     async def prewarm(self, now: datetime) -> int:
         """
-        퇴근 PREWARM_MINUTES 안에 드는 동선의 오늘 카드를 미리 만든다 (#59).
+        퇴근 PREWARM_MINUTES 안에 드는 동선의 오늘 카드를 미리 만들고 알림을 보낸다 (#59 #63).
 
         알림을 눌렀을 때 LLM·날씨를 기다리지 않고 캐시된 카드를 바로 받게 하려는 것이다.
-        이미 카드가 있거나 경로가 없는 동선은 건너뛴다. 한 사용자의 실패가 나머지를 막지 않는다.
+        카드가 이미 있으면 다시 만들지 않고, 알림은 하루 한 번만 보낸다 (notified_at).
+        경로가 없는 동선은 건너뛴다. 한 사용자의 실패가 나머지를 막지 않는다.
 
-        :param now: 현재 시각 (tz-aware, 한국 시간)
+        :param now: 현재 시각 (tz-aware)
         :return: 새로 만든 카드 수
         """
         # 1. 곧 퇴근하는 동선
@@ -134,24 +139,31 @@ class CardService:
         until = local + timedelta(minutes=PREWARM_MINUTES)
         commutes = await self._commutes.list_leaving_between(local.time(), until.time())
 
-        # 2. 카드가 없는 사용자만 만든다
         built = 0
         for commute in commutes:
-            if await self._find_card(commute.user_id, local.date()) is not None:
-                continue
-            user = await self._users.get_user(commute.user_id)
-            routes = await self._routes.list_routes(commute.id)
-            if user is None or not routes:
-                continue
-            try:
-                await self._build_and_save(
-                    user, commute, routes, local.date(), Preference(commute.preference)
-                )
-            except AppException as exc:
-                logger.warning("카드 미리 만들기 실패, 다음 사용자로: %s", exc.code.name)
-                await self._session.rollback()
-                continue
-            built += 1
+            # 2. 카드가 없으면 만든다
+            card = await self._find_card(commute.user_id, local.date())
+            if card is None:
+                user = await self._users.get_user(commute.user_id)
+                routes = await self._routes.list_routes(commute.id)
+                if user is None or not routes:
+                    continue
+                try:
+                    result = await self._build_and_save(
+                        user, commute, routes, local.date(), Preference(commute.preference)
+                    )
+                except AppException as exc:
+                    logger.warning("카드 미리 만들기 실패, 다음 사용자로: %s", exc.code.name)
+                    await self._session.rollback()
+                    continue
+                card = result.card
+                built += 1
+
+            # 3. 알림은 하루 한 번. FCM 이 설정돼 있을 때만 보낸 것으로 친다
+            if card.notified_at is None and self._notifications and self._notifications.enabled:
+                await self._notifications.notify(commute.user_id, title=CARD_TITLE, body=card.text)
+                card.notified_at = now
+                await self._session.commit()
         return built
 
     async def get_demo(self) -> CardResult:
@@ -467,6 +479,7 @@ async def run_prewarm_forever() -> None:
                     llm=get_llm_client(),
                     kma=get_kma_client(),
                     airkorea=get_airkorea_client(),
+                    notifications=NotificationService(session, get_fcm_client()),
                 )
                 built = await service.prewarm(datetime.now(LOCAL_TZ))
                 if built:
