@@ -190,3 +190,26 @@ async def test_failures_become_external_api_failed(handler: Handler) -> None:
         await client.pm(CITY)
 
     assert error.value.code is ErrorCode.EXTERNAL_API_FAILED
+
+
+# --- 도시별 캐시 (#65) ----------------------------------------------------------
+
+
+async def test_same_city_within_an_hour_calls_airkorea_once(
+    client: AirKoreaClient, transport: RecordingTransport
+) -> None:
+    # 같은 도시 사용자는 값이 같다. 미리 만들기가 사용자마다 부르지 않게 1시간 캐시
+    first = await client.pm(CITY)
+    second = await client.pm(CITY)
+
+    assert first == second
+    assert len(transport.requests) == 1
+
+
+async def test_expired_cache_calls_again(transport: RecordingTransport) -> None:
+    client = AirKoreaClient("test-service-key", transport=transport, cache_seconds=0)
+
+    await client.pm(CITY)
+    await client.pm(CITY)
+
+    assert len(transport.requests) == 2

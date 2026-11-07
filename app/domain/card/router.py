@@ -5,6 +5,7 @@ from app.domain.card.models import ReasonTag
 from app.domain.card.schemas import TodayCardResponse
 from app.domain.card.service import CardResult, CardService, get_card_service
 from app.domain.commute.models import Preference
+from app.domain.notification.schemas import TestPushResponse
 from app.domain.route.models import ActionType
 from app.domain.route.schemas import to_route_response
 from app.domain.user.models import User
@@ -61,8 +62,35 @@ async def today_card(
     "/demo",
     response_model=TodayCardResponse,
     summary="둘러보기 데모 카드",
-    description="토큰 없이 데모 계정의 오늘 카드를 돌려준다. 데모 시드가 돌아 있어야 한다.",
+    description=(
+        "토큰 없이 데모 계정의 오늘 카드를 돌려준다. 데모 시드가 돌아 있어야 한다. "
+        "refresh=true 면 캐시를 무시하고 다시 만든다 (시연용, 60초에 한 번)."
+    ),
     responses={404: {"description": "데모 동선이 준비되지 않음"}},
 )
-async def demo_card(service: CardService = Depends(get_card_service)) -> TodayCardResponse:
-    return _to_response(await service.get_demo())
+async def demo_card(
+    refresh: bool = Query(False, description="캐시를 무시하고 다시 만들기 (60초 쿨다운)"),
+    service: CardService = Depends(get_card_service),
+) -> TodayCardResponse:
+    return _to_response(await service.get_demo(refresh=refresh))
+
+
+@router.post(
+    "/today/push",
+    response_model=TestPushResponse,
+    summary="오늘의 카드를 지금 알림으로",
+    description=(
+        "오늘 카드(없으면 생성)를 내 기기 전부에 지금 알림으로 보낸다. 시연과 기기 확인용. "
+        "평소에는 퇴근 10분 전에 서버가 자동으로 보낸다."
+    ),
+    responses={
+        401: {"description": "토큰 없음 또는 만료"},
+        404: {"description": "동선이 없거나 경로를 아직 생성하지 않음"},
+        503: {"description": "서버에 FCM 키가 설정되지 않음"},
+    },
+)
+async def push_today_card(
+    current_user: User = Depends(get_current_user),
+    service: CardService = Depends(get_card_service),
+) -> TestPushResponse:
+    return TestPushResponse(sent=await service.push_today(current_user))

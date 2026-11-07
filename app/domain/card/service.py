@@ -7,7 +7,7 @@ LLM 실패·검증 실패는 점수 1위 + 템플릿으로 폴백한다. 하루 
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -36,7 +36,11 @@ from app.domain.card.prompt import (
 from app.domain.commute.models import Commute, Preference
 from app.domain.commute.service import CommuteService, get_commute_service
 from app.domain.feedback.service import top_tags
-from app.domain.notification.service import CARD_TITLE, NotificationService
+from app.domain.notification.service import (
+    CARD_TITLE,
+    NotificationService,
+    get_notification_service,
+)
 from app.domain.route.fallback import LEG_ACTION, FallbackResult, decide_fallback
 from app.domain.route.models import ActionType, Direction, PlaceType, Route
 from app.domain.route.scoring import sunset_window
@@ -50,6 +54,8 @@ LOCAL_TZ = ZoneInfo("Asia/Seoul")
 RECENT_DAYS = 3
 # 퇴근 몇 분 전에 카드를 미리 만들지 (#59). 알림도 이 시각에 나간다
 PREWARM_MINUTES = 10
+# 데모 카드 다시 만들기 간격 (#65). 공개 API 라 연타로 LLM 을 소진하지 못하게
+DEMO_REFRESH_COOLDOWN = timedelta(seconds=60)
 NO_NATURE_TEXT = "오늘 동선엔 자연이 없어요. 내일 다시 찾아볼게요."
 
 
@@ -134,10 +140,13 @@ class CardService:
         :param now: 현재 시각 (tz-aware)
         :return: 새로 만든 카드 수
         """
-        # 1. 곧 퇴근하는 동선
+        # 1. 곧 퇴근하는 동선 중 알림을 받을 사용자와 데모 계정만 (#65).
+        #    나머지는 앱을 열 때 만든다. 매일 LLM·날씨 호출을 쓰지 않으려는 것이다
         local = now.astimezone(LOCAL_TZ)
         until = local + timedelta(minutes=PREWARM_MINUTES)
-        commutes = await self._commutes.list_leaving_between(local.time(), until.time())
+        leaving = await self._commutes.list_leaving_between(local.time(), until.time())
+        targets = await self._prewarm_targets([c.user_id for c in leaving])
+        commutes = [c for c in leaving if c.user_id in targets]
 
         built = 0
         for commute in commutes:
@@ -166,10 +175,39 @@ class CardService:
                 await self._session.commit()
         return built
 
-    async def get_demo(self) -> CardResult:
+    async def _prewarm_targets(self, user_ids: list[UUID]) -> set[UUID]:
+        """미리 만들 사용자: 알림 기기가 있는 사용자 + 데모 계정."""
+        targets: set[UUID] = set()
+        if self._notifications is not None and user_ids:
+            targets = await self._notifications.users_with_devices(user_ids)
+        demo = await self._users.find_demo_user()
+        if demo is not None:
+            targets.add(demo.id)
+        return targets
+
+    async def push_today(self, user: User) -> int:
+        """
+        오늘의 카드를 내 기기에 지금 알림으로 보낸다 (시연용, #65). 카드가 없으면 만든다.
+
+        :return: 보낸 기기 수
+        :raises AppException: NOTIFICATION_NOT_CONFIGURED · COMMUTE_NOT_FOUND · ROUTES_NOT_READY
+        """
+        # 1. 알림을 보낼 수 있는지 먼저 본다 (안 되면 LLM 을 부르지 않는다)
+        if self._notifications is None or not self._notifications.enabled:
+            raise AppException(ErrorCode.NOTIFICATION_NOT_CONFIGURED)
+
+        # 2. 오늘 카드 (캐시 또는 생성) → 발송
+        card = (await self.get_today(user)).card
+        sent = await self._notifications.notify(user.id, title=CARD_TITLE, body=card.text)
+        card.notified_at = datetime.now(LOCAL_TZ)
+        await self._session.commit()
+        return sent
+
+    async def get_demo(self, *, refresh: bool = False) -> CardResult:
         """
         둘러보기용 데모 계정의 오늘 카드. 토큰 없이 조회한다.
 
+        :param refresh: 캐시를 무시하고 다시 만든다 (시연용). 공개 API 라 60초에 한 번만
         :raises AppException: DEMO_NOT_READY - 시드가 안 돌았거나 동선·경로가 없음
         """
         # 1. 데모 계정·동선·경로
@@ -181,10 +219,13 @@ class CardService:
         if not routes:
             raise AppException(ErrorCode.DEMO_NOT_READY)
 
-        # 2. 캐시 또는 생성
+        # 2. 캐시 또는 생성. refresh 는 마지막 생성 뒤 쿨다운이 지났을 때만
         today = datetime.now(LOCAL_TZ).date()
         cached = await self._find_card(user.id, today)
-        if cached is not None:
+        cooling = (
+            cached is not None and datetime.now(UTC) - cached.updated_at < DEMO_REFRESH_COOLDOWN
+        )
+        if cached is not None and (not refresh or cooling):
             return await self._result_from_card(cached, commute, routes, user.tag_weights)
         return await self._build_and_save(user, commute, routes, today, commute.preference)
 
@@ -446,6 +487,7 @@ def get_card_service(
     llm: LlmClient = Depends(get_llm_client),
     kma: KmaClient = Depends(get_kma_client),
     airkorea: AirKoreaClient = Depends(get_airkorea_client),
+    notifications: NotificationService = Depends(get_notification_service),
 ) -> CardService:
     return CardService(
         session,
@@ -455,6 +497,7 @@ def get_card_service(
         llm=llm,
         kma=kma,
         airkorea=airkorea,
+        notifications=notifications,
     )
 
 

@@ -31,6 +31,11 @@ class NotificationService:
         """FCM 키가 설정돼 알림을 보낼 수 있는지."""
         return self._fcm.configured
 
+    async def users_with_devices(self, user_ids: list[UUID]) -> set[UUID]:
+        """그중 알림 기기를 하나라도 등록한 사용자. 미리 만들기 대상을 고를 때 쓴다 (#65)."""
+        stmt = select(PushToken.user_id).where(PushToken.user_id.in_(user_ids)).distinct()
+        return set((await self._session.execute(stmt)).scalars())
+
     async def register(self, user_id: UUID, token: str) -> None:
         """
         기기 토큰을 등록한다. 이미 있으면 이 사용자로 옮긴다 (한 브라우저에서 계정을 바꾼 경우).

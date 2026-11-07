@@ -16,6 +16,7 @@ F-05 가 카드 문장과 홈 헤더에 쓸 미세먼지 등급·농도를 받�
 """
 
 import logging
+import time
 from enum import StrEnum
 from typing import Any
 
@@ -34,6 +35,8 @@ AIRKOREA_CTPRVN_RLTM_URL = (
 OPERATION_VERSION = "1.4"
 # 시도 하나의 측정소는 수십 곳이다. 한 페이지로 받는다
 NUM_OF_ROWS = 100
+# 도시별 결과 재사용 시간 (#65). 에어코리아 측정값은 1시간 단위로 갱신된다
+CACHE_SECONDS = 3600.0
 
 # 포털 공통 응답 코드. 0 정상, 3 데이터없음, 그 외는 호출 실패
 RESULT_OK = 0
@@ -108,14 +111,18 @@ class AirKoreaClient:
         *,
         timeout: float = 5.0,
         transport: httpx.AsyncBaseTransport | None = None,
+        cache_seconds: float = CACHE_SECONDS,
     ) -> None:
         """
         :param service_key: 공공데이터포털 인증키 (Decoding 키). 쿼리로 보낼 때 인코딩된다
         :param transport: 테스트가 가짜 서버를 끼우는 자리. 운영에서는 None (실제 네트워크)
+        :param cache_seconds: 같은 도시 결과를 재사용하는 시간 (#65). 측정값은 1시간 단위로 바뀐다
         """
         self._service_key = service_key
         self._timeout = timeout
         self._transport = transport
+        self._cache_seconds = cache_seconds
+        self._cache: dict[str, tuple[float, AirQuality]] = {}
 
     async def pm(self, city: str) -> AirQuality:
         """
@@ -127,7 +134,12 @@ class AirKoreaClient:
             파싱 실패, 결측(03)이 아닌 에러 코드
         :raises ValueError: 표에 없는 도시 코드 (설정이나 호출하는 쪽의 버그)
         """
-        # 1. 호출 전 검사. 키가 없으면 네트워크를 타지 않고 바로 실패한다
+        # 1. 같은 도시는 값이 같다. 1시간 안이면 지난 결과를 쓴다 (미리 만들기가 사용자마다 부름)
+        cached = self._cache.get(city)
+        if cached is not None and time.monotonic() - cached[0] < self._cache_seconds:
+            return cached[1]
+
+        # 2. 호출 전 검사. 키가 없으면 네트워크를 타지 않고 바로 실패한다
         if not self._service_key:
             logger.error("AIRKOREA_SERVICE_KEY 가 비어 있다")
             raise AppException(ErrorCode.EXTERNAL_API_FAILED)
@@ -135,7 +147,7 @@ class AirKoreaClient:
         if sido_name is None:
             raise ValueError(f"에어코리아 시도명을 모르는 도시 코드다: {city}")
 
-        # 2. 호출. httpx 예외는 여기서 끝낸다
+        # 3. 호출. httpx 예외는 여기서 끝낸다
         raw = await self._get(
             {
                 "serviceKey": self._service_key,
@@ -147,8 +159,10 @@ class AirKoreaClient:
             }
         )
 
-        # 3. 파싱
-        return parse_pm_response(raw)
+        # 4. 파싱하고 기억한다
+        air = parse_pm_response(raw)
+        self._cache[city] = (time.monotonic(), air)
+        return air
 
     async def _get(self, params: dict[str, str]) -> dict[str, Any]:
         try:
@@ -254,5 +268,12 @@ def _worst_grade(stations: list[dict[str, Any]]) -> AirGrade | None:
     return max(grades, key=GRADE_ORDER.index)
 
 
+_airkorea_client: AirKoreaClient | None = None
+
+
 def get_airkorea_client() -> AirKoreaClient:
-    return AirKoreaClient(get_settings().airkorea_service_key)
+    """도시별 캐시를 공유하려고 프로세스에 하나만 만든다."""
+    global _airkorea_client
+    if _airkorea_client is None:
+        _airkorea_client = AirKoreaClient(get_settings().airkorea_service_key)
+    return _airkorea_client
