@@ -30,6 +30,7 @@ from app.domain.card.prompt import (
     CardInput,
     build_prompt,
     format_time,
+    reject_reason,
 )
 from app.domain.commute.models import Commute, Preference
 from app.domain.commute.service import CommuteService, get_commute_service
@@ -240,7 +241,6 @@ class CardService:
         """LLM 1회. 실패·검증 실패면 None (폴백은 호출하는 쪽)."""
         # 1. 입력 조립
         card_input = await self._card_input(context, user)
-        allowed_names = _names_in_input(card_input)
 
         # 2. 호출
         try:
@@ -251,21 +251,12 @@ class CardService:
             logger.warning("카드 LLM 실패, 템플릿으로 폴백: %s", exc.code.name)
             return None
 
-        # 3. 검증: 후보 범위, 입력에 없는 장소·정류장 이름
-        choice = reply.parsed
-        if not 0 <= choice.choice < len(context.decided.candidates):
-            logger.warning("카드 LLM choice 범위 밖: %s", choice.choice)
-            return None
+        # 3. 검증: 후보 범위, 입력에 없는 장소·정류장 이름 (평가 스크립트와 같은 규칙)
         known = await self._routes.list_place_names(user.city)
         known |= await self._commutes.list_station_names(user.city)
-        # 입력 문자열(경로 이름·설명) 어디에든 들어 있는 이름은 입력에 있는 것이다
-        # (예: 경로 "국채보상운동기념공원 북쪽 입구 샛길" 에 대해 "국채보상운동기념공원")
-        allowed_text = " ".join(allowed_names)
-        foreign = [
-            name for name in known if name and name in choice.text and name not in allowed_text
-        ]
-        if foreign:
-            logger.warning("카드 LLM 문장에 입력에 없는 장소: %s", foreign)
+        reason = reject_reason(reply.parsed, card_input, known)
+        if reason is not None:
+            logger.warning("카드 LLM 출력 거부, 템플릿으로 폴백: %s", reason)
             return None
         return reply
 
@@ -414,17 +405,6 @@ class CardService:
         decided = decide_fallback(ranked, at=at, is_clear=is_clear)
         chosen = next((r for r in ranked.eligible if r.route.id == card.route_id), None)
         return CardResult(card, chosen, decided.candidates, decided.shortest)
-
-
-def _names_in_input(card_input: CardInput) -> set[str]:
-    """입력에 등장한 장소·정류장 이름. LLM 문장에 이 밖의 이름이 있으면 폴백."""
-    names: set[str] = set()
-    for candidate in card_input.candidates:
-        names.add(candidate.name)
-        names.update(candidate.highlights)
-        if candidate.station:
-            names.add(candidate.station)
-    return names
 
 
 def _reason_from_tags(tags: list[PlaceType]) -> ReasonTag:

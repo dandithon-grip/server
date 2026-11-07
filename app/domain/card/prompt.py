@@ -85,5 +85,37 @@ def build_prompt(card_input: CardInput) -> str:
     )
 
 
+def names_in_input(card_input: CardInput) -> set[str]:
+    """입력에 등장한 장소·정류장 이름. LLM 문장에 이 밖의 이름이 있으면 폴백."""
+    names: set[str] = set()
+    for candidate in card_input.candidates:
+        names.add(candidate.name)
+        names.update(candidate.highlights)
+        if candidate.station:
+            names.add(candidate.station)
+    return names
+
+
+def reject_reason(choice: CardChoice, card_input: CardInput, known_names: set[str]) -> str | None:
+    """
+    LLM 출력을 받을지 정한다. 서비스와 오프라인 평가(scripts/eval_cards.py)가 같은 규칙을 쓴다.
+
+    :param known_names: 도시의 장소·정류장 이름 전부. 문장에 입력 밖 이름이 있는지 볼 때 쓴다
+    :return: 받으면 None, 아니면 이유 ("choice_out_of_range" · "foreign_names:이름,...")
+    """
+    # 1. 후보 범위
+    if not 0 <= choice.choice < len(card_input.candidates):
+        return "choice_out_of_range"
+    # 2. 입력에 없는 장소·정류장 이름. 입력 문자열 어디에든 들어 있는 이름은 입력에 있는 것이다
+    #    (예: 경로 "국채보상운동기념공원 북쪽 입구 샛길" 에 대해 "국채보상운동기념공원")
+    allowed_text = " ".join(names_in_input(card_input))
+    foreign = sorted(
+        name for name in known_names if name and name in choice.text and name not in allowed_text
+    )
+    if foreign:
+        return "foreign_names:" + ",".join(foreign)
+    return None
+
+
 def format_time(value: datetime) -> str:
     return value.strftime("%H:%M")
