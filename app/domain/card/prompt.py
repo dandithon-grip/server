@@ -19,9 +19,11 @@ SYSTEM_PROMPT = """너는 출퇴근길에 자연을 지나가게 돕는 서비�
 
 규칙
 1. 장소·정류장·시각·거리 이름은 입력에 있는 것만 쓴다. 입력에 없는 장소를 지어내지 않는다.
+   season_tags 는 그 장소의 계절 풍경일 뿐이다. 지금 한창·절정·만개라고 단정하지 않는다.
 2. recent 가 true 인 후보(최근 3일 안에 추천)는 피한다. 다른 후보가 없을 때만 다시 고른다.
 3. 점수 1위(index 0)와 다르게 고르면 deviation 에 한 줄 이유를 쓴다. 같으면 null.
 4. 이유 칩(reason_tag)은 하나만. 날씨·일몰·계절 상태·미세먼지를 근거로 고른다.
+   sunset_window_open 이 true 면 지금이 노을 시간이다. sunset 태그 후보를 우선하고 이유 칩은 sunset.
 5. text 는 한국어 두 문장, 80자 이내, 반말 금지, 숫자는 입력값 그대로.
 """
 
@@ -71,6 +73,8 @@ class CardInput(BaseModel):
     fallback_level: int
     leave_time: str
     sunset_at: str
+    # 노을 창(일몰 ±30분·맑음). 서버가 계산한다. LLM 이 시각 계산을 하지 않게 (#61 평가)
+    sunset_window_open: bool = False
     sky: str | None = None
     air_grade: str | None = None
     top_tag_weights: list[str] = Field(default_factory=list)
@@ -83,6 +87,38 @@ def build_prompt(card_input: CardInput) -> str:
         "아래 입력만 보고 오늘의 카드를 만들어라. 후보는 점수순이고 index 0 이 1위다.\n"
         + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     )
+
+
+def names_in_input(card_input: CardInput) -> set[str]:
+    """입력에 등장한 장소·정류장 이름. LLM 문장에 이 밖의 이름이 있으면 폴백."""
+    names: set[str] = set()
+    for candidate in card_input.candidates:
+        names.add(candidate.name)
+        names.update(candidate.highlights)
+        if candidate.station:
+            names.add(candidate.station)
+    return names
+
+
+def reject_reason(choice: CardChoice, card_input: CardInput, known_names: set[str]) -> str | None:
+    """
+    LLM 출력을 받을지 정한다. 서비스와 오프라인 평가(scripts/eval_cards.py)가 같은 규칙을 쓴다.
+
+    :param known_names: 도시의 장소·정류장 이름 전부. 문장에 입력 밖 이름이 있는지 볼 때 쓴다
+    :return: 받으면 None, 아니면 이유 ("choice_out_of_range" · "foreign_names:이름,...")
+    """
+    # 1. 후보 범위
+    if not 0 <= choice.choice < len(card_input.candidates):
+        return "choice_out_of_range"
+    # 2. 입력에 없는 장소·정류장 이름. 입력 문자열 어디에든 들어 있는 이름은 입력에 있는 것이다
+    #    (예: 경로 "국채보상운동기념공원 북쪽 입구 샛길" 에 대해 "국채보상운동기념공원")
+    allowed_text = " ".join(names_in_input(card_input))
+    foreign = sorted(
+        name for name in known_names if name and name in choice.text and name not in allowed_text
+    )
+    if foreign:
+        return "foreign_names:" + ",".join(foreign)
+    return None
 
 
 def format_time(value: datetime) -> str:
