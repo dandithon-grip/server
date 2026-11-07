@@ -48,3 +48,7 @@ class TodayCard(TimestampMixin, Base):
     air_grade: Mapped[str | None] = mapped_column(String(10), nullable=True)
     # 1 이면 LLM 이 골랐고, 0 이면 템플릿 폴백
     by_llm: Mapped[bool] = mapped_column(default=False)
+    # LLM 비용 (#59). 템플릿이면 None
+    llm_input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    llm_output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    llm_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)

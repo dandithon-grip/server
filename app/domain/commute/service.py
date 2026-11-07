@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
+from datetime import time
 from uuid import UUID
 
 from fastapi import Depends
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -235,6 +236,21 @@ class CommuteService:
     async def get_station(self, station_id: UUID) -> Station | None:
         stmt = select(Station).where(Station.id == station_id)
         return (await self._session.execute(stmt)).scalar_one_or_none()
+
+    async def list_leaving_between(self, start: time, end: time) -> list[Commute]:
+        """
+        퇴근 시각이 start 이상 end 이하인 동선. 퇴근 전 카드 미리 만들기가 쓴다 (#59).
+
+        자정을 넘는 구간(start > end)은 둘로 나눠 본다.
+        """
+        # 1. 시각 범위 조건
+        window: ColumnElement[bool]
+        if start <= end:
+            window = Commute.leave_time.between(start, end)
+        else:
+            window = or_(Commute.leave_time >= start, Commute.leave_time <= end)
+        stmt = select(Commute).where(window)
+        return list((await self._session.execute(stmt)).scalars())
 
     async def get_commute_by_user(self, user_id: UUID) -> Commute | None:
         """예외 없이 조회. 데모 카드처럼 없을 수도 있는 자리에서 쓴다."""
