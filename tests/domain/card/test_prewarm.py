@@ -13,6 +13,7 @@ from app.core.timezone import LOCAL_TZ
 from app.domain.card.models import TodayCard
 from app.domain.card.service import CardService
 from app.domain.commute.service import CommuteService
+from app.domain.notification.service import NotificationService
 from app.domain.route.service import RouteService
 from app.domain.user.models import User
 from app.domain.user.service import UserService
@@ -27,13 +28,14 @@ from tests.domain.card.test_cards import (
     make_route,
     walk_commute,
 )
+from tests.domain.notification.test_push_tokens import FakeFcm
 from tests.domain.route.test_routes import FakeTmap
 
 USER_A = "aaaaaaaa-0000-0000-0000-000000000001"
 USER_B = "bbbbbbbb-0000-0000-0000-000000000002"
 
 
-def card_service(session: AsyncSession, llm: FakeLlm) -> CardService:
+def card_service(session: AsyncSession, llm: FakeLlm, fcm: FakeFcm | None = None) -> CardService:
     return CardService(
         session,
         commute_service=CommuteService(session),
@@ -42,6 +44,7 @@ def card_service(session: AsyncSession, llm: FakeLlm) -> CardService:
         llm=llm,  # type: ignore[arg-type]
         kma=FakeKma(),  # type: ignore[arg-type]
         airkorea=FakeAir(),  # type: ignore[arg-type]
+        notifications=NotificationService(session, fcm or FakeFcm()),  # type: ignore[arg-type]
     )
 
 
@@ -106,3 +109,51 @@ async def test_prewarm_skips_commute_without_routes(
     built = await card_service(db_session, FakeLlm(choice=GOOD_CHOICE)).prewarm(now)
 
     assert built == 0
+
+
+# --- 퇴근 알림 (#63) ------------------------------------------------------------
+
+
+async def register(client: AsyncClient, token: str, device: str) -> None:
+    await client.put("/users/me/push-tokens", json={"token": device}, headers=bearer(token))
+
+
+async def test_prewarm_sends_card_notification_once_a_day(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    token = make_token(sub=USER_A)
+    await commute_with_candidate(client, db_session, token, USER_A, "18:10")
+    await register(client, token, "phone")
+    fcm = FakeFcm()
+    llm = FakeLlm(choice=GOOD_CHOICE.model_copy(update={"choice": 0}))
+    now = datetime.combine(datetime.now(LOCAL_TZ).date(), time(18, 2), tzinfo=LOCAL_TZ)
+    service = card_service(db_session, llm, fcm)
+
+    await service.prewarm(now)
+    await service.prewarm(now)
+
+    assert [(device, title) for device, title, _ in fcm.sent] == [("phone", "오늘의 샛길")]
+    assert fcm.sent[0][2] == GOOD_CHOICE.text
+    card = (await db_session.execute(select(TodayCard))).scalar_one()
+    assert card.notified_at is not None
+
+
+async def test_prewarm_notifies_even_if_card_was_already_opened(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 오후에 앱을 열어 카드가 이미 있어도, 퇴근 10분 전 알림은 한 번 간다 (카드는 다시 안 만든다)
+    token = make_token(sub=USER_A)
+    await commute_with_candidate(client, db_session, token, USER_A, "18:10")
+    await register(client, token, "phone")
+    llm = FakeLlm(choice=GOOD_CHOICE.model_copy(update={"choice": 0}))
+    now = datetime.combine(datetime.now(LOCAL_TZ).date(), time(15, 0), tzinfo=LOCAL_TZ)
+    service = card_service(db_session, llm, FakeFcm())
+    user = (await db_session.execute(select(User).where(User.supabase_id == USER_A))).scalar_one()
+    await service.get_today(user)
+    fcm = FakeFcm()
+    service = card_service(db_session, llm, fcm)
+
+    await service.prewarm(now.replace(hour=18, minute=2))
+
+    assert len(llm.calls) == 1
+    assert len(fcm.sent) == 1
