@@ -7,7 +7,7 @@ LLM 실패·검증 실패는 점수 1위 + 템플릿으로 폴백한다. 하루 
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -18,8 +18,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.airkorea import AirKoreaClient, AirQuality, get_airkorea_client
 from app.clients.kma import KmaClient, Weather, WeatherSky, get_kma_client
-from app.clients.llm import LlmClient, get_llm_client
-from app.core.database import get_db
+from app.clients.llm import LlmClient, LlmReply, get_llm_client
+from app.clients.tmap import get_tmap_client
+from app.core.database import get_db, session_factory
 from app.core.exceptions import AppException, ErrorCode
 from app.domain.card.models import ReasonTag, TodayCard
 from app.domain.card.prompt import (
@@ -44,6 +45,8 @@ logger = logging.getLogger(__name__)
 
 LOCAL_TZ = ZoneInfo("Asia/Seoul")
 RECENT_DAYS = 3
+# 퇴근 몇 분 전에 카드를 미리 만들지 (#59). 알림도 이 시각에 나간다
+PREWARM_MINUTES = 10
 NO_NATURE_TEXT = "오늘 동선엔 자연이 없어요. 내일 다시 찾아볼게요."
 
 
@@ -114,6 +117,41 @@ class CardService:
             user, commute, routes, today, preference or commute.preference
         )
 
+    async def prewarm(self, now: datetime) -> int:
+        """
+        퇴근 PREWARM_MINUTES 안에 드는 동선의 오늘 카드를 미리 만든다 (#59).
+
+        알림을 눌렀을 때 LLM·날씨를 기다리지 않고 캐시된 카드를 바로 받게 하려는 것이다.
+        이미 카드가 있거나 경로가 없는 동선은 건너뛴다. 한 사용자의 실패가 나머지를 막지 않는다.
+
+        :param now: 현재 시각 (tz-aware, 한국 시간)
+        :return: 새로 만든 카드 수
+        """
+        # 1. 곧 퇴근하는 동선
+        local = now.astimezone(LOCAL_TZ)
+        until = local + timedelta(minutes=PREWARM_MINUTES)
+        commutes = await self._commutes.list_leaving_between(local.time(), until.time())
+
+        # 2. 카드가 없는 사용자만 만든다
+        built = 0
+        for commute in commutes:
+            if await self._find_card(commute.user_id, local.date()) is not None:
+                continue
+            user = await self._users.get_user(commute.user_id)
+            routes = await self._routes.list_routes(commute.id)
+            if user is None or not routes:
+                continue
+            try:
+                await self._build_and_save(
+                    user, commute, routes, local.date(), Preference(commute.preference)
+                )
+            except AppException as exc:
+                logger.warning("카드 미리 만들기 실패, 다음 사용자로: %s", exc.code.name)
+                await self._session.rollback()
+                continue
+            built += 1
+        return built
+
     async def get_demo(self) -> CardResult:
         """
         둘러보기용 데모 계정의 오늘 카드. 토큰 없이 조회한다.
@@ -161,21 +199,19 @@ class CardService:
         context = CardContext(commute, routes, decided, at, window.sunset_at, weather, air)
 
         # 3. 후보가 있으면 LLM 이 고르고, 없으면(2·4단계) 템플릿
-        choice: CardChoice | None = None
-        by_llm = False
-        if decided.candidates:
-            choice = await self._ask_llm(context, user)
-            by_llm = choice is not None
-        if choice is None:
-            choice = await self._template_choice(context)
+        reply = await self._ask_llm(context, user) if decided.candidates else None
+        choice = reply.parsed if reply else await self._template_choice(context)
 
-        # 4. 저장 (user_id, date) upsert
+        # 4. 행동 유형은 고른 후보의 구간이 정한다. 후보가 없는 단계는 대체 로직이 정한 값
         chosen = decided.candidates[choice.choice] if decided.candidates else None
+        action = LEG_ACTION[chosen.leg_type] if chosen else decided.action_type
+
+        # 5. 저장 (user_id, date) upsert. LLM 비용도 함께 남긴다
         values = {
             "user_id": user.id,
             "date": today,
             "route_id": chosen.route.id if chosen else None,
-            "action_type": str(choice.action_type),
+            "action_type": str(action),
             "fallback_level": decided.level,
             "reason_tag": str(choice.reason_tag),
             "text": choice.text,
@@ -184,7 +220,10 @@ class CardService:
             "sunset_at": window.sunset_at,
             "sky": str(weather.sky) if weather.sky else None,
             "air_grade": str(air.grade) if air.grade else None,
-            "by_llm": by_llm,
+            "by_llm": reply is not None,
+            "llm_input_tokens": reply.input_tokens if reply else None,
+            "llm_output_tokens": reply.output_tokens if reply else None,
+            "llm_ms": reply.latency_ms if reply else None,
         }
         stmt = insert(TodayCard).values(**values)
         stmt = stmt.on_conflict_do_update(
@@ -197,7 +236,7 @@ class CardService:
         assert card is not None
         return CardResult(card, chosen, decided.candidates, decided.shortest)
 
-    async def _ask_llm(self, context: CardContext, user: User) -> CardChoice | None:
+    async def _ask_llm(self, context: CardContext, user: User) -> LlmReply[CardChoice] | None:
         """LLM 1회. 실패·검증 실패면 None (폴백은 호출하는 쪽)."""
         # 1. 입력 조립
         card_input = await self._card_input(context, user)
@@ -205,7 +244,7 @@ class CardService:
 
         # 2. 호출
         try:
-            choice = await self._llm.complete_json(
+            reply = await self._llm.complete_json_reply(
                 build_prompt(card_input), CardChoice, system=SYSTEM_PROMPT
             )
         except AppException as exc:
@@ -213,6 +252,7 @@ class CardService:
             return None
 
         # 3. 검증: 후보 범위, 입력에 없는 장소·정류장 이름
+        choice = reply.parsed
         if not 0 <= choice.choice < len(context.decided.candidates):
             logger.warning("카드 LLM choice 범위 밖: %s", choice.choice)
             return None
@@ -227,11 +267,11 @@ class CardService:
         if foreign:
             logger.warning("카드 LLM 문장에 입력에 없는 장소: %s", foreign)
             return None
-        # 4. 행동 유형은 고른 후보의 구간이 정한다 (1단계에 걷기·먼저 내리기·늦게 타기가 섞인다)
-        chosen = context.decided.candidates[choice.choice]
-        return choice.model_copy(update={"action_type": LEG_ACTION[chosen.leg_type]})
+        return reply
 
     async def _card_input(self, context: CardContext, user: User) -> CardInput:
+        """LLM 입력. 경로 UUID 대신 후보마다 최근 추천 여부만 넣는다 (#59)."""
+        recent = set(await self._recent_route_ids(user.id, context.at.date()))
         candidates: list[CandidateInput] = []
         for index, ranked in enumerate(context.decided.candidates):
             places = await self._routes.list_places(ranked.route.spots)
@@ -240,9 +280,7 @@ class CardService:
             candidates.append(
                 CandidateInput(
                     index=index,
-                    route_id=str(ranked.route.id),
                     name=ranked.name,
-                    leg_type=str(ranked.leg_type),
                     action_type=str(LEG_ACTION[ranked.leg_type]),
                     # 문장에 "8.0분", "37.0%" 가 그대로 나오지 않게 정수로 넘긴다
                     add_minutes=round(ranked.route.add_minutes),
@@ -254,9 +292,9 @@ class CardService:
                     season_tags=[p.season_tag for p in places if p.season_tag],
                     station=station.name if station else None,
                     skip_stops=ranked.route.skip_stops,
+                    recent=ranked.route.id in recent,
                 )
             )
-        recent = await self._recent_route_ids(user.id, context.at.date())
         return CardInput(
             candidates=candidates,
             fallback_level=context.decided.level,
@@ -265,7 +303,6 @@ class CardService:
             sky=str(context.weather.sky) if context.weather.sky else None,
             air_grade=str(context.air.grade) if context.air.grade else None,
             top_tag_weights=top_tags(user.tag_weights),
-            recent_route_ids=[str(route_id) for route_id in recent],
         )
 
     async def _template_choice(self, context: CardContext) -> CardChoice:
@@ -297,7 +334,6 @@ class CardService:
                 text = f"{minutes}분 돌아가면 {top.name}. {place}"
             return CardChoice(
                 choice=0,
-                action_type=action,
                 reason_tag=_reason_from_tags(top.tags),
                 text=text[:120],
                 deviation=None,
@@ -313,12 +349,9 @@ class CardService:
                     if decided.shortest
                     else ReasonTag.RIVER
                 )
-            return CardChoice(
-                choice=0, action_type=decided.action_type, reason_tag=tag, text=text, deviation=None
-            )
+            return CardChoice(choice=0, reason_tag=tag, text=text, deviation=None)
         return CardChoice(
             choice=0,
-            action_type=ActionType.NONE,
             reason_tag=ReasonTag.SEASON,
             text=NO_NATURE_TEXT,
             deviation=None,
@@ -427,3 +460,33 @@ def get_card_service(
         kma=kma,
         airkorea=airkorea,
     )
+
+
+PREWARM_INTERVAL_SECONDS = 60
+
+
+async def run_prewarm_forever() -> None:
+    """
+    앱 안 백그라운드 루프 (#59). 1분마다 곧 퇴근하는 동선의 카드를 미리 만든다.
+
+    Redis·메시지 큐 없이 lifespan 태스크 하나로 돈다 (서버 1대 기준).
+    카드는 (사용자, 날짜) upsert 라 두 번 돌아도 한 장이다.
+    """
+    while True:
+        try:
+            async with session_factory() as session:
+                service = CardService(
+                    session,
+                    commute_service=CommuteService(session),
+                    route_service=RouteService(session, get_tmap_client()),
+                    user_service=UserService(session),
+                    llm=get_llm_client(),
+                    kma=get_kma_client(),
+                    airkorea=get_airkorea_client(),
+                )
+                built = await service.prewarm(datetime.now(LOCAL_TZ))
+                if built:
+                    logger.info("퇴근 전 카드 %d장 미리 만듦", built)
+        except Exception:  # 루프는 어떤 실패에도 멈추지 않는다
+            logger.exception("카드 미리 만들기 루프 실패, 다음 주기에 다시")
+        await asyncio.sleep(PREWARM_INTERVAL_SECONDS)
