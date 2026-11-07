@@ -3,8 +3,9 @@
 LLM·날씨·미세먼지는 가짜로 바꾼다. 경로는 Route 행을 직접 넣는다 (TMAP 호출 없음).
 """
 
+import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
 from geoalchemy2.shape import from_shape
@@ -16,13 +17,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.airkorea import AirGrade, AirQuality, get_airkorea_client
 from app.clients.kma import Weather, WeatherSky, get_kma_client
-from app.clients.llm import get_llm_client
+from app.clients.llm import LlmReply, get_llm_client
 from app.core.config import get_settings
 from app.core.exceptions import AppException, ErrorCode
 from app.domain.card.models import ReasonTag, TodayCard
 from app.domain.card.prompt import CardChoice
 from app.domain.commute.models import Commute, Station
-from app.domain.route.models import ActionType, LegType, Place, PlaceType, Route
+from app.domain.route.models import LegType, Place, PlaceType, Route
 from app.domain.user.models import User
 from app.main import app
 from tests.conftest import TokenFactory
@@ -46,14 +47,14 @@ class FakeLlm:
     error: ErrorCode | None = None
     calls: list[str] = field(default_factory=list)
 
-    async def complete_json(
+    async def complete_json_reply(
         self, prompt: str, schema: type[BaseModel], *, system: str | None = None
-    ) -> BaseModel:
+    ) -> LlmReply[BaseModel]:
         self.calls.append(prompt)
         if self.error is not None:
             raise AppException(self.error)
         assert self.choice is not None
-        return self.choice
+        return LlmReply(parsed=self.choice, input_tokens=1200, output_tokens=90, latency_ms=2300)
 
 
 @dataclass
@@ -194,7 +195,6 @@ async def cards_in_db(session: AsyncSession) -> list[TodayCard]:
 
 GOOD_CHOICE = CardChoice(
     choice=1,
-    action_type=ActionType.DETOUR,
     reason_tag=ReasonTag.TREES,
     text="오늘은 느티나무 그늘이 좋은 날입니다. 7분 돌아가 경상감영공원 샛길로 걸어 보세요.",
     deviation="단풍보다 그늘이 더 어울리는 맑은 오후라서",
@@ -309,7 +309,6 @@ async def test_text_with_place_not_in_input_falls_back(
     await db_session.flush()
     hallucinated = CardChoice(
         choice=0,
-        action_type=ActionType.DETOUR,
         reason_tag=ReasonTag.SUNSET,
         text="수성못에서 노을을 보세요. 2.28기념중앙공원 샛길로 가면 됩니다.",
         deviation=None,
@@ -423,7 +422,6 @@ async def test_place_name_inside_route_name_is_allowed(
     await prepare_routes(client, db_session, headers, with_candidates=True)
     choice = CardChoice(
         choice=0,
-        action_type=ActionType.DETOUR,
         reason_tag=ReasonTag.PARK,
         text="5분만 돌아가면 2.28기념중앙공원 숲을 지납니다. 오늘은 그늘이 좋은 날입니다.",
         deviation=None,
@@ -549,7 +547,6 @@ async def test_card_action_follows_chosen_candidate_not_llm_label(
     await db_session.flush()
     mislabeled = CardChoice(
         choice=0,
-        action_type=ActionType.DETOUR,
         reason_tag=ReasonTag.PARK,
         text="삼덕교회에서 내려 걸어 보세요. 오늘은 공기가 좋습니다.",
         deviation=None,
@@ -561,3 +558,60 @@ async def test_card_action_follows_chosen_candidate_not_llm_label(
     assert response.status_code == 200
     assert response.json()["by_llm"] is True
     assert response.json()["action_type"] == "alight_early"
+
+
+# --- 토큰 줄이기 · 사용량 (#59) -------------------------------------------------
+
+
+def test_llm_output_schema_does_not_ask_for_action_type() -> None:
+    # 행동 유형은 서버가 고른 후보의 구간으로 정한다. LLM 이 낼 필요가 없다 (스키마 353 토큰)
+    assert "action_type" not in CardChoice.model_fields
+
+
+async def test_card_saves_llm_token_usage_and_latency(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    headers = bearer(make_token())
+    await prepare_routes(client, db_session, headers, with_candidates=True)
+    use_fakes(FakeLlm(choice=GOOD_CHOICE))
+
+    await client.get("/cards/today", headers=headers)
+
+    card = (await cards_in_db(db_session))[0]
+    assert (card.llm_input_tokens, card.llm_output_tokens, card.llm_ms) == (1200, 90, 2300)
+
+
+async def test_prompt_is_compact_json_without_route_ids(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    headers = bearer(make_token())
+    routes = await prepare_routes(client, db_session, headers, with_candidates=True)
+    user = (await db_session.execute(select(User))).scalar_one()
+    # 어제 경상감영공원 샛길을 추천했다
+    db_session.add(
+        TodayCard(
+            user_id=user.id,
+            date=date.today() - timedelta(days=1),
+            route_id=routes[2].id,
+            action_type="detour",
+            fallback_level=1,
+            reason_tag="trees",
+            text="어제 카드",
+            preference="full",
+            sunset_at=datetime.now(UTC),
+            by_llm=True,
+        )
+    )
+    await db_session.flush()
+    llm = FakeLlm(choice=GOOD_CHOICE)
+    use_fakes(llm)
+
+    await client.get("/cards/today", headers=headers)
+
+    prompt = llm.calls[0]
+    payload = json.loads(prompt[prompt.index("{") :])
+    assert "\n " not in prompt  # 들여쓰기 없음
+    assert all(str(r.id) not in prompt for r in routes)  # 경로 UUID 를 넣지 않는다
+    assert "recent_route_ids" not in payload
+    assert [c.get("recent", False) for c in payload["candidates"]] == [False, True]
+    assert all("leg_type" not in c and "station" not in c for c in payload["candidates"])

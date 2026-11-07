@@ -73,9 +73,21 @@ async def test_complete_json_returns_schema_instance() -> None:
     assert body["system"] == "너는 선택기다"
     assert body["messages"] == [{"role": "user", "content": [{"type": "text", "text": "골라"}]}]
     assert body["output_config"]["effort"] == "low"
+
     assert body["output_config"]["format"]["type"] == "json_schema"
     assert body["output_config"]["format"]["schema"]["required"] == ["choice", "text"]
     assert transport.requests[0].url.path == "/v1/messages"
+
+
+async def test_complete_json_reply_carries_token_usage_and_latency() -> None:
+    # 카드마다 토큰·응답 시간을 저장해 비용을 잰다 (#59)
+    client, _ = make_client(lambda _: message_response('{"choice": 0, "text": "숲"}'))
+
+    reply = await client.complete_json_reply("골라", Pick)
+
+    assert reply.parsed == Pick(choice=0, text="숲")
+    assert (reply.input_tokens, reply.output_tokens) == (10, 5)
+    assert reply.latency_ms >= 0
 
 
 async def test_vision_json_sends_base64_image_block() -> None:
