@@ -66,6 +66,11 @@ class LlmClient:
             http_client=DefaultAsyncHttpxClient(transport=transport) if transport else None,
         )
 
+    @property
+    def model(self) -> str:
+        """호출에 쓰는 모델 ID (평가 결과에 남긴다)."""
+        return self._model
+
     async def complete_json(
         self, prompt: str, schema: type[SchemaT], *, system: str | None = None
     ) -> SchemaT:
