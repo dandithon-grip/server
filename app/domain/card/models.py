@@ -52,3 +52,5 @@ class TodayCard(TimestampMixin, Base):
     llm_input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     llm_output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     llm_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # 퇴근 알림을 보낸 시각 (#63). 하루 한 번만 보내려고 둔다
+    notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -25,6 +25,7 @@ class ErrorCode(Enum):
     IMAGE_NOT_FOUND = (404, "사진을 찾을 수 없습니다")
     EXTERNAL_API_FAILED = (502, "외부 API 호출에 실패했습니다")
     LLM_FAILED = (502, "카드 생성에 실패했습니다")
+    NOTIFICATION_NOT_CONFIGURED = (503, "알림이 설정되지 않았습니다")
 
     def __init__(self, status: int, message: str) -> None:
         self.status = status

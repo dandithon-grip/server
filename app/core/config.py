@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     app_env: Literal["dev", "test", "prod"] = "dev"
     # 프론트 origin. 쉼표로 여러 개. 브라우저가 preflight 에서 이 값을 확인한다
     cors_origins: str = "http://localhost:3000"
+    # 퇴근 알림 (#63). Firebase 서비스 계정 키 JSON 한 줄. 비어 있으면 알림만 건너뛴다
+    fcm_service_account_json: str = ""
+    # 알림을 눌렀을 때 열 프론트 주소. FCM 은 https 만 받는다
+    frontend_url: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:
