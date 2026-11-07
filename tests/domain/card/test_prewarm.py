@@ -49,11 +49,24 @@ def card_service(session: AsyncSession, llm: FakeLlm, fcm: FakeFcm | None = None
 
 
 async def commute_with_candidate(
-    client: AsyncClient, session: AsyncSession, token: str, supabase_id: str, leave: str
+    client: AsyncClient,
+    session: AsyncSession,
+    token: str,
+    supabase_id: str,
+    leave: str,
+    *,
+    device: str | None = "device",
 ) -> None:
+    """동선 + 후보 경로. device 가 있으면 알림 기기도 등록한다 (미리 만들기 대상, #65)."""
     await client.put(
         "/commutes/me", json={**walk_commute(), "leave_time": leave}, headers=bearer(token)
     )
+    if device is not None:
+        await client.put(
+            "/users/me/push-tokens",
+            json={"token": f"{device}-{supabase_id}"},
+            headers=bearer(token),
+        )
     commute = await commute_of(session, supabase_id)
     session.add_all(
         [
@@ -114,16 +127,11 @@ async def test_prewarm_skips_commute_without_routes(
 # --- 퇴근 알림 (#63) ------------------------------------------------------------
 
 
-async def register(client: AsyncClient, token: str, device: str) -> None:
-    await client.put("/users/me/push-tokens", json={"token": device}, headers=bearer(token))
-
-
 async def test_prewarm_sends_card_notification_once_a_day(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
     token = make_token(sub=USER_A)
     await commute_with_candidate(client, db_session, token, USER_A, "18:10")
-    await register(client, token, "phone")
     fcm = FakeFcm()
     llm = FakeLlm(choice=GOOD_CHOICE.model_copy(update={"choice": 0}))
     now = datetime.combine(datetime.now(LOCAL_TZ).date(), time(18, 2), tzinfo=LOCAL_TZ)
@@ -132,7 +140,9 @@ async def test_prewarm_sends_card_notification_once_a_day(
     await service.prewarm(now)
     await service.prewarm(now)
 
-    assert [(device, title) for device, title, _ in fcm.sent] == [("phone", "오늘의 샛길")]
+    assert [(device, title) for device, title, _ in fcm.sent] == [
+        (f"device-{USER_A}", "오늘의 샛길")
+    ]
     assert fcm.sent[0][2] == GOOD_CHOICE.text
     card = (await db_session.execute(select(TodayCard))).scalar_one()
     assert card.notified_at is not None
@@ -144,7 +154,6 @@ async def test_prewarm_notifies_even_if_card_was_already_opened(
     # 오후에 앱을 열어 카드가 이미 있어도, 퇴근 10분 전 알림은 한 번 간다 (카드는 다시 안 만든다)
     token = make_token(sub=USER_A)
     await commute_with_candidate(client, db_session, token, USER_A, "18:10")
-    await register(client, token, "phone")
     llm = FakeLlm(choice=GOOD_CHOICE.model_copy(update={"choice": 0}))
     now = datetime.combine(datetime.now(LOCAL_TZ).date(), time(15, 0), tzinfo=LOCAL_TZ)
     service = card_service(db_session, llm, FakeFcm())
@@ -157,3 +166,35 @@ async def test_prewarm_notifies_even_if_card_was_already_opened(
 
     assert len(llm.calls) == 1
     assert len(fcm.sent) == 1
+
+
+# --- 대상 좁히기 (#65) ----------------------------------------------------------
+
+
+async def test_prewarm_skips_users_without_notification_devices(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 알림을 받지 않는 사용자는 앱을 열 때 만든다. 매일 LLM·날씨 호출을 쓰지 않는다
+    token = make_token(sub=USER_A)
+    await commute_with_candidate(client, db_session, token, USER_A, "18:10", device=None)
+    llm = FakeLlm(choice=GOOD_CHOICE.model_copy(update={"choice": 0}))
+    now = datetime.combine(datetime.now(LOCAL_TZ).date(), time(18, 2), tzinfo=LOCAL_TZ)
+
+    built = await card_service(db_session, llm).prewarm(now)
+
+    assert built == 0
+    assert llm.calls == []
+
+
+async def test_prewarm_always_includes_the_demo_account(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    token = make_token(sub=USER_A)
+    await commute_with_candidate(client, db_session, token, USER_A, "18:10", device=None)
+    await UserService(db_session).mark_demo(USER_A)
+    llm = FakeLlm(choice=GOOD_CHOICE.model_copy(update={"choice": 0}))
+    now = datetime.combine(datetime.now(LOCAL_TZ).date(), time(18, 2), tzinfo=LOCAL_TZ)
+
+    built = await card_service(db_session, llm).prewarm(now)
+
+    assert built == 1

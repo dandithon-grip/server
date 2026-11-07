@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.airkorea import AirGrade, AirQuality, get_airkorea_client
+from app.clients.fcm import get_fcm_client
 from app.clients.kma import Weather, WeatherSky, get_kma_client
 from app.clients.llm import LlmReply, get_llm_client
 from app.core.config import get_settings
@@ -29,6 +30,7 @@ from app.domain.route.scoring import sunset_window
 from app.domain.user.models import User
 from app.main import app
 from tests.conftest import TokenFactory
+from tests.domain.notification.test_push_tokens import FakeFcm
 
 A = (35.8600, 128.6000)
 B = (35.8600, 128.6110)
@@ -649,3 +651,73 @@ async def test_prompt_omits_closed_sunset_window(
     await client.get("/cards/today", headers=headers)
 
     assert "sunset_window_open" not in llm.calls[0]
+
+
+# --- 시연용: 데모 다시 만들기 · 오늘 카드 알림 (#65) ------------------------------
+
+
+async def test_demo_refresh_rebuilds_card_after_cooldown(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    await prepare_routes(client, db_session, bearer(make_token()), with_candidates=True)
+    user = (await db_session.execute(select(User))).scalar_one()
+    user.is_demo = True
+    await db_session.flush()
+    llm = FakeLlm(choice=GOOD_CHOICE)
+    use_fakes(llm)
+    await client.get("/cards/demo")
+    card = (await cards_in_db(db_session))[0]
+    card.updated_at = datetime.now(UTC) - timedelta(minutes=2)
+    await db_session.flush()
+
+    response = await client.get("/cards/demo", params={"refresh": "true"})
+
+    assert response.status_code == 200
+    assert len(llm.calls) == 2
+
+
+async def test_demo_refresh_within_cooldown_returns_cached_card(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 공개 API 라 연타로 LLM 을 소진하지 못하게 60초 안에는 다시 만들지 않는다
+    await prepare_routes(client, db_session, bearer(make_token()), with_candidates=True)
+    user = (await db_session.execute(select(User))).scalar_one()
+    user.is_demo = True
+    await db_session.flush()
+    llm = FakeLlm(choice=GOOD_CHOICE)
+    use_fakes(llm)
+    await client.get("/cards/demo")
+
+    await client.get("/cards/demo", params={"refresh": "true"})
+
+    assert len(llm.calls) == 1
+
+
+async def test_push_today_card_sends_its_text_to_my_devices(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    headers = bearer(make_token())
+    await prepare_routes(client, db_session, headers, with_candidates=True)
+    use_fakes(FakeLlm(choice=GOOD_CHOICE))
+    fcm = FakeFcm()
+    app.dependency_overrides[get_fcm_client] = lambda: fcm
+    await client.put("/users/me/push-tokens", json={"token": "phone"}, headers=headers)
+
+    response = await client.post("/cards/today/push", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json() == {"sent": 1}
+    assert fcm.sent == [("phone", "오늘의 샛길", GOOD_CHOICE.text)]
+
+
+async def test_push_today_card_without_fcm_returns_503(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    headers = bearer(make_token())
+    await prepare_routes(client, db_session, headers, with_candidates=True)
+    use_fakes(FakeLlm(choice=GOOD_CHOICE))
+    app.dependency_overrides[get_fcm_client] = lambda: FakeFcm(configured=False)
+
+    response = await client.post("/cards/today/push", headers=headers)
+
+    assert response.status_code == 503
