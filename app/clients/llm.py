@@ -12,6 +12,8 @@ F-05 카드(선택·이유·문장), F-11 기록(비전 계절 태그), F-17 자
 
 import base64
 import logging
+import time
+from dataclasses import dataclass
 from typing import Any, Literal, TypeVar, cast
 
 import anthropic
@@ -31,6 +33,16 @@ ImageMediaType = Literal["image/jpeg", "image/png", "image/webp", "image/gif"]
 MAX_OUTPUT_TOKENS = 2048
 # 선택·분류·짧은 문장 생성이라 깊은 추론이 필요 없다. 비용·지연을 낮춘다
 EFFORT: Literal["low"] = "low"
+
+
+@dataclass(frozen=True)
+class LlmReply[ParsedT: BaseModel]:
+    """구조화 출력 결과와 비용 (#59). 카드마다 토큰·응답 시간을 저장해 비용을 잰다."""
+
+    parsed: ParsedT
+    input_tokens: int
+    output_tokens: int
+    latency_ms: int
 
 
 class LlmClient:
@@ -54,6 +66,11 @@ class LlmClient:
             http_client=DefaultAsyncHttpxClient(transport=transport) if transport else None,
         )
 
+    @property
+    def model(self) -> str:
+        """호출에 쓰는 모델 ID (평가 결과에 남긴다)."""
+        return self._model
+
     async def complete_json(
         self, prompt: str, schema: type[SchemaT], *, system: str | None = None
     ) -> SchemaT:
@@ -62,10 +79,16 @@ class LlmClient:
 
         :param prompt: 사용자 메시지. 입력값(후보·날씨·장소 설명)을 전부 여기에 넣는다
         :param schema: 응답 형식. Pydantic 모델
-        :param system: 역할·규칙. 요청마다 같은 문자열이면 캐시가 된다
+        :param system: 역할·규칙
         :return: schema 인스턴스
         :raises AppException: EXTERNAL_API_FAILED · LLM_FAILED
         """
+        return (await self.complete_json_reply(prompt, schema, system=system)).parsed
+
+    async def complete_json_reply(
+        self, prompt: str, schema: type[SchemaT], *, system: str | None = None
+    ) -> LlmReply[SchemaT]:
+        """complete_json 과 같고, 토큰 사용량과 응답 시간을 함께 돌려준다."""
         content: list[dict[str, object]] = [{"type": "text", "text": prompt}]
         return await self._parse(content, schema, system)
 
@@ -92,11 +115,11 @@ class LlmClient:
             },
             {"type": "text", "text": prompt},
         ]
-        return await self._parse(content, schema, system)
+        return (await self._parse(content, schema, system)).parsed
 
     async def _parse(
         self, content: list[dict[str, object]], schema: type[SchemaT], system: str | None
-    ) -> SchemaT:
+    ) -> LlmReply[SchemaT]:
         # 1. 키 없으면 네트워크를 타지 않고 바로 실패
         if not self._api_key:
             logger.error("LLM_API_KEY 가 비어 있다")
@@ -104,6 +127,7 @@ class LlmClient:
 
         # 2. 호출. SDK 예외는 여기서 끝낸다
         message: MessageParam = {"role": "user", "content": cast(Any, content)}
+        started = time.perf_counter()
         try:
             response = await self._client.messages.parse(
                 model=self._model,
@@ -125,7 +149,19 @@ class LlmClient:
         if response.stop_reason != "end_turn" or response.parsed_output is None:
             logger.error("LLM 응답 중단: stop_reason=%s", response.stop_reason)
             raise AppException(ErrorCode.LLM_FAILED)
-        return response.parsed_output
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        logger.info(
+            "LLM 입력 %d 토큰 · 출력 %d 토큰 · %dms",
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            latency_ms,
+        )
+        return LlmReply(
+            parsed=response.parsed_output,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+            latency_ms=latency_ms,
+        )
 
 
 def get_llm_client() -> LlmClient:

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -14,8 +15,10 @@ from app.core.exceptions import (
 )
 from app.core.security import jwks_cache
 from app.domain.card.router import router as card_router
+from app.domain.card.service import run_prewarm_forever
 from app.domain.commute.router import commute_router, station_router, transit_router
 from app.domain.feedback.router import feedback_router, tag_weights_router
+from app.domain.notification.router import router as notification_router
 from app.domain.record.router import router as record_router
 from app.domain.route.router import router as route_router
 from app.domain.user.router import router as user_router
@@ -32,9 +35,16 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     except AppException:
         logger.warning("JWKS 선로드 실패. 첫 인증 요청 때 재시도한다")
 
+    # 2. 운영에서만 퇴근 전 카드 미리 만들기 루프 (#59). 로컬·테스트는 돌리지 않는다
+    prewarm = (
+        asyncio.create_task(run_prewarm_forever()) if get_settings().app_env == "prod" else None
+    )
+
     yield
 
-    # 2. 커넥션 풀 반납
+    # 3. 루프 정지, 커넥션 풀 반납
+    if prewarm is not None:
+        prewarm.cancel()
     await engine.dispose()
 
 
@@ -82,3 +92,4 @@ app.include_router(card_router)
 app.include_router(feedback_router)
 app.include_router(tag_weights_router)
 app.include_router(record_router)
+app.include_router(notification_router)

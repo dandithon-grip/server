@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import Depends
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
@@ -68,6 +70,11 @@ class UserService:
         user.is_demo = True
         await self._session.commit()
         return user
+
+    async def get_user(self, user_id: UUID) -> User | None:
+        """id 로 사용자 조회. 없으면 None."""
+        stmt = select(User).where(User.id == user_id)
+        return (await self._session.execute(stmt)).scalar_one_or_none()
 
     async def find_demo_user(self) -> User | None:
         """둘러보기 카드의 주인. 시드가 안 돌았으면 None."""
