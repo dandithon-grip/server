@@ -62,6 +62,7 @@ class CardContext:
     sunset_at: datetime
     weather: Weather
     air: AirQuality
+    sunset_window_open: bool = False
 
 
 @dataclass(frozen=True)
@@ -197,7 +198,9 @@ class CardService:
             direction=Direction.TO_HOME,
         )
         decided = decide_fallback(ranked, at=at, is_clear=is_clear)
-        context = CardContext(commute, routes, decided, at, window.sunset_at, weather, air)
+        context = CardContext(
+            commute, routes, decided, at, window.sunset_at, weather, air, window.is_open
+        )
 
         # 3. 후보가 있으면 LLM 이 고르고, 없으면(2·4단계) 템플릿
         reply = await self._ask_llm(context, user) if decided.candidates else None
@@ -291,6 +294,7 @@ class CardService:
             fallback_level=context.decided.level,
             leave_time=format_time(context.at),
             sunset_at=format_time(context.sunset_at.astimezone(LOCAL_TZ)),
+            sunset_window_open=context.sunset_window_open,
             sky=str(context.weather.sky) if context.weather.sky else None,
             air_grade=str(context.air.grade) if context.air.grade else None,
             top_tag_weights=top_tags(user.tag_weights),

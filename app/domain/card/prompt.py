@@ -19,9 +19,11 @@ SYSTEM_PROMPT = """너는 출퇴근길에 자연을 지나가게 돕는 서비�
 
 규칙
 1. 장소·정류장·시각·거리 이름은 입력에 있는 것만 쓴다. 입력에 없는 장소를 지어내지 않는다.
+   season_tags 는 그 장소의 계절 풍경일 뿐이다. 지금 한창·절정·만개라고 단정하지 않는다.
 2. recent 가 true 인 후보(최근 3일 안에 추천)는 피한다. 다른 후보가 없을 때만 다시 고른다.
 3. 점수 1위(index 0)와 다르게 고르면 deviation 에 한 줄 이유를 쓴다. 같으면 null.
 4. 이유 칩(reason_tag)은 하나만. 날씨·일몰·계절 상태·미세먼지를 근거로 고른다.
+   sunset_window_open 이 true 면 지금이 노을 시간이다. sunset 태그 후보를 우선하고 이유 칩은 sunset.
 5. text 는 한국어 두 문장, 80자 이내, 반말 금지, 숫자는 입력값 그대로.
 """
 
@@ -71,6 +73,8 @@ class CardInput(BaseModel):
     fallback_level: int
     leave_time: str
     sunset_at: str
+    # 노을 창(일몰 ±30분·맑음). 서버가 계산한다. LLM 이 시각 계산을 하지 않게 (#61 평가)
+    sunset_window_open: bool = False
     sky: str | None = None
     air_grade: str | None = None
     top_tag_weights: list[str] = Field(default_factory=list)

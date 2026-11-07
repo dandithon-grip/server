@@ -34,6 +34,8 @@ from app.domain.card.prompt import (
 )
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+# 입력에는 계절 "상태"(절정 여부)가 없다. 이 말을 쓰면 상태를 지어낸 것이다
+STAGE_CLAIMS = ("한창", "절정", "만개", "활짝")
 DEFAULT_OUT = Path(__file__).resolve().parents[1] / "docs" / "eval" / "cards.md"
 
 
@@ -63,6 +65,7 @@ class Scenario:
     avoid: frozenset[int] = frozenset()  # 고르면 안 되는 후보 (최근 추천)
     forbid_reasons: frozenset[ReasonTag] = frozenset()  # 근거가 없는 이유 칩
     require_reasons: frozenset[ReasonTag] = frozenset()  # 비어 있지 않으면 이 중 하나
+    shortest: bool = False  # 추가 시간이 가장 짧은 후보를 골라야 함
 
 
 def cand(
@@ -107,6 +110,7 @@ def inp(
     air: str | None = "good",
     weights: tuple[str, ...] = (),
     level: int = 1,
+    window_open: bool = False,
 ) -> CardInput:
     # 후보 index 를 목록 순서로 다시 매긴다
     ordered = [c.model_copy(update={"index": i}) for i, c in enumerate(candidates)]
@@ -115,6 +119,7 @@ def inp(
         fallback_level=level,
         leave_time=leave,
         sunset_at=sunset,
+        sunset_window_open=window_open,
         sky=sky,
         air_grade=air,
         top_tag_weights=list(weights),
@@ -177,15 +182,15 @@ SCENARIOS: list[Scenario] = [
     ),
     Scenario(
         "bad_air",
-        "미세먼지 나쁨. 공기 이유 금지",
+        "미세먼지 나쁨. 가장 짧은 길",
         inp([PARK, RIVER, BOARD], air="bad"),
-        forbid_reasons=frozenset({ReasonTag.AIR}),
+        shortest=True,
     ),
     Scenario(
         "very_bad_air",
-        "미세먼지 매우 나쁨. 공기 이유 금지",
+        "미세먼지 매우 나쁨. 가장 짧은 길",
         inp([PARK, RIVER, BOARD], air="very_bad"),
-        forbid_reasons=frozenset({ReasonTag.AIR}),
+        shortest=True,
     ),
     Scenario(
         "no_weather",
@@ -196,7 +201,7 @@ SCENARIOS: list[Scenario] = [
     Scenario(
         "sunset_window_clear",
         "일몰 6분 뒤 퇴근, 맑음, 노을 하천 후보 1위. 노을 이유",
-        inp([SUNSET_RIVER, PARK, BOARD], leave="17:30"),
+        inp([SUNSET_RIVER, PARK, BOARD], leave="17:30", window_open=True),
         require_reasons=NO_SUNSET,
     ),
     Scenario(
@@ -251,8 +256,8 @@ SCENARIOS: list[Scenario] = [
                     "삼덕교회에서 내려 걷기",
                     action="alight_early",
                     add=1,
-                    green=23,
-                    score=21,
+                    green=40,
+                    score=39,
                     station="삼덕교회",
                     skip=1,
                 ),
@@ -260,7 +265,11 @@ SCENARIOS: list[Scenario] = [
             ]
         ),
     ),
-    Scenario("board_late_top", "1위가 걸어가서 타기", inp([BOARD, PARK, RIVER])),
+    Scenario(
+        "board_late_top",
+        "1위가 걸어가서 타기",
+        inp([BOARD.model_copy(update={"score": 40, "green_pct": 45}), PARK, RIVER]),
+    ),
     Scenario(
         "three_stops",
         "3정거장 걸어가서 타기",
@@ -271,8 +280,8 @@ SCENARIOS: list[Scenario] = [
                     "국채보상운동기념공원 샛길 (3정거장 걸어가서)",
                     action="board_late",
                     add=13,
-                    green=48,
-                    score=29,
+                    green=62,
+                    score=42,
                     highlights=("동성로 옆 넓은 잔디와 느티나무길",),
                     station="방천시장(김광석길)건너",
                     skip=3,
@@ -409,11 +418,19 @@ def broken_rules(scenario: Scenario, choice: CardChoice) -> list[str]:
         broken.append("forbidden_reason")
     if scenario.require_reasons and choice.reason_tag not in scenario.require_reasons:
         broken.append("required_reason")
+    candidates = scenario.card_input.candidates
+    if scenario.shortest and 0 <= choice.choice < len(candidates):
+        fewest = min(c.add_minutes for c in candidates)
+        if candidates[choice.choice].add_minutes != fewest:
+            broken.append("shortest_on_bad_air")
     # 규칙 3: 1위가 아니면 이유를 쓰고, 1위면 비운다
     if choice.choice != 0 and not choice.deviation:
         broken.append("deviation_when_not_top")
     if choice.choice == 0 and choice.deviation:
         broken.append("no_deviation_when_top")
+    # 규칙 1: 입력에 없는 계절 상태를 단정하지 않는다
+    if any(word in choice.text for word in STAGE_CLAIMS):
+        broken.append("stage_claim")
     # 규칙 5: 숫자는 입력값 그대로. 문장 속 숫자가 입력 어딘가에 있어야 한다
     allowed = set(re.findall(r"\d+", build_prompt(scenario.card_input)))
     if any(number not in allowed for number in re.findall(r"\d+", choice.text)):
