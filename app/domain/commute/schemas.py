@@ -97,6 +97,18 @@ class StationResponse(BaseModel):
     order_no: int = Field(..., description="노선 안 순서. 0 부터")
 
 
+class ParseTransitRequest(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    odsay: dict[str, object] = Field(
+        ...,
+        description=(
+            "프론트가 ODsay Web 키로 받은 searchPubTransPathT 응답 JSON 그대로. "
+            "서버는 ODsay 를 부르지 않고 해석만 한다"
+        ),
+    )
+
+
 class TransitStopResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 

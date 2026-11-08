@@ -5,6 +5,7 @@ from app.core.config import get_settings
 from app.core.security import get_current_user
 from app.domain.commute.schemas import (
     CommuteResponse,
+    ParseTransitRequest,
     SaveCommuteRequest,
     StationResponse,
     TransitRoutesResponse,
@@ -103,4 +104,29 @@ async def search_transit_routes(
     paths = await service.search_transit(
         LatLng(lat=from_lat, lng=from_lng), LatLng(lat=to_lat, lng=to_lng)
     )
+    return TransitRoutesResponse(paths=[to_transit_path_response(p) for p in paths])
+
+
+@transit_router.post(
+    "/routes/parse",
+    response_model=TransitRoutesResponse,
+    summary="프론트가 받은 ODsay 검색 결과 해석",
+    description=(
+        "운영 서버는 ODsay Server 키의 IP 제한 때문에 직접 검색하지 못한다. "
+        "프론트가 ODsay Web 키로 searchPubTransPathT 를 부르고, "
+        "받은 JSON 을 그대로 odsay 에 넣어 보낸다. "
+        "응답은 GET /transit/routes 와 같고, 고른 경로의 탑승 구간을 PUT /commutes/me 의 "
+        "transit_legs 로 보낸다."
+    ),
+    responses={
+        401: {"description": "토큰 없음 또는 만료"},
+        422: {"description": "ODsay error 객체이거나 읽을 수 없는 형식"},
+    },
+)
+async def parse_transit_routes(
+    request: ParseTransitRequest,
+    _: User = Depends(get_current_user),
+    service: CommuteService = Depends(get_commute_service),
+) -> TransitRoutesResponse:
+    paths = service.parse_transit(request.odsay)
     return TransitRoutesResponse(paths=[to_transit_path_response(p) for p in paths])
