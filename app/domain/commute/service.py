@@ -9,7 +9,7 @@ from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.clients.odsay import OdsayClient, TransitPath, get_odsay_client
+from app.clients.odsay import OdsayClient, TransitPath, get_odsay_client, parse_search_response
 from app.clients.tmap import LatLng
 from app.core.database import get_db
 from app.core.exceptions import AppException, ErrorCode
@@ -53,6 +53,20 @@ class CommuteService:
         if self._odsay is None:
             raise AppException(ErrorCode.EXTERNAL_API_FAILED)
         return await self._odsay.search_transit(start, end)
+
+    def parse_transit(self, raw: dict[str, object]) -> list[TransitPath]:
+        """
+        프론트가 ODsay Web 키로 받은 검색 응답을 해석한다 (#73). ODsay 를 부르지 않는다.
+
+        운영 서버는 ODsay Server 키의 IP 제한에 걸려서, 검색은 브라우저가 하고 해석만 서버가 한다.
+        해석 코드는 GET /transit/routes 와 같다.
+
+        :raises AppException: TRANSIT_RESULT_INVALID - ODsay error 객체이거나 형식이 다름
+        """
+        try:
+            return parse_search_response(raw)
+        except AppException as exc:
+            raise AppException(ErrorCode.TRANSIT_RESULT_INVALID) from exc
 
     async def save_commute(
         self, user_id: UUID, request: SaveCommuteRequest, *, city: str

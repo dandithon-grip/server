@@ -142,3 +142,34 @@ async def test_claiming_peak_season_breaks_the_stage_rule() -> None:
     result = await evaluate([scenario("clear_good")], llm)
 
     assert "stage_claim" in result.rows[0].broken
+
+
+async def test_plain_form_ending_breaks_the_polite_rule() -> None:
+    # 규칙 5: 반말 금지. "좋다." 처럼 끝나면 위반, "좋습니다." "좋아요." 는 통과
+    llm = ScriptedLlm(
+        CardChoice(
+            choice=0,
+            reason_tag=ReasonTag.PARK,
+            text="오늘은 숲길이 좋다. 4분만 더 걸어 보세요.",
+            deviation=None,
+        )
+    )
+
+    result = await evaluate([scenario("clear_good")], llm)
+
+    assert "polite_ending" in result.rows[0].broken
+
+
+async def test_polite_endings_pass() -> None:
+    llm = ScriptedLlm(
+        CardChoice(
+            choice=0,
+            reason_tag=ReasonTag.PARK,
+            text="오늘은 숲길이 좋습니다. 4분만 더 걸어 보세요.",
+            deviation=None,
+        )
+    )
+
+    result = await evaluate([scenario("clear_good")], llm)
+
+    assert "polite_ending" not in result.rows[0].broken
