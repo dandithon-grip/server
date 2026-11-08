@@ -721,3 +721,41 @@ async def test_push_today_card_without_fcm_returns_503(
     response = await client.post("/cards/today/push", headers=headers)
 
     assert response.status_code == 503
+
+
+# --- 템플릿 길이 (#68) -----------------------------------------------------------
+
+
+async def test_template_text_fits_the_80_char_limit_with_long_names(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 11/8 운영: LLM 크레딧 부족 → 템플릿 → 120자에서 잘라 80자 스키마를 넘겨 500
+    headers = bearer(make_token())
+    await client.put("/commutes/me", json=walk_commute(), headers=headers)
+    commute = await commute_of(db_session, "11111111-1111-1111-1111-111111111111")
+    station = await add_station(db_session, "방천시장(김광석길)건너")
+    db_session.add_all(
+        [
+            make_route(commute.id, name="최단 경로", is_baseline=True),
+            # 출근 "3정거장 먼저 내리기" → 퇴근 카드 "3정거장 걸어가서 타기" (정류장 이름 포함)
+            make_route(
+                commute.id,
+                name="국채보상운동기념공원 북동쪽 입구 샛길 (3정거장 먼저)",
+                name_reverse="국채보상운동기념공원 북동쪽 입구 샛길 (3정거장 걸어가서)",
+                leg_type=LegType.ALIGHT_EARLY,
+                skip_stops=3,
+                alight_station_id=station.id,
+                add_minutes=12,
+                green_pct=60,
+                highlights=["동성로 옆 넓은 잔디와 느티나무길. 퇴근길에 가로질러 걷기 좋다"],
+            ),
+        ]
+    )
+    await db_session.flush()
+    use_fakes(FakeLlm(error=ErrorCode.EXTERNAL_API_FAILED))
+
+    response = await client.get("/cards/today", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["by_llm"] is False
+    assert len(response.json()["text"]) <= 80
