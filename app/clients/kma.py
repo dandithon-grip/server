@@ -143,6 +143,11 @@ def to_grid(lat: float, lng: float) -> Grid:
     return Grid(nx=int(x + 1.5), ny=int(y + 1.5))
 
 
+def _as_kst(value: datetime) -> datetime:
+    """tzinfo 가 없으면 KST 로 보고, 있으면 KST 로 바꿔 비교할 수 있게 한다."""
+    return value.astimezone(KST) if value.tzinfo else value.replace(tzinfo=KST)
+
+
 def latest_base(at: datetime) -> tuple[str, str]:
     """
     기준 시각에 이미 제공되고 있는 가장 최근 발표(base_date, base_time)를 고른다.
@@ -183,13 +188,16 @@ class KmaClient:
         self._timeout = timeout
         self._transport = transport
 
-    async def forecast(self, lat: float, lng: float, at: datetime) -> Weather:
+    async def forecast(
+        self, lat: float, lng: float, at: datetime, *, now: datetime | None = None
+    ) -> Weather:
         """
         한 지점의 특정 시각 날씨를 받는다.
 
         :param lat: 위도
         :param lng: 경도
         :param at: 예보를 알고 싶은 시각 (보통 퇴근 시각). tzinfo 가 없으면 KST
+        :param now: 지금 시각. 생략하면 현재. 발표 시각은 지금 이미 나온 것 중에서 고른다 (#68)
         :return: 하늘상태·기온. 값이 없으면 각 필드가 None
         :raises AppException: EXTERNAL_API_FAILED - 키 없음, 네트워크 오류, 4xx/5xx,
             파싱 실패, 결측(03)이 아닌 에러 코드
@@ -199,9 +207,11 @@ class KmaClient:
             logger.error("KMA_SERVICE_KEY 가 비어 있다")
             raise AppException(ErrorCode.EXTERNAL_API_FAILED)
 
-        # 2. 격자 변환과 발표 시각 선택
+        # 2. 격자 변환과 발표 시각 선택. 오전에 저녁 예보를 물으면 아직 없는 발표를 고르지 않게
+        #    "지금"과 "예보 시각" 중 이른 쪽 기준으로 가장 최근 발표를 쓴다 (#68)
         grid = to_grid(lat, lng)
-        base_date, base_time = latest_base(at)
+        current = now or datetime.now(KST)
+        base_date, base_time = latest_base(min(_as_kst(at), _as_kst(current)))
 
         # 3. 호출. httpx 예외는 여기서 끝낸다
         raw = await self._get(
