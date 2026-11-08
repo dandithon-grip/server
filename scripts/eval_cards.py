@@ -36,6 +36,8 @@ from app.domain.card.prompt import (
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 # 입력에는 계절 "상태"(절정 여부)가 없다. 이 말을 쓰면 상태를 지어낸 것이다
 STAGE_CLAIMS = ("한창", "절정", "만개", "활짝")
+# 규칙 5 반말 금지. 문장이 "...다." 로 끝나되 "...니다." 가 아니면 반말(해라체)이다
+PLAIN_ENDING = re.compile(r"(?<!니)다(?:[.!]|$)")
 DEFAULT_OUT = Path(__file__).resolve().parents[1] / "docs" / "eval" / "cards.md"
 
 
@@ -431,6 +433,12 @@ def broken_rules(scenario: Scenario, choice: CardChoice) -> list[str]:
     # 규칙 1: 입력에 없는 계절 상태를 단정하지 않는다
     if any(word in choice.text for word in STAGE_CLAIMS):
         broken.append("stage_claim")
+    # 규칙 5: 반말 금지
+    if any(
+        PLAIN_ENDING.search(sentence.strip())
+        for sentence in re.split(r"(?<=[.!?])\s+", choice.text)
+    ):
+        broken.append("polite_ending")
     # 규칙 5: 숫자는 입력값 그대로. 문장 속 숫자가 입력 어딘가에 있어야 한다
     allowed = set(re.findall(r"\d+", build_prompt(scenario.card_input)))
     if any(number not in allowed for number in re.findall(r"\d+", choice.text)):
