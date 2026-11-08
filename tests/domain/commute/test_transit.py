@@ -147,6 +147,62 @@ async def test_search_failure_returns_502(client: AsyncClient, make_token: Token
     assert response.status_code == 502
 
 
+# --- 프론트가 받은 ODsay 응답 해석 (#73) -----------------------------------------
+# 운영 서버는 ODsay Server 키의 IP 제한에 걸린다. 프론트가 Web 키로 검색하고 서버는 해석만 한다
+
+
+async def test_parse_returns_same_shape_as_search(
+    client: AsyncClient, make_token: TokenFactory
+) -> None:
+    fake = use_fakes()
+    raw = json.loads(FIXTURE.read_text(encoding="utf-8"))
+
+    response = await client.post(
+        "/transit/routes/parse", json={"odsay": raw}, headers=bearer(make_token())
+    )
+
+    assert response.status_code == 200
+    first = response.json()["paths"][0]
+    assert len(response.json()["paths"]) == 17
+    assert first["summary"] == "대구 2호선 수성구청→반월당 · 도보 10분"
+    assert all(stop["external_id"] for stop in first["legs"][1]["stops"])
+    assert fake.calls == 0  # 서버는 ODsay 를 부르지 않는다
+
+
+async def test_parse_odsay_error_object_returns_422(
+    client: AsyncClient, make_token: TokenFactory
+) -> None:
+    use_fakes()
+    raw = {"error": {"code": "-98", "msg": "검색 결과가 없습니다"}}
+
+    response = await client.post(
+        "/transit/routes/parse", json={"odsay": raw}, headers=bearer(make_token())
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {"message": ErrorCode.TRANSIT_RESULT_INVALID.message}
+
+
+async def test_parse_malformed_response_returns_422(
+    client: AsyncClient, make_token: TokenFactory
+) -> None:
+    use_fakes()
+
+    response = await client.post(
+        "/transit/routes/parse",
+        json={"odsay": {"result": {"path": [{"info": {}}]}}},
+        headers=bearer(make_token()),
+    )
+
+    assert response.status_code == 422
+
+
+async def test_parse_without_login_returns_401(client: AsyncClient) -> None:
+    response = await client.post("/transit/routes/parse", json={"odsay": {}})
+
+    assert response.status_code == 401
+
+
 # --- 저장 ---------------------------------------------------------------------
 
 
