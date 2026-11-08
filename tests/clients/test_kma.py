@@ -122,6 +122,18 @@ async def test_base_time_is_the_latest_published_announcement(
     assert (params["base_date"], params["base_time"]) == expected_base
 
 
+async def test_morning_request_for_evening_uses_announcement_already_published(
+    client: KmaClient, transport: RecordingTransport
+) -> None:
+    # 오전 9시에 18:10 카드를 만들면 17시 발표는 아직 없다. 지금 나온 08시 발표를 쓴다 (#68)
+    await client.forecast(
+        DAEGU_LAT, DAEGU_LNG, datetime(2026, 11, 8, 18, 10), now=datetime(2026, 11, 8, 9, 0)
+    )
+
+    params = transport.requests[0].url.params
+    assert (params["base_date"], params["base_time"]) == ("20261108", "0800")
+
+
 async def test_utc_datetime_is_read_in_kst(
     client: KmaClient, transport: RecordingTransport
 ) -> None:

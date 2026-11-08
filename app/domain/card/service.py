@@ -26,6 +26,7 @@ from app.core.exceptions import AppException, ErrorCode
 from app.domain.card.models import ReasonTag, TodayCard
 from app.domain.card.prompt import (
     SYSTEM_PROMPT,
+    TEXT_MAX_CHARS,
     CandidateInput,
     CardChoice,
     CardInput,
@@ -367,23 +368,18 @@ class CardService:
             station_name = station.name if station else ""
             stops = route.skip_stops
             if action == ActionType.ALIGHT_EARLY:
-                text = (
-                    f"{stops}정거장 먼저 {station_name}에서 내리면 +{minutes}분, "
-                    f"{top.name}. {place}"
-                )
+                lead = f"{stops}정거장 먼저 {station_name}에서 내리면 +{minutes}분,"
             elif action == ActionType.BOARD_LATE:
-                text = (
-                    f"{stops}정거장 걸어가서 {station_name}에서 타면 +{minutes}분, "
-                    f"{top.name}. {place}"
-                )
+                lead = f"{stops}정거장 걸어가서 {station_name}에서 타면 +{minutes}분,"
             elif action == ActionType.AFTER_ARRIVAL:
-                text = f"도착 후 {minutes}분 걸으면 {top.name}. {place}"
+                lead = f"도착 후 {minutes}분 걸으면"
             else:
-                text = f"{minutes}분 돌아가면 {top.name}. {place}"
+                lead = f"{minutes}분 돌아가면"
+            text = _fit(f"{lead} {top.name}. {place}", f"{lead} {top.name}.")
             return CardChoice(
                 choice=0,
                 reason_tag=_reason_from_tags(top.tags),
-                text=text[:120],
+                text=text,
                 deviation=None,
             )
         if decided.level == 2:
@@ -462,6 +458,14 @@ class CardService:
         decided = decide_fallback(ranked, at=at, is_clear=is_clear)
         chosen = next((r for r in ranked.eligible if r.route.id == card.route_id), None)
         return CardResult(card, chosen, decided.candidates, decided.shortest)
+
+
+def _fit(full: str, short: str) -> str:
+    """템플릿 문장을 카드 길이 안에 맞춘다 (#68). 길면 장소 설명을 빼고, 그래도 길면 자른다."""
+    for text in (full, short):
+        if len(text) <= TEXT_MAX_CHARS:
+            return text
+    return short[: TEXT_MAX_CHARS - 1] + "…"
 
 
 def _reason_from_tags(tags: list[PlaceType]) -> ReasonTag:
