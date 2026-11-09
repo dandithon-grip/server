@@ -24,6 +24,7 @@ from app.clients.tmap import LatLng, PedestrianRoute, TmapClient, get_tmap_clien
 from app.core.database import get_db
 from app.core.geo import make_point
 from app.domain.commute.models import Commute, Preference, Station, TransportMode
+from app.domain.route.journey import Ride, Segment, compose_journey, orient_rides
 from app.domain.route.models import MIRROR_LEG, Direction, LegType, Place, PlaceType, Route
 from app.domain.route.scoring import (
     GEOGRAPHY,
@@ -572,6 +573,85 @@ class RouteService:
         # 5. 상위 3개
         ranked.sort(key=lambda r: r.score, reverse=True)
         return RankedRoutes(candidates=ranked[:MAX_CANDIDATES], shortest=shortest, eligible=ranked)
+
+    # --- journey (#77) ------------------------------------------------------
+
+    async def journeys(
+        self,
+        commute: Commute,
+        routes: list[RankedRoute],
+        shortest: list[RankedRoute],
+        direction: Direction,
+        city: str,
+    ) -> dict[UUID, list[Segment]]:
+        """
+        경로마다 그것을 골랐을 때의 출발 → 도착 전체 여정. 정류장 조회는 한 번이다.
+
+        :param commute: 동선 (교통수단·정류장·좌표)
+        :param routes: 걷는 방향으로 본 후보
+        :param shortest: 걷는 방향으로 본 구간별 기준선
+        :param direction: 걷는 방향
+        :param city: 도시 코드. 정류장은 도시별이다
+        :return: Route id → 조각 목록 (후보와 기준선 모두)
+        """
+        # 1. 탑승 목록 (출근 방향) → 걷는 방향
+        rides: list[Ride] = []
+        if commute.transport_mode == TransportMode.TRANSIT and commute.station_ids:
+            rides = orient_rides(await self._rides(commute, city), direction)
+
+        # 2. 걷는 방향의 출발·도착
+        home = LatLng(lat=commute.from_lat, lng=commute.from_lng)
+        work = LatLng(lat=commute.to_lat, lng=commute.to_lng)
+        trip = (home, work) if direction == Direction.TO_WORK else (work, home)
+
+        # 3. 조립 (DB 미접근)
+        baselines = {r.leg_type: r for r in shortest}
+        return {
+            r.route.id: compose_journey(
+                r,
+                shortest=baselines,
+                rides=rides,
+                transport_mode=TransportMode(commute.transport_mode),
+                trip=trip,
+            )
+            for r in [*routes, *shortest]
+        }
+
+    async def _rides(self, commute: Commute, city: str) -> list[Ride]:
+        """station_ids [탑승, 하차, ...] 쌍마다 그 사이 정류장을 채운 탑승 목록 (출근 방향).
+
+        같은 노선·같은 종류(시드 / ODsay)의 정류장만 순번으로 잇는다. 노선이 다르거나 행이 없으면
+        탑승·하차 두 점만 잇는다. 관련 노선의 정류장은 한 번에 읽는다 (운영 DB 왕복이 느리다).
+        """
+        ends = list(commute.station_ids)
+        lines = select(Station.line).where(Station.id.in_(ends)).scalar_subquery()
+        stmt = select(Station).where(Station.line.in_(lines), Station.city == city)
+        stations = list((await self._session.execute(stmt)).scalars())
+        by_id = {s.id: s for s in stations}
+
+        rides: list[Ride] = []
+        for board_id, alight_id in zip(ends[0::2], ends[1::2], strict=False):
+            board, alight = by_id.get(board_id), by_id.get(alight_id)
+            if board is None or alight is None:
+                continue
+            seeded = board.external_id is None
+            between: list[Station] = []
+            if board.line == alight.line and seeded == (alight.external_id is None):
+                low, high = sorted((board.order_no, alight.order_no))
+                between = sorted(
+                    (
+                        s
+                        for s in stations
+                        if s.line == board.line
+                        and (s.external_id is None) == seeded
+                        and low < s.order_no < high
+                    ),
+                    key=lambda s: s.order_no,
+                )
+                if board.order_no > alight.order_no:
+                    between.reverse()
+            rides.append([board, *between, alight])
+        return rides
 
 
 def _static_of(route: Route, direction: Direction) -> StaticScore:
