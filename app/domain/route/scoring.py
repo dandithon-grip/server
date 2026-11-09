@@ -254,13 +254,10 @@ class ScoringService:
         points = sample_points(polyline)
         total = len(points)
 
-        # 2. 녹지 %: 30m 안에 green_areas 가 있는 점의 비율
-        covered_kinds = await self._covered_kinds(points, city, GREEN_RADIUS_M)
-        green_hits = await self._count_near(points, city, GREEN_RADIUS_M, kinds=None)
+        # 2·3. 녹지 %(30m 안 green_areas 가 있는 점의 비율)와 물가(50m 안 하천 점의 비율 × 10).
+        #      한 질의로 센다. 운영 DB 왕복이 느려 경로마다 질의 수가 생성 시간을 정한다 (#93)
+        covered_kinds, green_hits, river_hits = await self._green_summary(points, city)
         green_pct = round(green_hits / total * 100, 1)
-
-        # 3. 물가: 50m 안에 하천이 있는 점의 비율 × 10
-        river_hits = await self._count_near(points, city, RIVER_RADIUS_M, kinds=[GreenKind.RIVER])
         water_ratio = river_hits / total
 
         # 4. 다리·전망: 경로 100m 안의 Place(bridge/view) 가 있으면 +10
@@ -309,6 +306,53 @@ class ScoringService:
         static = await self.score_static(polyline, city=city)
         window = sunset_window(at, lat=polyline[0].lat, lng=polyline[0].lng, is_clear=is_clear)
         return apply_sunset(static, window_open=window.is_open)
+
+    async def _green_summary(
+        self, points: list[LatLng], city: str
+    ) -> tuple[set[GreenKind], int, int]:
+        """점마다 30m 안 녹지 종류와 50m 안 하천 유무를 한 번에 센다.
+
+        :return: (녹지 종류 집합, 녹지가 있는 점 수, 하천이 있는 점 수)
+        """
+        samples = _sample_table(points)
+        lat = points[0].lat
+        kinds_near = (
+            select(func.array_agg(func.distinct(GreenArea.kind)))
+            .select_from(GreenArea)
+            .where(
+                GreenArea.city == city,
+                bbox_near(GreenArea.geom, samples.c.pt, GREEN_RADIUS_M, lat),
+                func.ST_DWithin(
+                    cast(GreenArea.geom, GEOGRAPHY), cast(samples.c.pt, GEOGRAPHY), GREEN_RADIUS_M
+                ),
+            )
+            .scalar_subquery()
+        )
+        river_near = (
+            select(1)
+            .select_from(GreenArea)
+            .where(
+                GreenArea.city == city,
+                GreenArea.kind == GreenKind.RIVER.value,
+                bbox_near(GreenArea.geom, samples.c.pt, RIVER_RADIUS_M, lat),
+                func.ST_DWithin(
+                    cast(GreenArea.geom, GEOGRAPHY), cast(samples.c.pt, GEOGRAPHY), RIVER_RADIUS_M
+                ),
+            )
+        )
+        stmt = select(kinds_near.label("kinds"), exists(river_near).label("river")).select_from(
+            samples
+        )
+        rows = (await self._session.execute(stmt)).all()
+        covered: set[GreenKind] = set()
+        green_hits = river_hits = 0
+        for kinds, river in rows:
+            if kinds:
+                green_hits += 1
+                covered.update(GreenKind(value) for value in kinds)
+            if river:
+                river_hits += 1
+        return covered, green_hits, river_hits
 
     async def _count_near(
         self, points: list[LatLng], city: str, radius_m: float, *, kinds: list[GreenKind] | None
