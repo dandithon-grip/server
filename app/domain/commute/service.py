@@ -332,6 +332,13 @@ class CommuteService:
         stmt = select(Station.name).where(Station.city == city)
         return set((await self._session.execute(stmt)).scalars())
 
+    async def get_stations(self, station_ids: list[UUID]) -> list[Station]:
+        """여러 정류장을 한 번에 (#101)."""
+        if not station_ids:
+            return []
+        stmt = select(Station).where(Station.id.in_(station_ids))
+        return list((await self._session.execute(stmt)).scalars())
+
     async def get_station(self, station_id: UUID) -> Station | None:
         stmt = select(Station).where(Station.id == station_id)
         return (await self._session.execute(stmt)).scalar_one_or_none()

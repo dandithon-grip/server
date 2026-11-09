@@ -132,15 +132,15 @@ class CardService:
             raise AppException(ErrorCode.ROUTES_NOT_READY)
         today = datetime.now(LOCAL_TZ).date()
 
-        # 2. 오늘 카드 캐시. 취향 칩이면 건너뛰고 다시 만든다
-        if preference is None:
-            cached = await self._find_card(user.id, today, ride_id)
-            if cached is not None:
-                return await self._result_from_card(cached, commute, routes, user)
+        # 2. 오늘 카드 캐시는 (날짜, 계획, 취향) 별 (#101). 취향 칩도 한 번 만들면 다시 안 만든다
+        chosen_preference = preference or Preference(commute.preference)
+        cached = await self._find_card(user.id, today, ride_id, chosen_preference)
+        if cached is not None:
+            return await self._result_from_card(cached, commute, routes, user)
 
         # 3. 새로 만들어 저장
         return await self._build_and_save(
-            user, commute, routes, today, preference or commute.preference, ride_id=ride_id
+            user, commute, routes, today, chosen_preference, ride_id=ride_id
         )
 
     async def prewarm(self, now: datetime) -> int:
@@ -266,7 +266,9 @@ class CardService:
         )
         if cached is not None and (not refresh or cooling):
             return await self._result_from_card(cached, commute, routes, user)
-        return await self._build_and_save(user, commute, routes, today, commute.preference)
+        return await self._build_and_save(
+            user, commute, routes, today, Preference(commute.preference)
+        )
 
     # --- 조립 ----------------------------------------------------------------
 
@@ -334,11 +336,15 @@ class CardService:
         }
         stmt = insert(TodayCard).values(**values)
         stmt = stmt.on_conflict_do_update(
-            constraint="uq_today_cards_user_date_ride",
-            set_={k: v for k, v in values.items() if k not in ("user_id", "date", "ride_id")},
+            constraint="uq_today_cards_user_date_ride_pref",
+            set_={
+                k: v
+                for k, v in values.items()
+                if k not in ("user_id", "date", "ride_id", "preference")
+            },
         )
         await self._session.execute(stmt)
-        card = await self._find_card(user.id, today, ride_id)
+        card = await self._find_card(user.id, today, ride_id, preference)
         await self._session.commit()
         assert card is not None
         journeys = await self._routes.journeys(
@@ -375,11 +381,25 @@ class CardService:
         """LLM 입력. 경로 UUID 대신 후보마다 최근 추천 여부만 넣는다 (#59)."""
         recent = set(await self._recent_route_ids(user.id, context.at.date()))
         line_of: dict[UUID | None, str] = {ride.id: ride.line for ride in context.commute.rides}
+        # 후보들의 장소·정류장을 한 번씩만 읽는다 (#101). 운영 DB 왕복이 카드 시간을 정한다
+        ranked_all = context.decided.candidates
+        place_by_id = {
+            p.id: p
+            for p in await self._routes.list_places(
+                [pid for r in ranked_all for pid in r.route.spots]
+            )
+        }
+        station_ids = [
+            sid
+            for r in ranked_all
+            if (sid := r.alight_station_id or r.board_station_id) is not None
+        ]
+        station_by_id = {s.id: s for s in await self._commutes.get_stations(station_ids)}
         candidates: list[CandidateInput] = []
-        for index, ranked in enumerate(context.decided.candidates):
-            places = await self._routes.list_places(ranked.route.spots)
+        for index, ranked in enumerate(ranked_all):
+            places = [place_by_id[pid] for pid in ranked.route.spots if pid in place_by_id]
             station_id = ranked.alight_station_id or ranked.board_station_id
-            station = await self._commutes.get_station(station_id) if station_id else None
+            station = station_by_id.get(station_id) if station_id else None
             candidates.append(
                 CandidateInput(
                     index=index,
@@ -481,13 +501,21 @@ class CardService:
             return AirQuality()
 
     async def _find_card(
-        self, user_id: UUID, today: date, ride_id: UUID | None = None
+        self,
+        user_id: UUID,
+        today: date,
+        ride_id: UUID | None = None,
+        preference: Preference | None = None,
     ) -> TodayCard | None:
+        """오늘 카드. preference 가 None 이면 그 계획의 아무 취향이나 (알림·미리 만들기 판정용)."""
         stmt = select(TodayCard).where(
             TodayCard.user_id == user_id,
             TodayCard.date == today,
             TodayCard.ride_id.is_(None) if ride_id is None else TodayCard.ride_id == ride_id,
         )
+        if preference is not None:
+            stmt = stmt.where(TodayCard.preference == Preference(preference).value)
+        stmt = stmt.order_by(TodayCard.created_at).limit(1)
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
     async def _recent_route_ids(self, user_id: UUID, today: date) -> list[UUID]:

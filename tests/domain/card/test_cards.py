@@ -261,7 +261,7 @@ async def test_second_call_same_day_uses_cache_without_llm(
 async def test_preference_chip_builds_its_own_card_and_keeps_the_default(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
-    # 취향 칩은 (날짜, 취향)별 카드다 (#101). 기본 취향 카드를 덮어쓰지 않고, 같은 칩을 다시 누르면 캐시
+    # 취향 칩은 (날짜, 취향)별 카드 (#101). 기본 카드를 덮어쓰지 않고, 같은 칩을 다시 누르면 캐시
     headers = bearer(make_token())
     await prepare_routes(client, db_session, headers, with_candidates=True)
     llm = FakeLlm(choice=GOOD_CHOICE)
