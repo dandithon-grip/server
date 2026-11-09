@@ -258,21 +258,26 @@ async def test_second_call_same_day_uses_cache_without_llm(
     assert len(await cards_in_db(db_session)) == 1
 
 
-async def test_preference_chip_rebuilds_and_overwrites(
+async def test_preference_chip_builds_its_own_card_and_keeps_the_default(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
+    # 취향 칩은 (날짜, 취향)별 카드다 (#101). 기본 취향 카드를 덮어쓰지 않고, 같은 칩을 다시 누르면 캐시
     headers = bearer(make_token())
     await prepare_routes(client, db_session, headers, with_candidates=True)
     llm = FakeLlm(choice=GOOD_CHOICE)
     use_fakes(llm)
     await client.get("/cards/today", headers=headers)
 
-    response = await client.get("/cards/today", params={"preference": "short"}, headers=headers)
+    short = await client.get("/cards/today", params={"preference": "short"}, headers=headers)
+    short_again = await client.get("/cards/today", params={"preference": "short"}, headers=headers)
+    default_again = await client.get("/cards/today", headers=headers)
 
-    assert response.status_code == 200
-    assert response.json()["preference"] == "short"
-    assert len(llm.calls) == 2
-    assert len(await cards_in_db(db_session)) == 1
+    assert short.status_code == 200
+    assert short.json()["preference"] == "short"
+    assert short_again.json()["text"] == short.json()["text"]
+    assert default_again.json()["preference"] == "full"
+    assert len(llm.calls) == 2  # 기본 1 + short 1. 두 번째 short 와 기본 재조회는 캐시
+    assert len(await cards_in_db(db_session)) == 2
 
 
 # --- 폴백 -------------------------------------------------------------------
