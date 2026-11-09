@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.commute.models import Preference
+from app.domain.route.journey import Segment, SegmentKind, SegmentRole
 from app.domain.route.models import ActionType, Direction, LegType, PlaceType
 
 if TYPE_CHECKING:
@@ -15,6 +16,22 @@ class PointResponse(BaseModel):
 
     lat: float
     lng: float
+
+
+class JourneySegmentResponse(BaseModel):
+    """전체 여정의 조각 하나 (#77). 앞 조각의 끝 좌표 = 뒤 조각의 시작 좌표."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: SegmentKind = Field(..., description="walk 걷기 · ride 탑승 · drive 자동차")
+    role: SegmentRole = Field(
+        ..., description="usual 평소 길 · saetgil 오늘 바뀐 구간(강조) · after_arrival 도착 후 산책"
+    )
+    polyline: list[PointResponse]
+    minutes: float | None = Field(None, description="걷기 소요 분. 탑승·자동차는 없음")
+    line: str | None = Field(None, description="탑승 노선")
+    from_name: str | None = Field(None, description="탑승 정류장")
+    to_name: str | None = Field(None, description="하차 정류장")
 
 
 class RouteResponse(BaseModel):
@@ -42,6 +59,10 @@ class RouteResponse(BaseModel):
         None, description="늦게 타기(board_late)일 때 걸어가서 탈 정류장"
     )
     skip_stops: int = Field(0, description="먼저 내리기·늦게 타기로 건너뛴 정거장 수 (1~3)")
+    journey: list[JourneySegmentResponse] = Field(
+        default_factory=list,
+        description="이 경로를 골랐을 때의 출발 → 도착 전체 여정. polyline 은 그중 걷는 조각 하나",
+    )
 
 
 class RoutesResponse(BaseModel):
@@ -55,7 +76,7 @@ class RoutesResponse(BaseModel):
     shortest: list[RouteResponse] = Field(..., description="구간별 최단 경로")
 
 
-def to_route_response(ranked: "RankedRoute") -> RouteResponse:
+def to_route_response(ranked: "RankedRoute", journey: list[Segment] | None = None) -> RouteResponse:
     """RankedRoute(엔티티 + 오늘 점수) 를 응답으로.
 
     엔티티 하나에는 score 가 없어 model_validate 를 못 쓴다.
@@ -78,4 +99,17 @@ def to_route_response(ranked: "RankedRoute") -> RouteResponse:
         alight_station_id=ranked.alight_station_id,
         board_station_id=ranked.board_station_id,
         skip_stops=route.skip_stops,
+        journey=[_segment_response(segment) for segment in journey or []],
+    )
+
+
+def _segment_response(segment: Segment) -> JourneySegmentResponse:
+    return JourneySegmentResponse(
+        kind=segment.kind,
+        role=segment.role,
+        polyline=[PointResponse(lat=lat, lng=lng) for lat, lng in segment.points],
+        minutes=segment.minutes,
+        line=segment.line,
+        from_name=segment.from_name,
+        to_name=segment.to_name,
     )

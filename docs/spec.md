@@ -190,6 +190,7 @@ AI 1회: 후보 ≤ 3개 + 오늘 맥락 → 선택 + 이유 + 문장
 | `sunset` 노을 | 15 | 1,000m | 5 | 노을·전망·다리 지점만, 노을 창 안이면 노을 이벤트 점수 ×2 |
 
 - **출력** Route: name · tag · legType · minutes · addMinutes · greenPct · eventScore · score · highlights · polyline · spots · alightStationId · boardStationId · skipStops
+  - **journey (#77)**: 그 경로를 골랐을 때의 출발 → 도착 전체 여정. 조각 `{kind: walk|ride|drive, role: usual|saetgil|after_arrival, polyline, minutes?, line?, from_name?, to_name?}` 의 순서 목록. 앞 조각의 끝 = 뒤 조각의 시작. 후보는 자기 걷는 조각만 `saetgil`, 나머지는 기준선·탑승(`usual`). 걸어가서 타기·먼저 내리기는 첫·마지막 탑승을 그 정류장까지로 줄인다. 탑승 조각은 저장된 정류장(탑승·중간·하차) 좌표를 잇는 선이라 실제 노선 모양과 다를 수 있다. 도착 후 후보는 평소 여정 뒤에 `after_arrival` 조각. 프론트는 journey 로 한 줄을 그리고 `saetgil` 만 강조한다
 - **성능** 데모 동선은 F-02 저장 시 사전 계산. 신규 동선 10초 이내. 취향 칩으로 재계산 시 API 재호출 없이 캐시된 후보 경로에 6~7번만 다시 적용
 - **예외** TMAP 실패 → EXTERNAL_API_FAILED, 기존 캐시가 있으면 그것을 반환
 - **테스트 기준** 고정 폴리곤 5개로 ①~④가 6개 이하를 내는지 · `short`에서 addMinutes 9인 경로가 제외되는지 · `sunset`에서 노을 태그 없는 지점이 ③에서 빠지는지 · 하천 쌍이 하나로 세어지는지 · 후보 0개면 F-15 호출

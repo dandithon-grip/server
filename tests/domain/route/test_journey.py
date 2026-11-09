@@ -101,7 +101,6 @@ def assert_connected(segments: list[Segment]) -> None:
 
 
 STATIONS = [station("역0", S0, 0), station("역1", S1, 1), station("역2", S2, 2)]
-BY_ID = {s.id: s for s in STATIONS}
 RIDE_TO_WORK = [STATIONS]  # 역0 → 역1 → 역2 한 번 타기
 FRONT = route(LegType.FRONT_WALK, [HOME, S0], is_baseline=True)
 BACK = route(LegType.BACK_WALK, [S2, WORK], is_baseline=True)
@@ -122,7 +121,6 @@ def compose(
         ranked(r, direction),
         shortest=shortest,
         rides=orient_rides(RIDE_TO_WORK, direction) if transit else [],
-        stations=BY_ID,
         transport_mode=transport_mode,
         trip=trip,
     )
