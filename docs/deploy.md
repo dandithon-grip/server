@@ -38,7 +38,7 @@ main 푸시 → 자동 배포. develop 은 배포하지 않는다.
    | `SUPABASE_URL` | `https://{프로젝트}.supabase.co` |
    | `SUPABASE_JWT_AUDIENCE` | `authenticated` |
    | `SUPABASE_ANON_KEY` | Supabase 공개 anon 키. Storage 호출의 `apikey` 헤더로 쓴다 (#18) |
-   | `SUPABASE_RECORD_BUCKET` | 기록 사진 비공개 버킷. 기본값 `records` 를 쓰면 생략한다 (#18) |
+   | `SUPABASE_RECORD_BUCKET` | 기록 사진 비공개 버킷. 기본값 `records` 를 쓰면 생략한다 (#18). **버킷과 정책은 아래 'Storage 버킷' 절대로 한 번 만들어야 한다** (#85) |
    | `DEFAULT_CITY` | `daegu` |
    | `APP_ENV` | `prod` |
    | `TMAP_APP_KEY` | #7 병합. 값은 로컬 `.env` 와 같다 |
@@ -116,3 +116,26 @@ GET {외부 URL}/docs          → 200, Swagger 화면
 GET {외부 URL}/users/me      → 401 (토큰 없음)
 GET {외부 URL}/users/me      → 200 (Supabase access token 으로)
 ```
+
+## Storage 버킷 (기록 사진, #85)
+
+사진은 프론트가 Supabase Storage 의 `records` 버킷에 `{사용자 uid}/{파일}.jpg` 로 올리고, 서버는 사용자 토큰으로 내려받아 비전에 넘긴다.
+버킷이 없으면 업로드가 `Bucket not found` 로 실패한다 (운영 QA 11/9). Supabase 대시보드 › SQL Editor 에서 한 번 실행한다.
+
+```sql
+-- 비공개 버킷 (이미지만, 10MB)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('records', 'records', false, 10485760, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do nothing;
+
+-- 본인 폴더({auth uid}/...)에만 올리고 읽고 지운다. service role 키는 필요 없다
+create policy "records: 본인 폴더 업로드" on storage.objects for insert to authenticated
+  with check (bucket_id = 'records' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "records: 본인 폴더 읽기" on storage.objects for select to authenticated
+  using (bucket_id = 'records' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "records: 본인 폴더 삭제" on storage.objects for delete to authenticated
+  using (bucket_id = 'records' and (storage.foldername(name))[1] = auth.uid()::text);
+```
+
+확인: 데모 계정 토큰으로 `POST {SUPABASE_URL}/storage/v1/object/records/{uid}/probe.png` 가 200 이고,
+그 경로로 `POST /records/suggest` 가 200 이면 된다 (작은 테스트 이미지는 `season: none` 이 정상). 일반 사용자 권한으로는 버킷 목록 조회가 빈 배열이라 그것으로 판단하지 않는다.
