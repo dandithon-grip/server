@@ -39,8 +39,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_constraint("uq_today_cards_user_date_ride", "today_cards", type_="unique")
     op.execute("DELETE FROM today_cards WHERE ride_id IS NOT NULL")
-    op.create_unique_constraint(
-        "uq_today_cards_user_id_date", "today_cards", ["user_id", "date"]
-    )
+    op.create_unique_constraint("uq_today_cards_user_id_date", "today_cards", ["user_id", "date"])
     op.drop_constraint("fk_today_cards_ride_id_commute_rides", "today_cards", type_="foreignkey")
     op.drop_column("today_cards", "ride_id")
