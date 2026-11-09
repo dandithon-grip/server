@@ -5,7 +5,7 @@ Route 는 걷는 구간 하나다. 프론트가 "출발 → 정류장 → 탑승
 정류장 조회는 RouteService.journeys 가 하고, 여기는 순수 조립만 한다.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -76,7 +76,7 @@ def compose_journey(
     # 1. 도착 후 산책: 평소 여정을 다 간 뒤에 붙는다
     if leg == LegType.AFTER_ARRIVAL:
         usual = _usual_journey(shortest, rides, transport_mode, trip)
-        return [*usual, _walk(ranked, SegmentRole.AFTER_ARRIVAL)]
+        return connect([*usual, _walk(ranked, SegmentRole.AFTER_ARRIVAL)])
 
     role = SegmentRole.USUAL if ranked.route.is_baseline else SegmentRole.SAETGIL
 
@@ -104,7 +104,25 @@ def compose_journey(
     segments += [_ride(ride) for ride in rides]
     if tail:
         segments.append(tail)
-    return segments
+    return connect(segments)
+
+
+def connect(segments: list[Segment]) -> list[Segment]:
+    """조각 사이 틈을 메운다. TMAP 보행 경로는 도로에 붙어 정류장 좌표와 몇 m 어긋난다.
+
+    연결점은 걷기·자동차 조각에 넣고, 탑승 조각의 정류장 좌표는 그대로 둔다
+    (프론트가 탑승 조각의 양 끝을 정류장 점으로 찍는다).
+    """
+    out: list[Segment] = []
+    for segment in segments:
+        if out and out[-1].points[-1] != segment.points[0]:
+            before = out[-1]
+            if segment.kind == SegmentKind.RIDE and before.kind != SegmentKind.RIDE:
+                out[-1] = replace(before, points=[*before.points, segment.points[0]])
+            else:
+                segment = replace(segment, points=[before.points[-1], *segment.points])
+        out.append(segment)
+    return out
 
 
 def _usual_journey(

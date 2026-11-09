@@ -260,6 +260,33 @@ def test_unknown_skip_station_falls_back_to_full_ride() -> None:
     assert journey[1].points == [S0, S1, S2]
 
 
+def test_gaps_from_road_snapping_are_bridged_by_the_walk_not_the_ride() -> None:
+    # 실제 TMAP 보행 경로는 도로에 붙어 시작·끝이 정류장 좌표와 몇 m 어긋난다 (운영 확인 11/9).
+    # 그래도 조각은 이어져야 한다. 연결점은 걷기 쪽에 넣고 탑승 조각의 정류장 좌표는 그대로 둔다
+    off_s0 = (35.86005, 128.60305)
+    off_s2 = (35.86004, 128.60896)
+    front = route(LegType.FRONT_WALK, [HOME, off_s0], is_baseline=True)
+    cand = route(LegType.BACK_WALK, [off_s2, PARK, WORK])
+
+    journey = compose(cand, baselines=[front, BACK])
+
+    assert_connected(journey)
+    assert journey[1].points == [S0, S1, S2]  # 탑승은 정류장 좌표 그대로
+    assert journey[0].points == [HOME, off_s0, S0]  # 앞 걷기 끝에 정류장까지 연결점
+    assert journey[2].points == [S2, off_s2, PARK, WORK]  # 뒤 걷기 앞에 정류장부터 연결점
+
+
+def test_after_arrival_gap_is_bridged_at_the_start_of_the_walk() -> None:
+    base = route(LegType.WALK_ALL, [HOME, (35.86001, 128.61102)], is_baseline=True)
+    after = route(LegType.AFTER_ARRIVAL, [WORK, PARK])
+
+    journey = compose(after, baselines=[base], transport_mode=TransportMode.WALK)
+
+    assert_connected(journey)
+    assert journey[1].points[0] == (35.86001, 128.61102)
+    assert journey[1].points[1:] == [WORK, PARK]
+
+
 # --- 자동차 ------------------------------------------------------------------
 
 
