@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 from geoalchemy2 import Geometry, WKBElement
 from sqlalchemy import ForeignKey, Index, Integer, String, Time, UniqueConstraint, Uuid, text
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, TimestampMixin
@@ -150,5 +150,8 @@ class CommuteRide(Base):
     board_late_station_ids: Mapped[list[UUID]] = mapped_column(ARRAY(Uuid), default=list)
     board_name: Mapped[str] = mapped_column(String(STATION_NAME_MAX_LENGTH))
     alight_name: Mapped[str] = mapped_column(String(STATION_NAME_MAX_LENGTH))
+    # 구간별 정류장 id 전부, 저장한 순서 (#93). 탑승 조각을 그릴 때 order_no 추정 대신 이것을 쓴다.
+    # 시드 동선(ODsay 없음)은 None 이라 노선 순번으로 채운다
+    stop_ids: Mapped[list[list[str]] | None] = mapped_column(JSONB, nullable=True)
 
     commute: Mapped[Commute] = relationship(back_populates="rides")

@@ -18,7 +18,7 @@ from fastapi import Depends
 from geoalchemy2.shape import from_shape
 from pydantic import BaseModel, ConfigDict
 from shapely.geometry import LineString
-from sqlalchemy import cast, delete, func, select
+from sqlalchemy import cast, delete, func, or_, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,6 +51,8 @@ from app.domain.route.scoring import (
 
 BUFFER_M = 600
 MAX_WAYPOINTS = 6
+# 건너뛰기 구간(먼저 내리기·걸어가서 타기)의 경유지 상한 (#93). 구간이 많아 6개씩은 과하다
+MAX_WAYPOINTS_SKIP = 2
 CAR_RADIUS_M = 800  # 도보 10분
 EVENT_CANDIDATE_MIN = 10  # 녹지 기준 미달이어도 이벤트 점수가 이 이상이면 후보
 SUNSET_PLACE_TYPES = {PlaceType.SUNSET.value, PlaceType.VIEW.value, PlaceType.BRIDGE.value}
@@ -250,6 +252,7 @@ class RouteService:
         self._session = session
         self._tmap = tmap
         self._scoring = ScoringService(session)
+        self._score_cache: dict[tuple[tuple[float, float], ...], StaticScore] = {}
 
     # --- generate ----------------------------------------------------------
 
@@ -265,7 +268,8 @@ class RouteService:
         :return: 저장된 Route (기준선 포함)
         :raises AppException: EXTERNAL_API_FAILED - TMAP 실패
         """
-        # 1. 걷는 구간
+        # 1. 걷는 구간. 같은 경로선의 점수는 한 번만 계산한다 (계획끼리 공유하는 구간, #93)
+        self._score_cache = {}
         legs = await self._legs(commute)
         walking = [leg for leg in legs if leg.leg_type != LegType.AFTER_ARRIVAL]
 
@@ -294,10 +298,10 @@ class RouteService:
             )
             nearby = await self._places_near(walked.polyline, city)
             entries = await self.entry_points(nearby, walked.polyline, city)
-            plans += [
-                (leg, wp)
-                for wp in shortlist(leg.start, leg.end, nearby, commute.preference, entries)
-            ]
+            waypoints = shortlist(leg.start, leg.end, nearby, commute.preference, entries)
+            if leg.skip_stops:
+                waypoints = waypoints[:MAX_WAYPOINTS_SKIP]
+            plans += [(leg, wp) for wp in waypoints]
 
         # 5. 경유지마다 TMAP (동시) → 왕복 제외 → 정적 점수
         detoured = await self._walk_all([(leg.start, leg.end, wp.pass_points) for leg, wp in plans])
@@ -492,6 +496,13 @@ class RouteService:
             for unit, route in zip(units, walked, strict=True)
         ]
 
+    async def _score_cached(self, polyline: list[LatLng], city: str) -> StaticScore:
+        key = tuple((p.lat, p.lng) for p in polyline)
+        cached = self._score_cache.get(key)
+        if cached is None:
+            cached = self._score_cache[key] = await self._scoring.score_static(polyline, city=city)
+        return cached
+
     async def _build_route(
         self,
         commute: Commute,
@@ -503,7 +514,7 @@ class RouteService:
         is_baseline: bool,
         city: str,
     ) -> Route:
-        static = await self._scoring.score_static(walked.polyline, city=city)
+        static = await self._score_cached(walked.polyline, city)
         return Route(
             commute_id=commute.id,
             leg_type=leg.leg_type,
@@ -744,8 +755,11 @@ class RouteService:
         ends = [sid for plan in plans for sid in plan.station_ids]
         if not ends:
             return {}
+        saved = [sid for plan in plans for leg in plan.stop_ids or [] for sid in leg]
         lines = select(Station.line).where(Station.id.in_(ends)).scalar_subquery()
-        stmt = select(Station).where(Station.line.in_(lines), Station.city == city)
+        stmt = select(Station).where(
+            Station.city == city, or_(Station.line.in_(lines), Station.id.in_(saved or ends))
+        )
         stations = list((await self._session.execute(stmt)).scalars())
         by_id = {s.id: s for s in stations}
 
@@ -771,6 +785,14 @@ class RouteService:
         result: dict[UUID | None, list[Ride]] = {}
         for plan in plans:
             rides: list[Ride] = []
+            if plan.stop_ids:
+                # 저장한 그 경로의 정류장 순서 그대로 (#93). 행이 지워진 정류장만 건너뛴다
+                for leg_ids in plan.stop_ids:
+                    stops = [by_id[sid] for sid in leg_ids if sid in by_id]
+                    if len(stops) >= 2:
+                        rides.append(stops)
+                result[plan.id] = rides
+                continue
             ids = plan.station_ids
             for board_id, alight_id in zip(ids[0::2], ids[1::2], strict=False):
                 board, alight = by_id.get(board_id), by_id.get(alight_id)
@@ -790,6 +812,7 @@ class RidePlanView:
     station_ids: list[UUID]
     alight_early_station_ids: list[UUID]
     board_late_station_ids: list[UUID]
+    stop_ids: list[list[UUID]] | None = None  # 저장한 경로의 구간별 정류장 (#93)
 
 
 def ride_plans(commute: Commute) -> list[RidePlanView]:
@@ -803,6 +826,9 @@ def ride_plans(commute: Commute) -> list[RidePlanView]:
                 station_ids=list(ride.station_ids),
                 alight_early_station_ids=list(ride.alight_early_station_ids),
                 board_late_station_ids=list(ride.board_late_station_ids),
+                stop_ids=(
+                    [[UUID(sid) for sid in leg] for leg in ride.stop_ids] if ride.stop_ids else None
+                ),
             )
             for ride in rides
         ]
