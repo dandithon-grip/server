@@ -82,3 +82,14 @@ walk saetgil 수성구청역 → 들안길 → 집
 - 홈에서 "오늘 탄 노선" 탭: `GET /cards/today?ride_id={rides[].id}` 가 그 노선 기준 카드를 준다 (#90). 퇴근 10분 전에 미리 만들어 두므로 즉시 뜬다. 응답 `ride_id` 로 어느 탭의 카드인지 안다
 - 카드(`route`)는 전체 계획 중 가장 좋은 후보다. 카드가 어느 노선인지는 `route.ride_id` → `rides[]` 의 `line`
 - 계획이 1개면 탭을 숨긴다
+
+## 생성 상태 폴링 (#97)
+
+```
+PUT /commutes/me                         → 200
+POST /commutes/me/routes?wait=false      → 202 {state: "pending"}
+GET  /commutes/me/routes/status (3초마다) → {state: pending|ready|failed, route_count}
+ready → GET /commutes/me/routes, GET /cards/today
+failed → "다시 만들기" (POST 다시)
+```
+노선 3개면 1분 안팎 걸릴 수 있다. pending 이 5분을 넘으면 서버가 failed 로 보여준다.

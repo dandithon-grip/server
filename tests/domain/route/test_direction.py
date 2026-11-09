@@ -142,9 +142,10 @@ def test_after_arrival_is_kept_only_for_its_own_direction() -> None:
 # --- API ---------------------------------------------------------------------
 
 
-async def test_generate_makes_after_arrival_on_both_sides(
+async def test_generate_makes_after_arrival_only_near_home(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
+    # 카드·알림은 퇴근 전용이고 출근 토글도 없앴다. 회사 주변 도착 후 구간은 TMAP 만 쓴다 (#96)
     db_session.add_all(
         [
             place("집앞공원", 35.8603, 128.6003, [PlaceType.PARK]),
@@ -162,8 +163,7 @@ async def test_generate_makes_after_arrival_on_both_sides(
         await db_session.execute(select(Route).where(Route.leg_type == LegType.AFTER_ARRIVAL))
     ).scalars()
     sides = {(r.direction, r.name) for r in rows}
-    assert ("to_work", "회사앞공원 샛길 (도착 후)") in sides
-    assert ("to_home", "집앞공원 샛길 (도착 후)") in sides
+    assert sides == {("to_home", "집앞공원 샛길 (도착 후)")}
 
 
 async def test_routes_api_defaults_to_home_and_accepts_to_work(

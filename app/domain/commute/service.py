@@ -1,11 +1,11 @@
 from dataclasses import dataclass, field
-from datetime import time
+from datetime import UTC, datetime, time, timedelta
 from uuid import UUID
 
 from fastapi import Depends
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
-from sqlalchemy import ColumnElement, delete, func, or_, select
+from sqlalchemy import ColumnElement, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,10 +14,12 @@ from app.clients.tmap import LatLng
 from app.core.database import get_db
 from app.core.exceptions import AppException, ErrorCode
 from app.core.geo import make_point
-from app.domain.commute.models import Commute, CommuteRide, Station, TransportMode
+from app.domain.commute.models import Commute, CommuteRide, RoutesState, Station, TransportMode
 from app.domain.commute.schemas import SaveCommuteRequest, TransitLegInput, TransitStopInput
 
 MAX_SKIP_STOPS = 3  # 먼저 내리기·늦게 타기로 건너뛰는 정거장 상한 (#51)
+# 이보다 오래 pending 이면 서버가 도중에 멈춘 것으로 보고 failed 로 보여준다 (#97)
+PENDING_STALE = timedelta(minutes=5)
 
 
 @dataclass(frozen=True)
@@ -196,6 +198,29 @@ class CommuteService:
         stmt = select(Station.id, Station.name).where(Station.id.in_(station_ids))
         return {sid: name for sid, name in (await self._session.execute(stmt)).all()}
 
+    async def set_routes_state(self, commute_id: UUID, state: RoutesState) -> None:
+        """샛길 생성 상태를 바꾸고 commit 한다 (#97). 백그라운드 작업이 자기 세션으로 부른다."""
+        stmt = (
+            update(Commute)
+            .where(Commute.id == commute_id)
+            .values(routes_state=state.value, routes_updated_at=datetime.now(UTC))
+        )
+        await self._session.execute(stmt)
+        await self._session.commit()
+
+    @staticmethod
+    def routes_state_of(commute: Commute, *, now: datetime | None = None) -> RoutesState:
+        """저장된 상태. pending 이 PENDING_STALE 을 넘었으면 failed (서버 재시작 대비)."""
+        state = RoutesState(commute.routes_state or RoutesState.IDLE.value)
+        updated = commute.routes_updated_at
+        if (
+            state == RoutesState.PENDING
+            and updated is not None
+            and (now or datetime.now(UTC)) - updated > PENDING_STALE
+        ):
+            return RoutesState.FAILED
+        return state
+
     async def get_commute(self, user_id: UUID) -> Commute:
         """
         사용자의 출퇴근 동선을 조회한다.
@@ -325,6 +350,10 @@ class CommuteService:
             window = or_(Commute.leave_time >= start, Commute.leave_time <= end)
         stmt = select(Commute).where(window)
         return list((await self._session.execute(stmt)).scalars())
+
+    async def get_commute_by_id(self, commute_id: UUID) -> Commute | None:
+        stmt = select(Commute).where(Commute.id == commute_id)
+        return (await self._session.execute(stmt)).scalar_one_or_none()
 
     async def get_commute_by_user(self, user_id: UUID) -> Commute | None:
         """예외 없이 조회. 데모 카드처럼 없을 수도 있는 자리에서 쓴다."""

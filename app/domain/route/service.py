@@ -7,9 +7,11 @@ rank:     저장된 Route → 오늘의 노을 창·취향·태그 가중치 적
 """
 
 import asyncio
+import logging
 import math
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Callable, Mapping
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass, replace
 from datetime import datetime
 from uuid import UUID
@@ -23,9 +25,16 @@ from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.tmap import LatLng, PedestrianRoute, TmapClient, get_tmap_client
-from app.core.database import get_db
+from app.core.database import get_db, session_factory
 from app.core.geo import make_point
-from app.domain.commute.models import Commute, CommuteRide, Preference, Station, TransportMode
+from app.domain.commute.models import (
+    Commute,
+    CommuteRide,
+    Preference,
+    RoutesState,
+    Station,
+    TransportMode,
+)
 from app.domain.route.journey import Ride, Segment, compose_journey, orient_rides
 from app.domain.route.models import (
     MIRROR_LEG,
@@ -49,6 +58,8 @@ from app.domain.route.scoring import (
     sunset_window,
 )
 
+logger = logging.getLogger(__name__)
+
 BUFFER_M = 600
 MAX_WAYPOINTS = 6
 # 건너뛰기 구간(먼저 내리기·걸어가서 타기)의 경유지 상한 (#93). 구간이 많아 6개씩은 과하다
@@ -69,8 +80,48 @@ RETRACE_MAX_M = 100
 AREA_GREEN_KINDS = [GreenKind.PARK.value, GreenKind.FOREST.value, GreenKind.GRASS.value]
 # 정거장을 건너뛰면 그만큼 덜 탄다. 노선별 실측 없이 정거장당 평균으로 뺀다 (#51)
 RIDE_MINUTES_PER_STOP = 2.0
-# 동시에 부르는 TMAP 요청 수. 신규 동선 10초 안 (명세 F-03 성능)
-TMAP_CONCURRENCY = 4
+# 동시에 부르는 TMAP 요청 수. 신규 동선 10초 안 (명세 F-03 성능). 4 → 6 (#96)
+TMAP_CONCURRENCY = 6
+# 경로 점수(읽기 전용 질의)를 동시에 계산하는 세션 수 (#96). 순차로는 수십 초가 든다
+SCORING_CONCURRENCY = 6
+
+
+@asynccontextmanager
+async def _new_scoring_session() -> AsyncIterator[AsyncSession]:
+    async with session_factory() as session:
+        yield session
+
+
+# 점수 계산용 세션을 여는 함수. 테스트는 같은 트랜잭션의 세션을 주도록 바꿔 끼운다 (conftest)
+scoring_session_factory: Callable[[], AbstractAsyncContextManager[AsyncSession]] = (
+    _new_scoring_session
+)
+# 백그라운드 생성용 세션 (#97). 요청 세션은 응답과 함께 닫히므로 따로 연다. 테스트는 바꿔 끼운다
+generation_session_factory: Callable[[], AbstractAsyncContextManager[AsyncSession]] = (
+    _new_scoring_session
+)
+
+
+async def generate_in_background(commute_id: UUID, city: str, tmap: TmapClient) -> None:
+    """
+    샛길을 백그라운드에서 만들고 동선의 생성 상태를 ready/failed 로 바꾼다 (#97).
+
+    FastAPI BackgroundTasks 가 응답을 보낸 뒤 부른다. 예외는 삼키고 상태로만 남긴다.
+    """
+    from app.domain.commute.service import CommuteService  # 순환 import 회피 (service → service 만)
+
+    async with generation_session_factory() as session:
+        commutes = CommuteService(session)
+        commute = await commutes.get_commute_by_id(commute_id)
+        if commute is None:
+            return
+        try:
+            await RouteService(session, tmap).generate(commute, city)
+            await commutes.set_routes_state(commute_id, RoutesState.READY)
+        except Exception as exc:  # noqa: BLE001 - 상태로만 남기고 다음 요청을 막지 않는다
+            logger.warning("샛길 백그라운드 생성 실패: %s", exc)
+            await session.rollback()
+            await commutes.set_routes_state(commute_id, RoutesState.FAILED)
 
 
 class PreferenceRule(BaseModel):
@@ -116,6 +167,17 @@ class Leg:
     def reference(self) -> LegType:
         """추가 시간·녹지 증가를 잴 기준 구간. 건너뛰기면 원래 계획의 도보 구간."""
         return REFERENCE_LEG.get(self.leg_type, self.leg_type)
+
+
+@dataclass(frozen=True)
+class _PendingRoute:
+    """점수를 매기기 전의 경로 (#96). 점수는 모아서 동시에 계산한다."""
+
+    leg: Leg
+    walked: PedestrianRoute
+    places: list[Place]
+    add_minutes: float
+    is_baseline: bool
 
 
 @dataclass(frozen=True)
@@ -252,7 +314,6 @@ class RouteService:
         self._session = session
         self._tmap = tmap
         self._scoring = ScoringService(session)
-        self._score_cache: dict[tuple[tuple[float, float], ...], StaticScore] = {}
 
     # --- generate ----------------------------------------------------------
 
@@ -268,8 +329,7 @@ class RouteService:
         :return: 저장된 Route (기준선 포함)
         :raises AppException: EXTERNAL_API_FAILED - TMAP 실패
         """
-        # 1. 걷는 구간. 같은 경로선의 점수는 한 번만 계산한다 (계획끼리 공유하는 구간, #93)
-        self._score_cache = {}
+        # 1. 걷는 구간
         legs = await self._legs(commute)
         walking = [leg for leg in legs if leg.leg_type != LegType.AFTER_ARRIVAL]
 
@@ -284,18 +344,15 @@ class RouteService:
             if leg.skip_stops == 0
         }
 
-        # 4. 최단 경로 저장 + 경유지 추리기. 그냥 걸어도 상한을 넘는 건너뛰기 구간은 버린다
-        routes: list[Route] = []
+        # 4. 최단 경로 + 경유지 추리기. 그냥 걸어도 상한을 넘는 건너뛰기 구간은 버린다.
+        #    점수는 아직 매기지 않고 모아 둔다 (6에서 한꺼번에 동시 계산, #96)
+        pending: list[_PendingRoute] = []
         plans: list[tuple[Leg, Waypoint]] = []
         for leg, walked in zip(walking, shortest, strict=True):
             extra = _extra_minutes(leg, walked, reference_minutes)
             if leg.skip_stops and extra > MAX_ADD_MINUTES:
                 continue
-            routes.append(
-                await self._build_route(
-                    commute, leg, walked, [], extra, is_baseline=leg.skip_stops == 0, city=city
-                )
-            )
+            pending.append(_PendingRoute(leg, walked, [], extra, is_baseline=leg.skip_stops == 0))
             nearby = await self._places_near(walked.polyline, city)
             entries = await self.entry_points(nearby, walked.polyline, city)
             waypoints = shortlist(leg.start, leg.end, nearby, commute.preference, entries)
@@ -303,22 +360,25 @@ class RouteService:
                 waypoints = waypoints[:MAX_WAYPOINTS_SKIP]
             plans += [(leg, wp) for wp in waypoints]
 
-        # 5. 경유지마다 TMAP (동시) → 왕복 제외 → 정적 점수
+        # 5. 경유지마다 TMAP (동시) → 왕복 제외
         detoured = await self._walk_all([(leg.start, leg.end, wp.pass_points) for leg, wp in plans])
         for (leg, waypoint), walked in zip(plans, detoured, strict=True):
             if retrace_m(walked.polyline) > RETRACE_MAX_M:
                 continue
             extra = _extra_minutes(leg, walked, reference_minutes)
-            routes.append(
-                await self._build_route(
-                    commute, leg, walked, list(waypoint.places), extra, is_baseline=False, city=city
-                )
+            pending.append(
+                _PendingRoute(leg, walked, list(waypoint.places), extra, is_baseline=False)
             )
-
-        # 6. 도착 후 구간
         for leg in legs:
             if leg.leg_type == LegType.AFTER_ARRIVAL:
-                routes += await self._after_arrival_routes(commute, leg, city)
+                pending += await self._after_arrival_pending(commute, leg, city)
+
+        # 6. 정적 점수를 동시에 계산해 Route 로 (같은 경로선은 한 번만)
+        scores = await self._score_many([p.walked.polyline for p in pending], city)
+        routes = [
+            self._build_route(commute, p, static, city=city)
+            for p, static in zip(pending, scores, strict=True)
+        ]
 
         # 7. 저장
         self._session.add_all(routes)
@@ -359,11 +419,9 @@ class RouteService:
         """걷는 구간 (출근 방향). 도착지 반경 구간(F-15 3단계)은 방향마다 모든 교통수단에 붙인다."""
         start = LatLng(lat=commute.from_lat, lng=commute.from_lng)
         end = LatLng(lat=commute.to_lat, lng=commute.to_lng)
-        # 도착 후는 방향마다 다른 곳이다: 출근이면 회사 주변, 퇴근이면 집 주변 (#56)
-        after_arrival = [
-            Leg(LegType.AFTER_ARRIVAL, end, end, direction=Direction.TO_WORK),
-            Leg(LegType.AFTER_ARRIVAL, start, start, direction=Direction.TO_HOME),
-        ]
+        # 도착 후는 퇴근(집 주변)만 (#96). 카드·알림이 퇴근 전용이라 회사 주변은 쓸 데가 없다.
+        # 출근 카드를 추가하면 Direction.TO_WORK 구간(end, end)을 다시 넣는다 (#56)
+        after_arrival = [Leg(LegType.AFTER_ARRIVAL, start, start, direction=Direction.TO_HOME)]
         if commute.transport_mode == TransportMode.WALK:
             return [Leg(LegType.WALK_ALL, start, end), *after_arrival]
         if commute.transport_mode == TransportMode.CAR:
@@ -473,7 +531,9 @@ class RouteService:
         rows = (await self._session.execute(stmt)).all()
         return {place_id: LatLng(lat=float(lat), lng=float(lng)) for place_id, lat, lng in rows}
 
-    async def _after_arrival_routes(self, commute: Commute, leg: Leg, city: str) -> list[Route]:
+    async def _after_arrival_pending(
+        self, commute: Commute, leg: Leg, city: str
+    ) -> list["_PendingRoute"]:
         """도착지 반경 10분 안의 Place 로 가는 경로. 기준선 없음(추가 시간 = 소요 시간)."""
         end_point = make_point(leg.end.lat, leg.end.lng)
         stmt = select(Place).where(
@@ -490,38 +550,45 @@ class RouteService:
             [(leg.end, LatLng(lat=target.lat, lng=target.lng), None) for target in targets]
         )
         return [
-            await self._build_route(
-                commute, leg, route, list(unit.places), route.minutes, is_baseline=False, city=city
-            )
+            _PendingRoute(leg, route, list(unit.places), route.minutes, is_baseline=False)
             for unit, route in zip(units, walked, strict=True)
         ]
 
-    async def _score_cached(self, polyline: list[LatLng], city: str) -> StaticScore:
-        key = tuple((p.lat, p.lng) for p in polyline)
-        cached = self._score_cache.get(key)
-        if cached is None:
-            cached = self._score_cache[key] = await self._scoring.score_static(polyline, city=city)
-        return cached
+    async def _score_many(self, polylines: list[list[LatLng]], city: str) -> list[StaticScore]:
+        """
+        경로선들의 정적 점수를 동시에 계산한다 (#96). 같은 경로선은 한 번만.
 
-    async def _build_route(
-        self,
-        commute: Commute,
-        leg: Leg,
-        walked: PedestrianRoute,
-        places: list[Place],
-        add_minutes: float,
-        *,
-        is_baseline: bool,
-        city: str,
+        점수 질의는 읽기 전용이라 세션을 따로 열어 SCORING_CONCURRENCY 개씩 돌린다.
+        :return: polylines 와 같은 순서의 점수
+        """
+        semaphore = asyncio.Semaphore(SCORING_CONCURRENCY)
+
+        def key(polyline: list[LatLng]) -> tuple[tuple[float, float], ...]:
+            return tuple((p.lat, p.lng) for p in polyline)
+
+        unique: dict[tuple[tuple[float, float], ...], list[LatLng]] = {}
+        for polyline in polylines:
+            unique.setdefault(key(polyline), polyline)
+
+        async def score(polyline: list[LatLng]) -> StaticScore:
+            async with semaphore, scoring_session_factory() as session:
+                return await ScoringService(session).score_static(polyline, city=city)
+
+        results = await asyncio.gather(*(score(p) for p in unique.values()))
+        by_key = dict(zip(unique.keys(), results, strict=True))
+        return [by_key[key(polyline)] for polyline in polylines]
+
+    def _build_route(
+        self, commute: Commute, pending: "_PendingRoute", static: StaticScore, *, city: str
     ) -> Route:
-        static = await self._score_cached(walked.polyline, city)
+        leg, walked, places = pending.leg, pending.walked, pending.places
         return Route(
             commute_id=commute.id,
             leg_type=leg.leg_type,
-            is_baseline=is_baseline,
+            is_baseline=pending.is_baseline,
             name=_route_name(leg, places),
             minutes=round(walked.minutes, 1),
-            add_minutes=round(max(add_minutes, 0.0), 1),
+            add_minutes=round(max(pending.add_minutes, 0.0), 1),
             polyline=from_shape(LineString([(p.lng, p.lat) for p in walked.polyline]), srid=4326),
             green_pct=static.green_pct,
             water_score=static.water_score,
