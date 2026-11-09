@@ -7,6 +7,7 @@ rank:     저장된 Route → 오늘의 노을 창·취향·태그 가중치 적
 """
 
 import asyncio
+import logging
 import math
 from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Mapping
@@ -26,7 +27,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.clients.tmap import LatLng, PedestrianRoute, TmapClient, get_tmap_client
 from app.core.database import get_db, session_factory
 from app.core.geo import make_point
-from app.domain.commute.models import Commute, CommuteRide, Preference, Station, TransportMode
+from app.domain.commute.models import (
+    Commute,
+    CommuteRide,
+    Preference,
+    RoutesState,
+    Station,
+    TransportMode,
+)
 from app.domain.route.journey import Ride, Segment, compose_journey, orient_rides
 from app.domain.route.models import (
     MIRROR_LEG,
@@ -49,6 +57,8 @@ from app.domain.route.scoring import (
     retrace_m,
     sunset_window,
 )
+
+logger = logging.getLogger(__name__)
 
 BUFFER_M = 600
 MAX_WAYPOINTS = 6
@@ -86,6 +96,32 @@ async def _new_scoring_session() -> AsyncIterator[AsyncSession]:
 scoring_session_factory: Callable[[], AbstractAsyncContextManager[AsyncSession]] = (
     _new_scoring_session
 )
+# 백그라운드 생성용 세션 (#97). 요청 세션은 응답과 함께 닫히므로 따로 연다. 테스트는 바꿔 끼운다
+generation_session_factory: Callable[[], AbstractAsyncContextManager[AsyncSession]] = (
+    _new_scoring_session
+)
+
+
+async def generate_in_background(commute_id: UUID, city: str, tmap: TmapClient) -> None:
+    """
+    샛길을 백그라운드에서 만들고 동선의 생성 상태를 ready/failed 로 바꾼다 (#97).
+
+    FastAPI BackgroundTasks 가 응답을 보낸 뒤 부른다. 예외는 삼키고 상태로만 남긴다.
+    """
+    from app.domain.commute.service import CommuteService  # 순환 import 회피 (service → service 만)
+
+    async with generation_session_factory() as session:
+        commutes = CommuteService(session)
+        commute = await commutes.get_commute_by_id(commute_id)
+        if commute is None:
+            return
+        try:
+            await RouteService(session, tmap).generate(commute, city)
+            await commutes.set_routes_state(commute_id, RoutesState.READY)
+        except Exception as exc:  # noqa: BLE001 - 상태로만 남기고 다음 요청을 막지 않는다
+            logger.warning("샛길 백그라운드 생성 실패: %s", exc)
+            await session.rollback()
+            await commutes.set_routes_state(commute_id, RoutesState.FAILED)
 
 
 class PreferenceRule(BaseModel):

@@ -94,7 +94,7 @@ async def test_background_failure_is_reported_as_failed(
 async def test_pending_older_than_five_minutes_is_reported_as_failed(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
-    # 서버가 생성 도중 재시작되면 pending 이 남는다. 오래된 pending 은 실패로 보여 다시 시도하게 한다
+    # 서버가 생성 도중 재시작되면 pending 이 남는다. 오래된 pending 은 실패로 보여 다시 시도하게
     use_fake_tmap()
     headers = bearer(make_token())
     await client.put("/commutes/me", json=walk_commute(), headers=headers)

@@ -1,9 +1,10 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.domain.commute.models import Preference
+from app.domain.commute.models import Preference, RoutesState
 from app.domain.commute.schemas import RideResponse
 from app.domain.route.journey import Segment, SegmentKind, SegmentRole
 from app.domain.route.models import ActionType, Direction, LegType, PlaceType
@@ -121,3 +122,13 @@ def _segment_response(segment: Segment) -> JourneySegmentResponse:
         from_name=segment.from_name,
         to_name=segment.to_name,
     )
+
+
+class GenerationStatusResponse(BaseModel):
+    """샛길 생성 진행 상태 (#97)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    state: RoutesState = Field(..., description="idle · pending · ready · failed")
+    updated_at: datetime | None = Field(None, description="상태가 바뀐 시각")
+    route_count: int = Field(..., description="저장된 경로 수 (기준선 포함)")
