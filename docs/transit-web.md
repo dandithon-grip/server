@@ -19,7 +19,9 @@ ODsay 키는 종류에 따라 누가 부르는지를 다르게 확인한다.
 2. 프론트 → POST /transit/routes/parse  { "odsay": 1의 응답 그대로 }
             ← GET /transit/routes 와 같은 응답 (summary, legs, stops[].external_id)
 3. 사용자가 경로 하나 선택
-4. 프론트 → PUT /commutes/me  transit_legs = 고른 경로의 legs 중 kind != "walk" (지금과 동일)
+4. 프론트 → PUT /commutes/me  transit_options = [고른 경로마다 legs 중 kind != "walk"] (최대 3개, #88)
+            (경로 하나면 기존 transit_legs 그대로 보내도 된다)
+            ← CommuteResponse.rides[] : 계획마다 id · order_no · line · board_name · alight_name
 ```
 
 ## ODsay 설정 (승래)
@@ -71,3 +73,12 @@ walk saetgil 수성구청역 → 들안길 → 집
 - 탑승 조각은 정류장 좌표를 잇는 선이라 실제 노선 모양과 다르다. 점선이 자연스럽다
 - 정류장 행이 없는 경우(삭제 등) 탑승이 두 점(탑승·하차)만으로 올 수 있다
 - 방향: `to_home` 은 회사에서 시작한다. 화면의 출발지 표시도 그에 맞춘다
+
+## 탑승 계획 여러 개 (#88)
+
+평소 타는 노선이 여럿이면 등록 때 최대 3개를 고른다. 서버는 계획마다 걷는 구간·샛길 후보를 미리 만들어 둔다.
+
+- `GET /commutes/me/routes`, `/cards/today` 응답의 `rides[]` 에 계획 목록, 경로마다 `ride_id`
+- 홈에서 "오늘 탄 노선" 탭: `GET /cards/today?ride_id={rides[].id}` 가 그 노선 기준 카드를 준다 (#90). 퇴근 10분 전에 미리 만들어 두므로 즉시 뜬다. 응답 `ride_id` 로 어느 탭의 카드인지 안다
+- 카드(`route`)는 전체 계획 중 가장 좋은 후보다. 카드가 어느 노선인지는 `route.ride_id` → `rides[]` 의 `line`
+- 계획이 1개면 탭을 숨긴다

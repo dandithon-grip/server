@@ -8,6 +8,7 @@ from app.domain.commute.models import (
     AREA_MAX_LENGTH,
     EXTERNAL_ID_MAX_LENGTH,
     LINE_MAX_LENGTH,
+    MAX_RIDES,
     STATION_NAME_MAX_LENGTH,
     Preference,
     TransportMode,
@@ -63,9 +64,37 @@ class SaveCommuteRequest(BaseModel):
     transit_legs: list[TransitLegInput] = Field(
         default_factory=list,
         max_length=5,
-        description="GET /transit/routes 에서 고른 경로의 탑승 구간들. transit 이면 필수",
+        description="고른 경로 하나의 탑승 구간들. transit_options 가 있으면 무시 (호환용)",
+    )
+    transit_options: list[list[TransitLegInput]] = Field(
+        default_factory=list,
+        max_length=MAX_RIDES,
+        description=(
+            "평소 타는 노선(경로)을 여러 개 고를 때 (#88). 경로마다 탑승 구간 목록. "
+            "첫 번째가 기본 계획이고 station_ids·line 응답은 그것의 거울이다"
+        ),
     )
     preference: Preference = Field(Preference.FULL, description="기본 취향 short | full | sunset")
+
+    @property
+    def ride_options(self) -> list[list[TransitLegInput]]:
+        """저장할 탑승 계획들. transit_options 가 있으면 그것, 없으면 transit_legs 한 개."""
+        if self.transit_options:
+            return [list(option) for option in self.transit_options if option]
+        return [list(self.transit_legs)] if self.transit_legs else []
+
+
+class RideResponse(BaseModel):
+    """탑승 계획 하나 (#88). 경로의 ride_id 가 이 id 를 가리킨다."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    order_no: int = Field(..., description="0 이 기본 계획")
+    line: str = Field(..., description="마지막 탑승 노선")
+    station_ids: list[UUID] = Field(..., description="[탑승, 하차, ...]")
+    board_name: str = Field(..., description="처음 타는 정류장")
+    alight_name: str = Field(..., description="마지막에 내리는 정류장")
 
 
 class CommuteResponse(BaseModel):
@@ -84,6 +113,9 @@ class CommuteResponse(BaseModel):
     line: str | None
     station_ids: list[UUID]
     preference: Preference
+    rides: list[RideResponse] = Field(
+        default_factory=list, description="탑승 계획들 (#88). transit 이 아니면 빈 목록"
+    )
 
 
 class StationResponse(BaseModel):

@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 from geoalchemy2 import Geometry, WKBElement
 from sqlalchemy import ForeignKey, Index, Integer, String, Time, UniqueConstraint, Uuid, text
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, TimestampMixin
 from app.core.geo import point_lat, point_lng
@@ -100,6 +100,13 @@ class Commute(TimestampMixin, Base):
         ARRAY(Uuid), default=list, server_default="{}"
     )
     preference: Mapped[Preference] = mapped_column(String(10), default=Preference.FULL)
+    # 평소 타는 노선(탑승 계획) ≤3 (#88). order_no 0 이 기본, 위 station_ids·line 은 그 거울
+    rides: Mapped[list["CommuteRide"]] = relationship(
+        back_populates="commute",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="CommuteRide.order_no",
+    )
 
     @property
     def from_lat(self) -> float:
@@ -116,3 +123,32 @@ class Commute(TimestampMixin, Base):
     @property
     def to_lng(self) -> float:
         return point_lng(self.to_location)
+
+
+MAX_RIDES = 3
+
+
+class CommuteRide(Base):
+    """동선의 탑승 계획 하나 (#88). "402 를 타면 동대구역 승차 → 달서교회건너 하차".
+
+    걷는 구간·샛길 후보는 계획마다 미리 만들어 두고, 매일은 그중에서 고른다.
+    승차·하차 이름은 저장 때 사용자가 본 이름을 그대로 둔다 (정류장 행이 바뀌어도 문구가 안정적).
+    """
+
+    __tablename__ = "commute_rides"
+    __table_args__ = (UniqueConstraint("commute_id", "order_no", name="uq_commute_rides_order"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    commute_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commutes.id", ondelete="CASCADE"), index=True
+    )
+    order_no: Mapped[int] = mapped_column(Integer)
+    line: Mapped[str] = mapped_column(String(LINE_MAX_LENGTH))
+    # [탑승, 하차, 탑승, 하차, ...] 환승이면 구간마다 한 쌍
+    station_ids: Mapped[list[UUID]] = mapped_column(ARRAY(Uuid), default=list)
+    alight_early_station_ids: Mapped[list[UUID]] = mapped_column(ARRAY(Uuid), default=list)
+    board_late_station_ids: Mapped[list[UUID]] = mapped_column(ARRAY(Uuid), default=list)
+    board_name: Mapped[str] = mapped_column(String(STATION_NAME_MAX_LENGTH))
+    alight_name: Mapped[str] = mapped_column(String(STATION_NAME_MAX_LENGTH))
+
+    commute: Mapped[Commute] = relationship(back_populates="rides")

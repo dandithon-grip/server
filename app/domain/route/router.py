@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from app.core.security import get_current_user
 from app.core.timezone import LOCAL_TZ
 from app.domain.commute.models import Commute, Preference
+from app.domain.commute.schemas import RideResponse
 from app.domain.commute.service import CommuteService, get_commute_service
 from app.domain.route.fallback import decide_fallback
 from app.domain.route.models import Direction, Route
@@ -51,6 +52,7 @@ async def _ranked_response(
         action_type=decided.action_type,
         candidates=[to_route_response(r, journeys.get(r.route.id)) for r in decided.candidates],
         shortest=[to_route_response(r, journeys.get(r.route.id)) for r in decided.shortest],
+        rides=[RideResponse.model_validate(ride) for ride in commute.rides],
     )
 
 
