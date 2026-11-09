@@ -1,9 +1,19 @@
-from datetime import time
+from datetime import datetime, time
 from enum import StrEnum
 from uuid import UUID, uuid4
 
 from geoalchemy2 import Geometry, WKBElement
-from sqlalchemy import ForeignKey, Index, Integer, String, Time, UniqueConstraint, Uuid, text
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Time,
+    UniqueConstraint,
+    Uuid,
+    text,
+)
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -71,6 +81,15 @@ class Station(Base):
         return point_lng(self.location)
 
 
+class RoutesState(StrEnum):
+    """샛길 생성 진행 상태 (#97). 생성은 수십 초라 백그라운드로 돌리고 프론트가 상태를 본다."""
+
+    IDLE = "idle"  # 아직 만든 적 없음
+    PENDING = "pending"  # 만드는 중
+    READY = "ready"  # 경로 있음
+    FAILED = "failed"  # 마지막 생성 실패 (또는 오래된 pending)
+
+
 class Commute(TimestampMixin, Base):
     """사용자의 출퇴근 동선. 사용자당 1행."""
 
@@ -100,6 +119,13 @@ class Commute(TimestampMixin, Base):
         ARRAY(Uuid), default=list, server_default="{}"
     )
     preference: Mapped[Preference] = mapped_column(String(10), default=Preference.FULL)
+    # 샛길 생성 상태 (#97)
+    routes_state: Mapped[str] = mapped_column(
+        String(10), default=RoutesState.IDLE.value, server_default=RoutesState.IDLE.value
+    )
+    routes_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     # 평소 타는 노선(탑승 계획) ≤3 (#88). order_no 0 이 기본, 위 station_ids·line 은 그 거울
     rides: Mapped[list["CommuteRide"]] = relationship(
         back_populates="commute",

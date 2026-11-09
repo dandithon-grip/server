@@ -157,18 +157,21 @@ def scoring_in_test_transaction(
     보이지 않는다. 같은 세션을 쓰되 한 번에 하나씩 돌린다 (AsyncSession 은 동시 사용 불가).
     db_session 을 쓰는 테스트에서 실제로 호출될 때만 세션을 만든다.
     """
-    from contextlib import asynccontextmanager
+    from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
     from app.domain.route import service as route_service
 
-    lock = asyncio.Lock()
+    def shared_with(lock: asyncio.Lock) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
+        @asynccontextmanager
+        async def shared() -> AsyncIterator[AsyncSession]:
+            async with lock:
+                yield request.getfixturevalue("db_session")
 
-    @asynccontextmanager
-    async def shared() -> AsyncIterator[AsyncSession]:
-        async with lock:
-            yield request.getfixturevalue("db_session")
+        return shared
 
-    monkeypatch.setattr(route_service, "scoring_session_factory", shared)
+    # 점수와 백그라운드 생성은 서로 다른 잠금이어야 한다 (생성이 점수를 부른다)
+    monkeypatch.setattr(route_service, "scoring_session_factory", shared_with(asyncio.Lock()))
+    monkeypatch.setattr(route_service, "generation_session_factory", shared_with(asyncio.Lock()))
 
 
 @pytest.fixture
