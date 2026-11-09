@@ -7,10 +7,15 @@ from app.domain.card.service import CardResult, CardService, get_card_service
 from app.domain.commute.models import Preference
 from app.domain.notification.schemas import TestPushResponse
 from app.domain.route.models import ActionType
-from app.domain.route.schemas import to_route_response
+from app.domain.route.schemas import RouteResponse, to_route_response
+from app.domain.route.service import RankedRoute
 from app.domain.user.models import User
 
 router = APIRouter(prefix="/cards", tags=["Card"])
+
+
+def _route(result: CardResult, ranked: RankedRoute) -> RouteResponse:
+    return to_route_response(ranked, result.journeys.get(ranked.route.id))
 
 
 def _to_response(result: CardResult) -> TodayCardResponse:
@@ -27,9 +32,9 @@ def _to_response(result: CardResult) -> TodayCardResponse:
         sunset_at=card.sunset_at,
         sky=card.sky,
         air_grade=card.air_grade,
-        route=to_route_response(result.chosen) if result.chosen else None,
-        candidates=[to_route_response(r) for r in result.candidates],
-        shortest=[to_route_response(r) for r in result.shortest],
+        route=_route(result, result.chosen) if result.chosen else None,
+        candidates=[_route(result, r) for r in result.candidates],
+        shortest=[_route(result, r) for r in result.shortest],
     )
 
 

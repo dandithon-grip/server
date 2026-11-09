@@ -22,13 +22,14 @@ def _walk_time(commute: Commute, direction: Direction) -> datetime:
     return datetime.combine(today, clock, tzinfo=LOCAL_TZ)
 
 
-def _ranked_response(
+async def _ranked_response(
     service: RouteService,
     commute: Commute,
     routes: list[Route],
     preference: Preference,
     tag_weights: dict[str, float],
     direction: Direction,
+    city: str,
 ) -> RoutesResponse:
     at = _walk_time(commute, direction)
     ranked = service.rank(
@@ -40,13 +41,16 @@ def _ranked_response(
         direction=direction,
     )
     decided = decide_fallback(ranked, at=at, is_clear=None)
+    journeys = await service.journeys(
+        commute, decided.candidates, decided.shortest, direction, city
+    )
     return RoutesResponse(
         preference=preference,
         direction=direction,
         fallback_level=decided.level,
         action_type=decided.action_type,
-        candidates=[to_route_response(r) for r in decided.candidates],
-        shortest=[to_route_response(r) for r in decided.shortest],
+        candidates=[to_route_response(r, journeys.get(r.route.id)) for r in decided.candidates],
+        shortest=[to_route_response(r, journeys.get(r.route.id)) for r in decided.shortest],
     )
 
 
@@ -73,8 +77,14 @@ async def generate_routes(
 ) -> RoutesResponse:
     commute = await commute_service.get_commute(current_user.id)
     routes = await route_service.generate(commute, current_user.city)
-    return _ranked_response(
-        route_service, commute, routes, commute.preference, current_user.tag_weights, direction
+    return await _ranked_response(
+        route_service,
+        commute,
+        routes,
+        commute.preference,
+        current_user.tag_weights,
+        direction,
+        current_user.city,
     )
 
 
@@ -100,11 +110,12 @@ async def list_routes(
 ) -> RoutesResponse:
     commute = await commute_service.get_commute(current_user.id)
     routes = await route_service.list_routes(commute.id)
-    return _ranked_response(
+    return await _ranked_response(
         route_service,
         commute,
         routes,
         preference or commute.preference,
         current_user.tag_weights,
         direction,
+        current_user.city,
     )

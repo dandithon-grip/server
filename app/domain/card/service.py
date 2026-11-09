@@ -6,7 +6,7 @@ LLM 실패·검증 실패는 점수 1위 + 템플릿으로 폴백한다. 하루 
 
 import asyncio
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -43,6 +43,7 @@ from app.domain.notification.service import (
     get_notification_service,
 )
 from app.domain.route.fallback import LEG_ACTION, FallbackResult, decide_fallback
+from app.domain.route.journey import Segment
 from app.domain.route.models import ActionType, Direction, PlaceType, Route
 from app.domain.route.scoring import sunset_window
 from app.domain.route.service import RankedRoute, RouteService, get_route_service
@@ -80,6 +81,7 @@ class CardResult:
     chosen: RankedRoute | None
     candidates: list[RankedRoute]
     shortest: list[RankedRoute]
+    journeys: dict[UUID, list[Segment]] = field(default_factory=dict)  # Route id → 전체 여정 (#77)
 
 
 class CardService:
@@ -123,7 +125,7 @@ class CardService:
         if preference is None:
             cached = await self._find_card(user.id, today)
             if cached is not None:
-                return await self._result_from_card(cached, commute, routes, user.tag_weights)
+                return await self._result_from_card(cached, commute, routes, user)
 
         # 3. 새로 만들어 저장
         return await self._build_and_save(
@@ -227,7 +229,7 @@ class CardService:
             cached is not None and datetime.now(UTC) - cached.updated_at < DEMO_REFRESH_COOLDOWN
         )
         if cached is not None and (not refresh or cooling):
-            return await self._result_from_card(cached, commute, routes, user.tag_weights)
+            return await self._result_from_card(cached, commute, routes, user)
         return await self._build_and_save(user, commute, routes, today, commute.preference)
 
     # --- 조립 ----------------------------------------------------------------
@@ -292,7 +294,10 @@ class CardService:
         card = await self._find_card(user.id, today)
         await self._session.commit()
         assert card is not None
-        return CardResult(card, chosen, decided.candidates, decided.shortest)
+        journeys = await self._routes.journeys(
+            commute, decided.candidates, decided.shortest, Direction.TO_HOME, user.city
+        )
+        return CardResult(card, chosen, decided.candidates, decided.shortest, journeys)
 
     async def _ask_llm(self, context: CardContext, user: User) -> LlmReply[CardChoice] | None:
         """LLM 1회. 실패·검증 실패면 None (폴백은 호출하는 쪽)."""
@@ -442,7 +447,7 @@ class CardService:
         card: TodayCard,
         commute: Commute,
         routes: list[Route],
-        user_weights: dict[str, float],
+        user: User,
     ) -> CardResult:
         """캐시된 카드에 오늘의 후보 목록을 붙인다 (LLM·날씨 재호출 없음)."""
         at = datetime.combine(card.date, commute.leave_time, tzinfo=LOCAL_TZ)
@@ -452,12 +457,19 @@ class CardService:
             preference=Preference(card.preference),
             at=at,
             is_clear=is_clear,
-            tag_weights=user_weights,
+            tag_weights=user.tag_weights,
             direction=Direction.TO_HOME,
         )
         decided = decide_fallback(ranked, at=at, is_clear=is_clear)
         chosen = next((r for r in ranked.eligible if r.route.id == card.route_id), None)
-        return CardResult(card, chosen, decided.candidates, decided.shortest)
+        journeys = await self._routes.journeys(
+            commute,
+            [*decided.candidates, *([chosen] if chosen else [])],
+            decided.shortest,
+            Direction.TO_HOME,
+            user.city,
+        )
+        return CardResult(card, chosen, decided.candidates, decided.shortest, journeys)
 
 
 def _fit(full: str, short: str) -> str:
