@@ -6,6 +6,7 @@
   바꿔치기한다. 네트워크 호출은 없다
 """
 
+import asyncio
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -144,6 +145,30 @@ def make_token(key_pair: KeyPair) -> TokenFactory:
 
 
 # --- HTTP ------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def scoring_in_test_transaction(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """경로 점수 세션을 테스트 트랜잭션의 세션으로 (#96).
+
+    운영에서는 세션을 여러 개 열어 동시에 계산하지만, 테스트 데이터는 커밋되지 않아 다른 세션에서
+    보이지 않는다. 같은 세션을 쓰되 한 번에 하나씩 돌린다 (AsyncSession 은 동시 사용 불가).
+    db_session 을 쓰는 테스트에서 실제로 호출될 때만 세션을 만든다.
+    """
+    from contextlib import asynccontextmanager
+
+    from app.domain.route import service as route_service
+
+    lock = asyncio.Lock()
+
+    @asynccontextmanager
+    async def shared() -> AsyncIterator[AsyncSession]:
+        async with lock:
+            yield request.getfixturevalue("db_session")
+
+    monkeypatch.setattr(route_service, "scoring_session_factory", shared)
 
 
 @pytest.fixture

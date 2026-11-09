@@ -145,7 +145,7 @@ def test_after_arrival_is_kept_only_for_its_own_direction() -> None:
 async def test_generate_makes_after_arrival_only_near_home(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
-    # 카드·알림은 퇴근 전용이고 경로 화면의 출근 토글도 없앴다. 회사 주변 도착 후 구간은 TMAP 만 쓴다 (#96)
+    # 카드·알림은 퇴근 전용이고 출근 토글도 없앴다. 회사 주변 도착 후 구간은 TMAP 만 쓴다 (#96)
     db_session.add_all(
         [
             place("집앞공원", 35.8603, 128.6003, [PlaceType.PARK]),
