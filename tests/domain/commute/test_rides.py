@@ -130,3 +130,35 @@ async def test_walk_commute_has_no_rides(client: AsyncClient, make_token: TokenF
 
     assert response.status_code == 200
     assert response.json()["rides"] == []
+
+
+async def test_transfer_ride_label_joins_every_line(
+    client: AsyncClient, make_token: TokenFactory
+) -> None:
+    # 환승 경로(2호선 → 1호선)는 마지막 노선만이 아니라 전부 보여야 한다 (#93)
+    use_fakes()
+
+    response = await client.put(
+        "/commutes/me", json=commute_body(fixture_paths()[1]), headers=bearer(make_token())
+    )
+
+    assert response.status_code == 200
+    assert response.json()["rides"][0]["line"] == "대구 2호선 → 대구 1호선"
+    assert response.json()["line"] == "대구 1호선"  # 거울 열은 그대로 마지막 노선
+
+
+async def test_ride_keeps_the_exact_stops_of_the_saved_leg(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    use_fakes()
+
+    response = await client.put(
+        "/commutes/me", json=body_with_options([BUS_402]), headers=bearer(make_token())
+    )
+
+    ride = (await db_session.execute(select(CommuteRide))).scalar_one()
+    assert response.status_code == 200
+    assert ride.stop_ids is not None and len(ride.stop_ids) == 1
+    assert len(ride.stop_ids[0]) == 3  # 동대구역 · 신천역 · 달서교회건너
+    assert ride.stop_ids[0][0] == str(ride.station_ids[0])
+    assert ride.stop_ids[0][-1] == str(ride.station_ids[-1])

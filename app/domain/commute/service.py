@@ -43,11 +43,13 @@ def skip_stations(first_ride: list[UUID], last_ride: list[UUID]) -> SkipStations
 class RidePlan:
     """저장할 탑승 계획 하나 (#88)."""
 
-    line: str
+    line: str  # 계획 이름: 구간 노선을 "→" 로 이은 것 ("대구 1호선 → 724", #93)
+    last_line: str  # 마지막 구간 노선. commutes.line 거울 열에 들어간다
     station_ids: list[UUID]
     skips: SkipStations
     board_name: str
     alight_name: str
+    stop_ids: list[list[UUID]] | None = None  # 구간별 정류장 전부, 저장 순서 (#93)
 
 
 class CommuteService:
@@ -101,14 +103,16 @@ class CommuteService:
         # 2. 탑승 계획 ≤3 (#88). 계획마다 정류장 upsert → [탑승, 하차, ...] 와 건너뛸 정류장
         plans: list[RidePlan] = []
         for option in options:
-            station_ids, line, skips = await self._store_transit_legs(option, city)
+            station_ids, line, skips, stop_ids = await self._store_transit_legs(option, city)
             plans.append(
                 RidePlan(
-                    line=line,
+                    line=" → ".join(leg.line for leg in option),
+                    last_line=line,
                     station_ids=station_ids,
                     skips=skips,
                     board_name=option[0].stops[0].name,
                     alight_name=option[-1].stops[-1].name,
+                    stop_ids=stop_ids,
                 )
             )
         if is_transit and not plans:
@@ -119,6 +123,7 @@ class CommuteService:
             plans.append(
                 RidePlan(
                     line=request.line or "",
+                    last_line=request.line or "",
                     station_ids=station_ids,
                     skips=await self._seeded_skip_stations(station_ids[0], station_ids[-1]),
                     board_name=named.get(station_ids[0], ""),
@@ -137,7 +142,7 @@ class CommuteService:
             "go_time": request.go_time,
             "leave_time": request.leave_time,
             "transport_mode": request.transport_mode.value,
-            "line": primary.line if primary else None,
+            "line": primary.last_line if primary else None,
             "station_ids": primary.station_ids if primary else [],
             "alight_early_station_ids": primary.skips.alight_early if primary else [],
             "board_late_station_ids": primary.skips.board_late if primary else [],
@@ -165,6 +170,9 @@ class CommuteService:
                 board_late_station_ids=plan.skips.board_late,
                 board_name=plan.board_name,
                 alight_name=plan.alight_name,
+                stop_ids=(
+                    [[str(sid) for sid in leg] for leg in plan.stop_ids] if plan.stop_ids else None
+                ),
             )
             for order, plan in enumerate(plans)
         )
@@ -202,11 +210,12 @@ class CommuteService:
 
     async def _store_transit_legs(
         self, legs: list[TransitLegInput], city: str
-    ) -> tuple[list[UUID], str, SkipStations]:
+    ) -> tuple[list[UUID], str, SkipStations, list[list[UUID]]]:
         """탑승 구간의 정류장을 ODsay stationID 기준으로 upsert 한다.
 
         :return: [탑승, 하차, 탑승, 하차, ...] 순서의 id 목록, 마지막 노선,
-                 첫 구간에서 늦게 탈 정류장 · 마지막 구간에서 먼저 내릴 정류장 (각 1~3개)
+                 첫 구간에서 늦게 탈 정류장 · 마지막 구간에서 먼저 내릴 정류장 (각 1~3개),
+                 구간별 정류장 id 전부 (저장 순서, #93)
         """
         station_ids: list[UUID] = []
         stop_ids: list[list[UUID]] = []  # 구간별 정류장 id, 순서대로
@@ -250,7 +259,7 @@ class CommuteService:
             stop_ids.append(ids)
 
         # 3. 늦게 타기는 첫 구간, 먼저 내리기는 마지막 구간
-        return station_ids, legs[-1].line, skip_stations(stop_ids[0], stop_ids[-1])
+        return station_ids, legs[-1].line, skip_stations(stop_ids[0], stop_ids[-1]), stop_ids
 
     async def _seeded_skip_stations(self, board_id: UUID, alight_id: UUID) -> SkipStations:
         """시드 정류장(stationID 없음) 동선. 같은 노선 순번으로 탑승·하차역 사이를 채운다."""

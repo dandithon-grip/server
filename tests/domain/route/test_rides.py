@@ -198,3 +198,78 @@ async def test_card_today_mixes_candidates_from_every_ride(
     body = response.json()
     assert {r["id"] for r in body["rides"]} == {r["id"] for r in saved["rides"]}  # type: ignore[index]
     assert body["route"]["ride_id"] in {r["id"] for r in saved["rides"]}  # type: ignore[index]
+
+
+async def test_ride_segment_follows_the_saved_stops_not_other_saves_order(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 다른 사용자가 같은 노선의 반대 방향 구간을 저장하면 order_no 가 겹친다.
+    # 탑승 조각은 order_no 추정이 아니라 저장한 그 경로의 정류장 순서를 따라야 한다 (#93)
+    use_fake_tmap()
+    mine = bearer(make_token(sub="aaaaaaaa-0000-0000-0000-00000000000a"))
+    other = bearer(make_token(sub="bbbbbbbb-0000-0000-0000-00000000000b"))
+    await client.put("/commutes/me", json=body_with_options([BUS_402]), headers=mine)
+    reverse_402 = {
+        "line": "402",
+        "stops": [
+            {"name": "달서교회", "lat": 35.8601, "lng": 128.6086, "external_id": "r1"},
+            {"name": "엉뚱한곳", "lat": 35.9000, "lng": 128.7000, "external_id": "r2"},
+            {"name": "동대구역건너", "lat": 35.8601, "lng": 128.6031, "external_id": "r3"},
+        ],
+    }
+    await client.put("/commutes/me", json=body_with_options([reverse_402]), headers=other)
+
+    response = await client.post("/commutes/me/routes?direction=to_work", headers=mine)
+
+    body = response.json()
+    rides = [s for r in body["shortest"] for s in r["journey"] if s["kind"] == "ride"]
+    assert rides
+    for segment in rides:
+        assert [tuple(p.values()) for p in segment["polyline"]] == [
+            (35.8600, 128.6030),
+            (35.8600, 128.6060),
+            (35.8600, 128.6085),
+        ]
+
+
+async def test_skip_stop_legs_search_at_most_two_waypoints(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 노선 3개면 구간이 24개라 경유지 6개씩 TMAP 을 부르면 150회가 넘는다 (#93).
+    # 먼저 내리기·걸어가서 타기 구간은 경유지 2개까지만, 앞·뒤 도보는 그대로 6개까지
+    from tests.domain.route.test_routes import add_stations, walk_commute
+
+    stations = await add_stations(
+        db_session,
+        [(35.8600, 128.6030), (35.8600, 128.6050), (35.8600, 128.6070), (35.8600, 128.6090)],
+    )
+    for i in range(4):
+        db_session.add(place(f"다리{i}", 35.8606, 128.6035 + i * 0.0015, [PlaceType.BRIDGE]))
+    await db_session.flush()
+    fake = use_fake_tmap()
+    headers = bearer(make_token())
+    request = {
+        **walk_commute(),
+        "to_lat": 35.8600,
+        "to_lng": 128.6110,
+        "transport_mode": "transit",
+        "line": "2",
+        "station_ids": [str(stations[0].id), str(stations[3].id)],
+    }
+    await client.put("/commutes/me", json=request, headers=headers)
+
+    response = await client.post("/commutes/me/routes", headers=headers)
+
+    assert response.status_code == 200
+    via_calls = [call for call in fake.calls if len(call) > 2]
+    by_leg: dict[tuple[tuple[float, float], tuple[float, float]], int] = {}
+    for call in via_calls:
+        key = ((call[0].lat, call[0].lng), (call[-1].lat, call[-1].lng))
+        by_leg[key] = by_leg.get(key, 0) + 1
+    home, work = (35.8600, 128.6000), (35.8600, 128.6110)
+    middle = {(35.8600, 128.6050), (35.8600, 128.6070)}
+    for (start, end), count in by_leg.items():
+        if start in middle or end in middle:
+            assert count <= 2, f"건너뛰기 구간 {start}→{end} 경유지 {count}개"
+        elif start == home or end == work:
+            assert count <= 6
