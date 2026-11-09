@@ -26,13 +26,14 @@ class TodayCard(TimestampMixin, Base):
     """오늘의 카드. 사용자·날짜당 1장 (데모는 퇴근 카드만, 11/3 결정)."""
 
     __tablename__ = "today_cards"
-    # 사용자·날짜당 기본 카드 1장(ride_id NULL) + 탑승 계획별 카드 (#90). NULL 도 하나로 센다
+    # (사용자, 날짜, 계획, 취향) 당 1장 (#90 #101). 기본 카드는 ride_id NULL (NULL 도 하나로 셈)
     __table_args__ = (
         UniqueConstraint(
             "user_id",
             "date",
             "ride_id",
-            name="uq_today_cards_user_date_ride",
+            "preference",
+            name="uq_today_cards_user_date_ride_pref",
             postgresql_nulls_not_distinct=True,
         ),
     )
