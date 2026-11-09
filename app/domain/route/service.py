@@ -9,6 +9,7 @@ rank:     저장된 Route → 오늘의 노을 창·취향·태그 가중치 적
 import asyncio
 import math
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime
 from uuid import UUID
@@ -18,6 +19,7 @@ from geoalchemy2.shape import from_shape
 from pydantic import BaseModel, ConfigDict
 from shapely.geometry import LineString
 from sqlalchemy import cast, delete, func, select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.tmap import LatLng, PedestrianRoute, TmapClient, get_tmap_client
@@ -25,7 +27,16 @@ from app.core.database import get_db
 from app.core.geo import make_point
 from app.domain.commute.models import Commute, Preference, Station, TransportMode
 from app.domain.route.journey import Ride, Segment, compose_journey, orient_rides
-from app.domain.route.models import MIRROR_LEG, Direction, LegType, Place, PlaceType, Route
+from app.domain.route.models import (
+    MIRROR_LEG,
+    Direction,
+    GreenArea,
+    GreenKind,
+    LegType,
+    Place,
+    PlaceType,
+    Route,
+)
 from app.domain.route.scoring import (
     GEOGRAPHY,
     METERS_PER_DEG_LAT,
@@ -52,6 +63,8 @@ TAG_SUM_CLAMP = 2.0
 MINUTE_PENALTY = 1.5
 # 지나온 길을 이만큼 넘게 다시 밟으면 샛길이 아니라 왕복이라 저장하지 않는다 (#49)
 RETRACE_MAX_M = 100
+# 안에 있는 자연 지점을 가장자리로 옮기는 녹지 종류. 하천·가로수열은 선이라 해당 없음 (#82)
+AREA_GREEN_KINDS = [GreenKind.PARK.value, GreenKind.FOREST.value, GreenKind.GRASS.value]
 # 정거장을 건너뛰면 그만큼 덜 탄다. 노선별 실측 없이 정거장당 평균으로 뺀다 (#51)
 RIDE_MINUTES_PER_STOP = 2.0
 # 동시에 부르는 TMAP 요청 수. 신규 동선 10초 안 (명세 F-03 성능)
@@ -99,14 +112,18 @@ class Leg:
 
 @dataclass(frozen=True)
 class Waypoint:
-    """경유지 1개. 하천 쌍은 진입·진출 두 점이 하나다."""
+    """경유지 1개. 하천 쌍은 진입·진출 두 점이 하나다.
+
+    points 는 TMAP 에 넘길 좌표. 공원 안 지점은 가장자리로 옮겨져 Place 좌표와 다를 수 있다 (#82).
+    """
 
     places: tuple[Place, ...]
     detour_m: float
+    points: tuple[LatLng, ...]
 
     @property
     def pass_points(self) -> list[LatLng]:
-        return [LatLng(lat=place.lat, lng=place.lng) for place in self.places]
+        return list(self.points)
 
 
 @dataclass(frozen=True)
@@ -173,14 +190,24 @@ def order_pair(start: LatLng, places: list[Place]) -> tuple[Place, ...]:
 
 
 def shortlist(
-    start: LatLng, end: LatLng, places: list[Place], preference: Preference
+    start: LatLng,
+    end: LatLng,
+    places: list[Place],
+    preference: Preference,
+    entry_points: Mapping[UUID, LatLng] | None = None,
 ) -> list[Waypoint]:
     """
     규칙 ②③④. ①(600m 버퍼)은 DB 가 했다.
 
     :param places: 기준선 600m 안의 Place
+    :param entry_points: Place id → 실제 경유 좌표 (공원 안 지점의 가장자리, #82). 없으면 Place 좌표
     :return: 우회량 적은 순 경유지 ≤ MAX_WAYPOINTS
     """
+    entries = entry_points or {}
+
+    def point_of(place: Place) -> LatLng:
+        return entries.get(place.id) or LatLng(lat=place.lat, lng=place.lng)
+
     rule = PREFERENCE_RULES[preference]
 
     # 1. 하천 쌍 묶기. pair_id 가 같은 둘은 경유지 1개
@@ -199,11 +226,11 @@ def shortlist(
     if preference == Preference.SUNSET:
         units = [u for u in units if any(set(p.types) & SUNSET_PLACE_TYPES for p in u)]
 
-    # 3. ② 직선 우회량 ≤ 취향별 상한
+    # 3. ② 직선 우회량 ≤ 취향별 상한. 우회량도 실제 경유 좌표로 잰다
     waypoints = [
-        Waypoint(places=unit, detour_m=d)
+        Waypoint(places=unit, detour_m=d, points=points)
         for unit in units
-        if (d := detour_m(start, [LatLng(lat=p.lat, lng=p.lng) for p in unit], end))
+        if (d := detour_m(start, list(points := tuple(point_of(p) for p in unit)), end))
         <= rule.max_detour_m
     ]
 
@@ -260,7 +287,11 @@ class RouteService:
                 )
             )
             nearby = await self._places_near(walked.polyline, city)
-            plans += [(leg, wp) for wp in shortlist(leg.start, leg.end, nearby, commute.preference)]
+            entries = await self.entry_points(nearby, walked.polyline, city)
+            plans += [
+                (leg, wp)
+                for wp in shortlist(leg.start, leg.end, nearby, commute.preference, entries)
+            ]
 
         # 5. 경유지마다 TMAP (동시) → 왕복 제외 → 정적 점수
         detoured = await self._walk_all([(leg.start, leg.end, wp.pass_points) for leg, wp in plans])
@@ -365,6 +396,45 @@ class RouteService:
             func.ST_DWithin(cast(Place.location, GEOGRAPHY), cast(line, GEOGRAPHY), BUFFER_M),
         )
         return list((await self._session.execute(stmt)).scalars())
+
+    async def entry_points(
+        self, places: list[Place], polyline: list[LatLng], city: str
+    ) -> dict[UUID, LatLng]:
+        """
+        공원·숲·잔디 폴리곤 안 Place 의 경유 좌표: 기준선 쪽 경계점 (#82).
+
+        공원 한가운데를 경유지로 주면 TMAP 이 들어갔다 같은 길로 나와 왕복 필터(#49)에 탈락한다.
+        가장자리를 지나가게 하면 왕복이 없고 녹지 % 는 30m 버퍼로 그대로 잡힌다.
+        폴리곤 밖 Place 는 결과에 없다 (Place 좌표 그대로 쓴다).
+
+        :param places: 기준선 600m 안의 Place
+        :param polyline: 기준선 (TMAP 최단 경로)
+        :param city: 도시 코드
+        :return: Place id → 경계점
+        """
+        if not places:
+            return {}
+        line = from_shape(LineString([(p.lng, p.lat) for p in polyline]), srid=4326)
+        # 기준선에서 그 지점과 가장 가까운 자리(공원 옆을 지나는 곳) → 거기서 가장 가까운 경계점.
+        # 경계를 기준선과 바로 비교하면 변이 평행할 때 모서리가 나와 지점에서 멀어진다
+        foot = func.ST_ClosestPoint(line, Place.location)
+        boundary_point = func.ST_ClosestPoint(func.ST_Boundary(GreenArea.geom), foot)
+        stmt = (
+            select(Place.id, func.ST_Y(boundary_point), func.ST_X(boundary_point))
+            .select_from(Place)
+            .join(GreenArea, func.ST_Covers(GreenArea.geom, Place.location))
+            .where(
+                Place.id.in_([p.id for p in places]),
+                GreenArea.city == city,
+                GreenArea.kind.in_(AREA_GREEN_KINDS),
+                func.GeometryType(GreenArea.geom).in_(["POLYGON", "MULTIPOLYGON"]),
+            )
+            # 겹치는 폴리곤이 있으면 큰 쪽(공원 전체) 기준
+            .order_by(Place.id, func.ST_Area(GreenArea.geom).desc())
+            .ext(distinct_on(Place.id))
+        )
+        rows = (await self._session.execute(stmt)).all()
+        return {place_id: LatLng(lat=float(lat), lng=float(lng)) for place_id, lat, lng in rows}
 
     async def _after_arrival_routes(self, commute: Commute, leg: Leg, city: str) -> list[Route]:
         """도착지 반경 10분 안의 Place 로 가는 경로. 기준선 없음(추가 시간 = 소요 시간)."""
