@@ -21,6 +21,7 @@ class ErrorCode(Enum):
     DEMO_NOT_READY = (404, "데모 동선이 준비되지 않았습니다")
     STATION_REQUIRED = (400, "대중교통은 정류장을 선택해야 합니다")
     STATION_NOT_FOUND = (400, "존재하지 않는 정류장입니다")
+    RIDE_NOT_FOUND = (404, "동선에 없는 탑승 계획입니다")
     PLACE_NOT_FOUND = (404, "존재하지 않는 장소입니다")
     IMAGE_NOT_FOUND = (404, "사진을 찾을 수 없습니다")
     EXTERNAL_API_FAILED = (502, "외부 API 호출에 실패했습니다")

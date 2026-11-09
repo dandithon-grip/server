@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, Query
 
 from app.core.security import get_current_user
@@ -33,6 +35,7 @@ def _to_response(result: CardResult) -> TodayCardResponse:
         sunset_at=card.sunset_at,
         sky=card.sky,
         air_grade=card.air_grade,
+        ride_id=card.ride_id,
         route=_route(result, result.chosen) if result.chosen else None,
         candidates=[_route(result, r) for r in result.candidates],
         shortest=[_route(result, r) for r in result.shortest],
@@ -47,21 +50,25 @@ def _to_response(result: CardResult) -> TodayCardResponse:
     description=(
         "후보 ≤3개와 오늘의 날씨·일몰을 LLM 에 넘겨 하나를 고르고 두 문장을 쓴다. "
         "하루 1장을 캐시한다. preference 를 주면 그 취향으로 다시 만들어 덮어쓴다 (취향 칩). "
+        "ride_id 를 주면 그 탑승 계획(오늘 탄 노선) 기준 카드를 따로 만들어 캐시한다 (#90). "
         "LLM 실패 시 점수 1위 + 템플릿 문장."
     ),
     responses={
         401: {"description": "토큰 없음 또는 만료"},
-        404: {"description": "동선이 없거나 경로를 아직 생성하지 않음"},
+        404: {"description": "동선이 없거나 경로를 아직 생성하지 않음, 또는 동선에 없는 탑승 계획"},
     },
 )
 async def today_card(
     preference: Preference | None = Query(
         None, description="취향 칩. 생략하면 캐시 또는 기본 취향"
     ),
+    ride_id: UUID | None = Query(
+        None, description="오늘 탄 노선의 탑승 계획 id (rides[].id). 생략하면 전체 계획 기준"
+    ),
     current_user: User = Depends(get_current_user),
     service: CardService = Depends(get_card_service),
 ) -> TodayCardResponse:
-    result = await service.get_today(current_user, preference=preference)
+    result = await service.get_today(current_user, preference=preference, ride_id=ride_id)
     return _to_response(result)
 
 
