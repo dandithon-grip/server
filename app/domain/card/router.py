@@ -5,6 +5,7 @@ from app.domain.card.models import ReasonTag
 from app.domain.card.schemas import TodayCardResponse
 from app.domain.card.service import CardResult, CardService, get_card_service
 from app.domain.commute.models import Preference
+from app.domain.commute.schemas import RideResponse
 from app.domain.notification.schemas import TestPushResponse
 from app.domain.route.models import ActionType
 from app.domain.route.schemas import RouteResponse, to_route_response
@@ -35,6 +36,7 @@ def _to_response(result: CardResult) -> TodayCardResponse:
         route=_route(result, result.chosen) if result.chosen else None,
         candidates=[_route(result, r) for r in result.candidates],
         shortest=[_route(result, r) for r in result.shortest],
+        rides=[RideResponse.model_validate(ride) for ride in result.rides],
     )
 
 

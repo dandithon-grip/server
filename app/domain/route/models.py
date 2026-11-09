@@ -183,6 +183,10 @@ class Route(TimestampMixin, Base):
     board_station_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("stations.id", ondelete="SET NULL"), nullable=True
     )
+    # 어느 탑승 계획의 구간인지 (#88). 도보 통근·자동차·도착 후는 None
+    ride_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commute_rides.id", ondelete="SET NULL"), nullable=True
+    )
     # 먼저 내리기·늦게 타기에서 건너뛴 정거장 수 (1~3). 그 밖의 구간은 0
     skip_stops: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
     # 저장된 경로선의 방향. 걷는 구간은 출근 방향 한 벌, 도착 후 구간만 방향마다 따로 (#56)

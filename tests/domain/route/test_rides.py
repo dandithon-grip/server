@@ -25,7 +25,7 @@ from tests.domain.route.test_routes import FakeTmap, bearer, place
 HOME = LatLng(lat=35.8575, lng=128.6370)  # tests.domain.commute.test_transit.FROM
 WORK = LatLng(lat=35.8690, lng=128.5960)  # TO
 BOARD = LatLng(lat=35.8600, lng=128.6030)  # 동대구역 (두 노선 공유)
-PARK_NEAR_156 = (35.8615, 128.6090)
+BRIDGE_NEAR_156 = (35.8615, 128.6090)  # 하차 뒤 걷는 길 옆 다리. 이벤트 10 으로 후보가 된다
 
 
 def use_fake_tmap() -> FakeTmap:
@@ -150,7 +150,7 @@ def test_green_gain_is_measured_against_the_candidates_own_ride_baseline() -> No
 async def test_journey_of_a_ride_candidate_uses_that_rides_stations_and_baselines(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
-    db_session.add(place("공원", *PARK_NEAR_156, [PlaceType.PARK]))
+    db_session.add(place("다리", *BRIDGE_NEAR_156, [PlaceType.BRIDGE]))
     await db_session.flush()
     use_fake_tmap()
     headers = bearer(make_token())
@@ -161,23 +161,30 @@ async def test_journey_of_a_ride_candidate_uses_that_rides_stations_and_baseline
 
     body = response.json()
     assert body["fallback_level"] == 1
-    candidate = next(r for r in body["candidates"] if r["ride_id"] == ride_156["id"])
-    kinds = [(s["kind"], s["role"]) for s in candidate["journey"]]
-    assert kinds == [("walk", "usual"), ("ride", "usual"), ("walk", "saetgil")]
-    ride_segment = candidate["journey"][1]
-    assert (ride_segment["line"], ride_segment["from_name"], ride_segment["to_name"]) == (
-        "156",
-        "동대구역",
-        "대구제일고건너",
-    )
-    for before, after in zip(candidate["journey"], candidate["journey"][1:], strict=False):
-        assert before["polyline"][-1] == after["polyline"][0]
+    of_156 = [r for r in [*body["candidates"], *body["shortest"]] if r["ride_id"] == ride_156["id"]]
+    assert of_156, "156 계획의 경로가 응답에 있어야 한다"
+    for route_body in of_156:
+        kinds = [segment["kind"] for segment in route_body["journey"]]
+        assert kinds == ["walk", "ride", "walk"]
+        # 건너뛰기 후보는 탑승이 중간 정류장에서 시작·끝난다. 156 정류장 안이면 된다
+        ride_segment = route_body["journey"][1]
+        assert ride_segment["line"] == "156"
+        assert {ride_segment["from_name"], ride_segment["to_name"]} <= {
+            "동대구역",
+            "동부정류장",
+            "대구제일고건너",
+        }
+        for before, after in zip(route_body["journey"], route_body["journey"][1:], strict=False):
+            assert before["polyline"][-1] == after["polyline"][0]
+    # 402 계획의 경로는 402 탑승으로 이어진다 (섞이지 않는다)
+    of_402 = [r for r in body["shortest"] if r["ride_id"] != ride_156["id"]]
+    assert all(r["journey"][1]["line"] == "402" for r in of_402)
 
 
 async def test_card_today_mixes_candidates_from_every_ride(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
-    db_session.add(place("공원", *PARK_NEAR_156, [PlaceType.PARK]))
+    db_session.add(place("다리", *BRIDGE_NEAR_156, [PlaceType.BRIDGE]))
     await db_session.flush()
     use_fake_tmap()
     use_fakes(FakeLlm(choice=GOOD_CHOICE.model_copy(update={"choice": 0})))

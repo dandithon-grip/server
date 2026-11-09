@@ -34,7 +34,7 @@ from app.domain.card.prompt import (
     format_time,
     reject_reason,
 )
-from app.domain.commute.models import Commute, Preference
+from app.domain.commute.models import Commute, CommuteRide, Preference
 from app.domain.commute.service import CommuteService, get_commute_service
 from app.domain.feedback.service import top_tags
 from app.domain.notification.service import (
@@ -82,6 +82,7 @@ class CardResult:
     candidates: list[RankedRoute]
     shortest: list[RankedRoute]
     journeys: dict[UUID, list[Segment]] = field(default_factory=dict)  # Route id → 전체 여정 (#77)
+    rides: list[CommuteRide] = field(default_factory=list)  # 탑승 계획들 (#88)
 
 
 class CardService:
@@ -297,7 +298,9 @@ class CardService:
         journeys = await self._routes.journeys(
             commute, decided.candidates, decided.shortest, Direction.TO_HOME, user.city
         )
-        return CardResult(card, chosen, decided.candidates, decided.shortest, journeys)
+        return CardResult(
+            card, chosen, decided.candidates, decided.shortest, journeys, list(commute.rides)
+        )
 
     async def _ask_llm(self, context: CardContext, user: User) -> LlmReply[CardChoice] | None:
         """LLM 1회. 실패·검증 실패면 None (폴백은 호출하는 쪽)."""
@@ -469,7 +472,9 @@ class CardService:
             Direction.TO_HOME,
             user.city,
         )
-        return CardResult(card, chosen, decided.candidates, decided.shortest, journeys)
+        return CardResult(
+            card, chosen, decided.candidates, decided.shortest, journeys, list(commute.rides)
+        )
 
 
 def _fit(full: str, short: str) -> str:

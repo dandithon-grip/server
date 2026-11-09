@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.commute.models import Preference
+from app.domain.commute.schemas import RideResponse
 from app.domain.route.journey import Segment, SegmentKind, SegmentRole
 from app.domain.route.models import ActionType, Direction, LegType, PlaceType
 
@@ -59,6 +60,9 @@ class RouteResponse(BaseModel):
         None, description="늦게 타기(board_late)일 때 걸어가서 탈 정류장"
     )
     skip_stops: int = Field(0, description="먼저 내리기·늦게 타기로 건너뛴 정거장 수 (1~3)")
+    ride_id: UUID | None = Field(
+        None, description="어느 탑승 계획의 구간인지 (#88). rides[].id. 도보·자동차·도착 후는 null"
+    )
     journey: list[JourneySegmentResponse] = Field(
         default_factory=list,
         description="이 경로를 골랐을 때의 출발 → 도착 전체 여정. polyline 은 그중 걷는 조각 하나",
@@ -74,6 +78,9 @@ class RoutesResponse(BaseModel):
     action_type: ActionType = Field(..., description="오늘 카드의 행동 유형")
     candidates: list[RouteResponse] = Field(..., description="그 단계의 후보 ≤3, 점수순")
     shortest: list[RouteResponse] = Field(..., description="구간별 최단 경로")
+    rides: list[RideResponse] = Field(
+        default_factory=list, description="동선의 탑승 계획들 (#88). 후보의 ride_id 가 가리킨다"
+    )
 
 
 def to_route_response(ranked: "RankedRoute", journey: list[Segment] | None = None) -> RouteResponse:
@@ -99,6 +106,7 @@ def to_route_response(ranked: "RankedRoute", journey: list[Segment] | None = Non
         alight_station_id=ranked.alight_station_id,
         board_station_id=ranked.board_station_id,
         skip_stops=route.skip_stops,
+        ride_id=route.ride_id,
         journey=[_segment_response(segment) for segment in journey or []],
     )
 

@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.card.models import ReasonTag
 from app.domain.commute.models import Preference
+from app.domain.commute.schemas import RideResponse
 from app.domain.route.models import ActionType
 from app.domain.route.schemas import RouteResponse
 
@@ -25,3 +26,6 @@ class TodayCardResponse(BaseModel):
     route: RouteResponse | None = Field(None, description="고른 경로. 3·5단계는 없음")
     candidates: list[RouteResponse] = Field(..., description="다른 길 보기용 후보 ≤3, 점수순")
     shortest: list[RouteResponse] = Field(..., description="구간별 최단")
+    rides: list[RideResponse] = Field(
+        default_factory=list, description="동선의 탑승 계획들 (#88). 경로의 ride_id 가 가리킨다"
+    )

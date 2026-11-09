@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.clients.tmap import LatLng, PedestrianRoute, TmapClient, get_tmap_client
 from app.core.database import get_db
 from app.core.geo import make_point
-from app.domain.commute.models import Commute, Preference, Station, TransportMode
+from app.domain.commute.models import Commute, CommuteRide, Preference, Station, TransportMode
 from app.domain.route.journey import Ride, Segment, compose_journey, orient_rides
 from app.domain.route.models import (
     MIRROR_LEG,
@@ -103,6 +103,12 @@ class Leg:
     skip_stops: int = 0  # 먼저 내리기·늦게 타기에서 건너뛴 정거장 수
     station_name: str | None = None
     direction: Direction = Direction.TO_WORK  # 경로선을 만드는 방향
+    ride_id: UUID | None = None  # 어느 탑승 계획의 구간인지 (#88). 도보·자동차·도착 후는 None
+
+    @property
+    def reference_key(self) -> tuple[UUID | None, LegType]:
+        """추가 시간·녹지 비교 기준선의 키. 같은 계획의 구간끼리만 비교한다 (#88)."""
+        return (self.ride_id, self.reference)
 
     @property
     def reference(self) -> LegType:
@@ -266,10 +272,10 @@ class RouteService:
         # 2. 기존 경로 삭제
         await self._session.execute(delete(Route).where(Route.commute_id == commute.id))
 
-        # 3. 구간별 최단 경로 TMAP (동시)
+        # 3. 구간별 최단 경로 TMAP (동시). 계획끼리 같은 구간(같은 승차 정류장)은 한 번만 부른다
         shortest = await self._walk_all([(leg.start, leg.end, None) for leg in walking])
         reference_minutes = {
-            leg.leg_type: walked.minutes
+            leg.reference_key: walked.minutes
             for leg, walked in zip(walking, shortest, strict=True)
             if leg.skip_stops == 0
         }
@@ -318,14 +324,32 @@ class RouteService:
     async def _walk_all(
         self, requests: list[tuple[LatLng, LatLng, list[LatLng] | None]]
     ) -> list[PedestrianRoute]:
-        """TMAP 보행 경로를 동시에 부른다. 동시 요청 수는 TMAP_CONCURRENCY 로 묶는다."""
+        """TMAP 보행 경로를 동시에 부른다. 동시 요청 수는 TMAP_CONCURRENCY 로 묶는다.
+
+        같은 (출발, 도착, 경유) 요청은 한 번만 부르고 결과를 나눠 쓴다 (#88: 계획이 공유하는 구간).
+        """
         semaphore = asyncio.Semaphore(TMAP_CONCURRENCY)
 
         async def walk(start: LatLng, end: LatLng, via: list[LatLng] | None) -> PedestrianRoute:
             async with semaphore:
                 return await self._tmap.pedestrian_route(start, end, pass_points=via)
 
-        return list(await asyncio.gather(*(walk(*request) for request in requests)))
+        def key(request: tuple[LatLng, LatLng, list[LatLng] | None]) -> tuple[object, ...]:
+            start, end, via = request
+            return (
+                start.lat,
+                start.lng,
+                end.lat,
+                end.lng,
+                tuple((p.lat, p.lng) for p in via or []),
+            )
+
+        unique: dict[tuple[object, ...], tuple[LatLng, LatLng, list[LatLng] | None]] = {}
+        for request in requests:
+            unique.setdefault(key(request), request)
+        results = await asyncio.gather(*(walk(*request) for request in unique.values()))
+        by_key = dict(zip(unique.keys(), results, strict=True))
+        return [by_key[key(request)] for request in requests]
 
     async def _legs(self, commute: Commute) -> list[Leg]:
         """걷는 구간 (출근 방향). 도착지 반경 구간(F-15 3단계)은 방향마다 모든 교통수단에 붙인다."""
@@ -341,45 +365,54 @@ class RouteService:
         if commute.transport_mode == TransportMode.CAR:
             return after_arrival
 
-        # transit: 앞 도보(출발→첫 탑승) · 뒤 도보(마지막 하차→도착)
-        # · 1~3 정거장 먼저 내려 걷기 · 1~3 정거장 걸어가서 타기.
+        # transit: 탑승 계획마다 앞 도보(출발→첫 탑승) · 뒤 도보(마지막 하차→도착)
+        # · 1~3 정거장 먼저 내려 걷기 · 1~3 정거장 걸어가서 타기 (#88).
         # station_ids 는 [탑승, 하차, 탑승, 하차, ...] 순서. 건너뛸 정류장은 동선 저장 때 정해 뒀다
+        plans = ride_plans(commute)
         station = await self._stations(
             [
-                *commute.station_ids,
-                *commute.alight_early_station_ids,
-                *commute.board_late_station_ids,
+                sid
+                for plan in plans
+                for sid in (
+                    *plan.station_ids,
+                    *plan.alight_early_station_ids,
+                    *plan.board_late_station_ids,
+                )
             ]
         )
-        first, last = station[commute.station_ids[0]], station[commute.station_ids[-1]]
-        legs = [
-            Leg(LegType.FRONT_WALK, start, _at(first)),
-            Leg(LegType.BACK_WALK, _at(last), end),
-        ]
-        for skip, station_id in enumerate(commute.alight_early_station_ids, start=1):
-            if station_id in station:
-                legs.append(
-                    Leg(
-                        LegType.ALIGHT_EARLY,
-                        _at(station[station_id]),
-                        end,
-                        alight_station_id=station_id,
-                        skip_stops=skip,
-                        station_name=station[station_id].name,
+        legs: list[Leg] = []
+        for plan in plans:
+            if not plan.station_ids:
+                continue
+            first, last = station[plan.station_ids[0]], station[plan.station_ids[-1]]
+            legs.append(Leg(LegType.FRONT_WALK, start, _at(first), ride_id=plan.id))
+            legs.append(Leg(LegType.BACK_WALK, _at(last), end, ride_id=plan.id))
+            for skip, station_id in enumerate(plan.alight_early_station_ids, start=1):
+                if station_id in station:
+                    legs.append(
+                        Leg(
+                            LegType.ALIGHT_EARLY,
+                            _at(station[station_id]),
+                            end,
+                            alight_station_id=station_id,
+                            skip_stops=skip,
+                            station_name=station[station_id].name,
+                            ride_id=plan.id,
+                        )
                     )
-                )
-        for skip, station_id in enumerate(commute.board_late_station_ids, start=1):
-            if station_id in station:
-                legs.append(
-                    Leg(
-                        LegType.BOARD_LATE,
-                        start,
-                        _at(station[station_id]),
-                        board_station_id=station_id,
-                        skip_stops=skip,
-                        station_name=station[station_id].name,
+            for skip, station_id in enumerate(plan.board_late_station_ids, start=1):
+                if station_id in station:
+                    legs.append(
+                        Leg(
+                            LegType.BOARD_LATE,
+                            start,
+                            _at(station[station_id]),
+                            board_station_id=station_id,
+                            skip_stops=skip,
+                            station_name=station[station_id].name,
+                            ride_id=plan.id,
+                        )
                     )
-                )
         legs += after_arrival
         return legs
 
@@ -488,6 +521,7 @@ class RouteService:
             highlights=[place.description for place in places],
             alight_station_id=leg.alight_station_id,
             board_station_id=leg.board_station_id,
+            ride_id=leg.ride_id,
             skip_stops=leg.skip_stops,
             direction=leg.direction,
             sunset_ratio_reverse=static.sunset_ratio_reverse,
@@ -583,8 +617,10 @@ class RouteService:
             if LegType(r.leg_type) != LegType.AFTER_ARRIVAL or r.stored_direction == direction
         ]
 
-        # 1. 구간별 기준선 녹지 %
-        base_green = {r.leg_type: r.green_pct for r in routes if r.is_baseline}
+        # 1. (탑승 계획, 구간)별 기준선 녹지 % (#88)
+        base_green = {
+            (r.ride_id, LegType(r.leg_type)): r.green_pct for r in routes if r.is_baseline
+        }
 
         # 2. 노을 창 (동선의 첫 좌표 기준)
         window_open = False
@@ -612,7 +648,7 @@ class RouteService:
             # 건너뛰기 구간은 원래 계획(앞·뒤 도보 최단)의 녹지와 비교한다.
             # 저장된 방향끼리 비교하므로 걷는 방향과 무관하다
             reference = REFERENCE_LEG.get(LegType(route.leg_type), LegType(route.leg_type))
-            green_gain = route.green_pct - base_green.get(reference, 0.0)
+            green_gain = route.green_pct - base_green.get((route.ride_id, reference), 0.0)
             if route.add_minutes > rule.max_add_minutes:
                 continue
             if (
@@ -657,71 +693,130 @@ class RouteService:
         """
         경로마다 그것을 골랐을 때의 출발 → 도착 전체 여정. 정류장 조회는 한 번이다.
 
-        :param commute: 동선 (교통수단·정류장·좌표)
+        탑승 계획이 여러 개면 경로가 속한 계획의 탑승·기준선으로 잇는다 (#88).
+        계획이 없는 경로(도보 통근·도착 후)는 기본 계획(0) 으로 잇는다.
+
+        :param commute: 동선 (교통수단·탑승 계획·좌표)
         :param routes: 걷는 방향으로 본 후보
         :param shortest: 걷는 방향으로 본 구간별 기준선
         :param direction: 걷는 방향
         :param city: 도시 코드. 정류장은 도시별이다
         :return: Route id → 조각 목록 (후보와 기준선 모두)
         """
-        # 1. 탑승 목록 (출근 방향) → 걷는 방향
-        rides: list[Ride] = []
-        if commute.transport_mode == TransportMode.TRANSIT and commute.station_ids:
-            rides = orient_rides(await self._rides(commute, city), direction)
+        # 1. 계획별 탑승 목록 (출근 방향) → 걷는 방향
+        rides_of: dict[UUID | None, list[Ride]] = {}
+        plans = ride_plans(commute) if commute.transport_mode == TransportMode.TRANSIT else []
+        if plans:
+            by_plan = await self._rides(plans, city)
+            rides_of = {
+                plan.id: orient_rides(by_plan.get(plan.id, []), direction) for plan in plans
+            }
+        default_plan = plans[0].id if plans else None
 
         # 2. 걷는 방향의 출발·도착
         home = LatLng(lat=commute.from_lat, lng=commute.from_lng)
         work = LatLng(lat=commute.to_lat, lng=commute.to_lng)
         trip = (home, work) if direction == Direction.TO_WORK else (work, home)
 
-        # 3. 조립 (DB 미접근)
-        baselines = {r.leg_type: r for r in shortest}
-        return {
-            r.route.id: compose_journey(
+        # 3. 조립 (DB 미접근). 기준선은 같은 계획 것끼리
+        baselines: dict[UUID | None, dict[LegType, RankedRoute]] = defaultdict(dict)
+        for r in shortest:
+            baselines[r.route.ride_id][r.leg_type] = r
+        mode = TransportMode(commute.transport_mode)
+        result: dict[UUID, list[Segment]] = {}
+        for r in [*routes, *shortest]:
+            plan_id = r.route.ride_id if r.route.ride_id in rides_of else default_plan
+            result[r.route.id] = compose_journey(
                 r,
-                shortest=baselines,
-                rides=rides,
-                transport_mode=TransportMode(commute.transport_mode),
+                shortest=baselines.get(plan_id, {}) or baselines.get(None, {}),
+                rides=rides_of.get(plan_id, []),
+                transport_mode=mode,
                 trip=trip,
             )
-            for r in [*routes, *shortest]
-        }
+        return result
 
-    async def _rides(self, commute: Commute, city: str) -> list[Ride]:
-        """station_ids [탑승, 하차, ...] 쌍마다 그 사이 정류장을 채운 탑승 목록 (출근 방향).
+    async def _rides(self, plans: list["RidePlanView"], city: str) -> dict[UUID | None, list[Ride]]:
+        """계획마다 station_ids [탑승, 하차, ...] 쌍 사이 정류장을 채운 탑승 목록 (출근 방향).
 
         같은 노선·같은 종류(시드 / ODsay)의 정류장만 순번으로 잇는다. 노선이 다르거나 행이 없으면
         탑승·하차 두 점만 잇는다. 관련 노선의 정류장은 한 번에 읽는다 (운영 DB 왕복이 느리다).
         """
-        ends = list(commute.station_ids)
+        ends = [sid for plan in plans for sid in plan.station_ids]
+        if not ends:
+            return {}
         lines = select(Station.line).where(Station.id.in_(ends)).scalar_subquery()
         stmt = select(Station).where(Station.line.in_(lines), Station.city == city)
         stations = list((await self._session.execute(stmt)).scalars())
         by_id = {s.id: s for s in stations}
 
-        rides: list[Ride] = []
-        for board_id, alight_id in zip(ends[0::2], ends[1::2], strict=False):
-            board, alight = by_id.get(board_id), by_id.get(alight_id)
-            if board is None or alight is None:
-                continue
+        def between(board: Station, alight: Station) -> list[Station]:
             seeded = board.external_id is None
-            between: list[Station] = []
-            if board.line == alight.line and seeded == (alight.external_id is None):
-                low, high = sorted((board.order_no, alight.order_no))
-                between = sorted(
-                    (
-                        s
-                        for s in stations
-                        if s.line == board.line
-                        and (s.external_id is None) == seeded
-                        and low < s.order_no < high
-                    ),
-                    key=lambda s: s.order_no,
-                )
-                if board.order_no > alight.order_no:
-                    between.reverse()
-            rides.append([board, *between, alight])
-        return rides
+            if board.line != alight.line or seeded != (alight.external_id is None):
+                return []
+            low, high = sorted((board.order_no, alight.order_no))
+            found = sorted(
+                (
+                    s
+                    for s in stations
+                    if s.line == board.line
+                    and (s.external_id is None) == seeded
+                    and low < s.order_no < high
+                ),
+                key=lambda s: s.order_no,
+            )
+            if board.order_no > alight.order_no:
+                found.reverse()
+            return found
+
+        result: dict[UUID | None, list[Ride]] = {}
+        for plan in plans:
+            rides: list[Ride] = []
+            ids = plan.station_ids
+            for board_id, alight_id in zip(ids[0::2], ids[1::2], strict=False):
+                board, alight = by_id.get(board_id), by_id.get(alight_id)
+                if board is None or alight is None:
+                    continue
+                rides.append([board, *between(board, alight), alight])
+            result[plan.id] = rides
+        return result
+
+
+@dataclass(frozen=True)
+class RidePlanView:
+    """경로 생성·journey 가 보는 탑승 계획 (#88). CommuteRide 또는 옛 동선 열에서 만든다."""
+
+    id: UUID | None
+    line: str
+    station_ids: list[UUID]
+    alight_early_station_ids: list[UUID]
+    board_late_station_ids: list[UUID]
+
+
+def ride_plans(commute: Commute) -> list[RidePlanView]:
+    """동선의 탑승 계획들. commute_rides 가 없는 옛 동선은 거울 열로 계획 하나를 만든다."""
+    rides: list[CommuteRide] = list(commute.rides or [])
+    if rides:
+        return [
+            RidePlanView(
+                id=ride.id,
+                line=ride.line,
+                station_ids=list(ride.station_ids),
+                alight_early_station_ids=list(ride.alight_early_station_ids),
+                board_late_station_ids=list(ride.board_late_station_ids),
+            )
+            for ride in rides
+        ]
+    if not commute.station_ids:
+        return []
+    return [
+        RidePlanView(
+            id=None,
+            line=commute.line or "",
+            station_ids=list(commute.station_ids),
+            alight_early_station_ids=list(commute.alight_early_station_ids),
+            board_late_station_ids=list(commute.board_late_station_ids),
+        )
+    ]
 
 
 def _static_of(route: Route, direction: Direction) -> StaticScore:
@@ -734,9 +829,11 @@ def _static_of(route: Route, direction: Direction) -> StaticScore:
     )
 
 
-def _extra_minutes(leg: Leg, walked: PedestrianRoute, reference: dict[LegType, float]) -> float:
+def _extra_minutes(
+    leg: Leg, walked: PedestrianRoute, reference: dict[tuple[UUID | None, LegType], float]
+) -> float:
     """원래 계획 대비 더 걸리는 분. 건너뛰기 구간은 덜 탄 정거장만큼 뺀다."""
-    base = reference.get(leg.reference, 0.0)
+    base = reference.get(leg.reference_key, 0.0)
     return walked.minutes - base - leg.skip_stops * RIDE_MINUTES_PER_STOP
 
 
