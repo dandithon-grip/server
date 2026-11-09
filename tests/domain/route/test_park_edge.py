@@ -27,6 +27,7 @@ PARK = Polygon(
     [(128.6040, PARK_SOUTH), (128.6070, PARK_SOUTH), (128.6070, PARK_NORTH), (128.6040, PARK_NORTH)]
 )
 PARK_CENTER = (35.8600 + 250 / 110_540, 128.6055)
+CENTER = LatLng(lat=PARK_CENTER[0], lng=PARK_CENTER[1])
 
 
 def park_area() -> GreenArea:
@@ -49,9 +50,7 @@ def test_shortlist_uses_entry_points_for_pass_points_and_detour() -> None:
     assert waypoints[0].pass_points == [edge]
     assert waypoints[0].places == (inside,)
     # 우회량도 옮긴 점 기준이라 중심점보다 작다
-    assert waypoints[0].detour_m < distance_m(A, LatLng(*PARK_CENTER)) + distance_m(
-        LatLng(*PARK_CENTER), B
-    ) - distance_m(A, B)
+    assert waypoints[0].detour_m < distance_m(A, CENTER) + distance_m(CENTER, B) - distance_m(A, B)
 
 
 async def test_place_inside_park_moves_to_the_edge_nearest_the_baseline(
