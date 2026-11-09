@@ -16,6 +16,7 @@ from app.core.exceptions import ErrorCode
 from app.domain.commute.models import Commute, Station
 from app.domain.route.models import LegType, Route
 from app.domain.route.service import distance_m
+from app.domain.user.models import User
 from app.main import app
 from tests.conftest import TokenFactory
 
@@ -466,8 +467,13 @@ async def test_other_users_segment_does_not_change_alight_early(
     response = await client.post("/commutes/me/routes", headers=headers_a)
 
     assert response.status_code == 200
+    # 같은 트랜잭션에서 만든 두 동선은 created_at 이 같아 순서로 고를 수 없다. 사용자로 찾는다
     commute_a = (
-        await db_session.execute(select(Commute).order_by(Commute.created_at).limit(1))
+        await db_session.execute(
+            select(Commute)
+            .join(User, User.id == Commute.user_id)
+            .where(User.supabase_id == "user-a")
+        )
     ).scalar_one()
     assert (await station_names(db_session, commute_a.alight_early_station_ids))[0] == "경대병원"
 
