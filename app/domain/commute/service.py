@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import Depends
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
-from sqlalchemy import ColumnElement, func, or_, select
+from sqlalchemy import ColumnElement, delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +14,7 @@ from app.clients.tmap import LatLng
 from app.core.database import get_db
 from app.core.exceptions import AppException, ErrorCode
 from app.core.geo import make_point
-from app.domain.commute.models import Commute, Station, TransportMode
+from app.domain.commute.models import Commute, CommuteRide, Station, TransportMode
 from app.domain.commute.schemas import SaveCommuteRequest, TransitLegInput, TransitStopInput
 
 MAX_SKIP_STOPS = 3  # 먼저 내리기·늦게 타기로 건너뛰는 정거장 상한 (#51)
@@ -37,6 +37,17 @@ def skip_stations(first_ride: list[UUID], last_ride: list[UUID]) -> SkipStations
     board_late = first_ride[1:-1][:MAX_SKIP_STOPS]
     alight_early = list(reversed(last_ride[1:-1]))[:MAX_SKIP_STOPS]
     return SkipStations(board_late=board_late, alight_early=alight_early)
+
+
+@dataclass(frozen=True)
+class RidePlan:
+    """저장할 탑승 계획 하나 (#88)."""
+
+    line: str
+    station_ids: list[UUID]
+    skips: SkipStations
+    board_name: str
+    alight_name: str
 
 
 class CommuteService:
@@ -83,32 +94,40 @@ class CommuteService:
         """
         # 1. 교통수단별 정류장 규칙. transit 만 정류장을 쓰고 나머지는 비운다
         is_transit = request.transport_mode == TransportMode.TRANSIT
-        if is_transit and not request.station_ids and not request.transit_legs:
+        options = request.ride_options if is_transit else []
+        if is_transit and not request.station_ids and not options:
             raise AppException(ErrorCode.STATION_REQUIRED)
-        station_ids: list[UUID] = []
-        skips = SkipStations()
-        line = request.line if is_transit else None
-        if is_transit and request.transit_legs:
-            # 고른 경로의 탑승 구간들을 stations 에 넣고 구간마다 탑승·하차 역 id 를 순서대로.
-            # 1~3 정거장 먼저 내리기·늦게 타기 정류장도 이 사용자의 구간에서 지금 정한다
-            station_ids, line, skips = await self._store_transit_legs(request.transit_legs, city)
-        elif is_transit:
-            station_ids = list(request.station_ids)
 
-        # 2. 정류장이 실제로 있는지 확인
-        if station_ids:
-            count_stmt = (
-                select(func.count()).select_from(Station).where(Station.id.in_(station_ids))
+        # 2. 탑승 계획 ≤3 (#88). 계획마다 정류장 upsert → [탑승, 하차, ...] 와 건너뛸 정류장
+        plans: list[RidePlan] = []
+        for option in options:
+            station_ids, line, skips = await self._store_transit_legs(option, city)
+            plans.append(
+                RidePlan(
+                    line=line,
+                    station_ids=station_ids,
+                    skips=skips,
+                    board_name=option[0].stops[0].name,
+                    alight_name=option[-1].stops[-1].name,
+                )
             )
-            found = (await self._session.execute(count_stmt)).scalar_one()
-            if found != len(set(station_ids)):
-                raise AppException(ErrorCode.STATION_NOT_FOUND)
+        if is_transit and not plans:
+            # 시드 정류장 동선 (데모): id 만 오고 노선 순번으로 1~3 정거장을 찾는다
+            station_ids = list(request.station_ids)
+            await self._assert_stations_exist(station_ids)
+            named = await self._station_names(station_ids)
+            plans.append(
+                RidePlan(
+                    line=request.line or "",
+                    station_ids=station_ids,
+                    skips=await self._seeded_skip_stations(station_ids[0], station_ids[-1]),
+                    board_name=named.get(station_ids[0], ""),
+                    alight_name=named.get(station_ids[-1], ""),
+                )
+            )
+        primary = plans[0] if plans else None
 
-        # 3. 시드 정류장 동선은 노선 순번으로 1~3 정거장을 찾는다
-        if station_ids and not request.transit_legs:
-            skips = await self._seeded_skip_stations(station_ids[0], station_ids[-1])
-
-        # 4. upsert. user_id unique 충돌이면 모든 값을 갱신한다
+        # 3. upsert. user_id unique 충돌이면 모든 값을 갱신한다. 정류장·노선 열은 계획 0 의 거울
         values = {
             "user_id": user_id,
             "from_location": from_shape(Point(request.from_lng, request.from_lat), srid=4326),
@@ -118,10 +137,10 @@ class CommuteService:
             "go_time": request.go_time,
             "leave_time": request.leave_time,
             "transport_mode": request.transport_mode.value,
-            "line": line,
-            "station_ids": station_ids,
-            "alight_early_station_ids": skips.alight_early,
-            "board_late_station_ids": skips.board_late,
+            "line": primary.line if primary else None,
+            "station_ids": primary.station_ids if primary else [],
+            "alight_early_station_ids": primary.skips.alight_early if primary else [],
+            "board_late_station_ids": primary.skips.board_late if primary else [],
             "preference": request.preference.value,
         }
         upsert_stmt = insert(Commute).values(**values)
@@ -130,12 +149,44 @@ class CommuteService:
             set_={key: value for key, value in values.items() if key != "user_id"},
         )
         await self._session.execute(upsert_stmt)
+        commute_id = (
+            await self._session.execute(select(Commute.id).where(Commute.user_id == user_id))
+        ).scalar_one()
 
-        # 5. 저장된 행을 읽고 commit
-        commute = await self._find_by_user(user_id)
+        # 4. 탑승 계획 교체. 경로(routes.ride_id)는 재생성 때 새 계획을 가리킨다
+        await self._session.execute(delete(CommuteRide).where(CommuteRide.commute_id == commute_id))
+        self._session.add_all(
+            CommuteRide(
+                commute_id=commute_id,
+                order_no=order,
+                line=plan.line,
+                station_ids=plan.station_ids,
+                alight_early_station_ids=plan.skips.alight_early,
+                board_late_station_ids=plan.skips.board_late,
+                board_name=plan.board_name,
+                alight_name=plan.alight_name,
+            )
+            for order, plan in enumerate(plans)
+        )
+        await self._session.flush()
+
+        # 5. 저장된 행을 읽고 commit. 세션에 옛 Commute 객체가 있어도 새 값으로 덮어쓴다(populate).
+        #    commit 이 속성을 만료시키는 세션(시드)에서도 계획 목록을 지연 로딩하지 않게 다시 읽는다
+        commute = await self._find_by_user(user_id, populate=True)
         await self._session.commit()
         assert commute is not None
+        await self._session.refresh(commute, attribute_names=["rides"])
         return commute
+
+    async def _assert_stations_exist(self, station_ids: list[UUID]) -> None:
+        count_stmt = select(func.count()).select_from(Station).where(Station.id.in_(station_ids))
+        found = (await self._session.execute(count_stmt)).scalar_one()
+        if found != len(set(station_ids)):
+            raise AppException(ErrorCode.STATION_NOT_FOUND)
+
+    async def _station_names(self, station_ids: list[UUID]) -> dict[UUID, str]:
+        stmt = select(Station.id, Station.name).where(Station.id.in_(station_ids))
+        return {sid: name for sid, name in (await self._session.execute(stmt)).all()}
 
     async def get_commute(self, user_id: UUID) -> Commute:
         """
@@ -270,8 +321,13 @@ class CommuteService:
         """예외 없이 조회. 데모 카드처럼 없을 수도 있는 자리에서 쓴다."""
         return await self._find_by_user(user_id)
 
-    async def _find_by_user(self, user_id: UUID) -> Commute | None:
+    async def _find_by_user(self, user_id: UUID, *, populate: bool = False) -> Commute | None:
+        """
+        :param populate: True 면 세션에 이미 있는 Commute 객체도 DB 값으로 덮어쓴다 (저장 직후)
+        """
         stmt = select(Commute).where(Commute.user_id == user_id)
+        if populate:
+            stmt = stmt.execution_options(populate_existing=True)
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
 
