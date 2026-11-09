@@ -62,6 +62,9 @@ class CandidateInput(BaseModel):
     )
     skip_stops: int = Field(0, description="건너뛴 정거장 수")
     recent: bool = Field(False, description="최근 3일 안에 추천한 경로")
+    line: str | None = Field(
+        None, description='타는 노선. 문장에 "156번을 타면" 처럼 쓸 수 있다 (#90)'
+    )
 
 
 class CardInput(BaseModel):
@@ -97,6 +100,8 @@ def names_in_input(card_input: CardInput) -> set[str]:
         names.update(candidate.highlights)
         if candidate.station:
             names.add(candidate.station)
+        if candidate.line:
+            names.add(candidate.line)
     return names
 
 

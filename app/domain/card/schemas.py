@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -23,6 +24,9 @@ class TodayCardResponse(BaseModel):
     sunset_at: datetime
     sky: str | None
     air_grade: str | None
+    ride_id: UUID | None = Field(
+        None, description="어느 탑승 계획 기준 카드인지 (#90). null 이면 전체 계획을 합친 기본 카드"
+    )
     route: RouteResponse | None = Field(None, description="고른 경로. 3·5단계는 없음")
     candidates: list[RouteResponse] = Field(..., description="다른 길 보기용 후보 ≤3, 점수순")
     shortest: list[RouteResponse] = Field(..., description="구간별 최단")

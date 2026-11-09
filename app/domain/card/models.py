@@ -26,11 +26,24 @@ class TodayCard(TimestampMixin, Base):
     """오늘의 카드. 사용자·날짜당 1장 (데모는 퇴근 카드만, 11/3 결정)."""
 
     __tablename__ = "today_cards"
-    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_today_cards_user_id_date"),)
+    # 사용자·날짜당 기본 카드 1장(ride_id NULL) + 탑승 계획별 카드 (#90). NULL 도 하나로 센다
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "date",
+            "ride_id",
+            name="uq_today_cards_user_date_ride",
+            postgresql_nulls_not_distinct=True,
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     date: Mapped[date] = mapped_column(Date)
+    # 어느 탑승 계획 기준 카드인지 (#90). None 이면 전체 계획을 합쳐 고른 기본 카드
+    ride_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("commute_rides.id", ondelete="CASCADE"), nullable=True
+    )
     # 고른 경로. 3단계(늦추기·고개 돌리기)·5단계(없음)는 비어 있다
     route_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("routes.id", ondelete="SET NULL"), nullable=True

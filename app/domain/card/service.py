@@ -107,16 +107,26 @@ class CardService:
         self._airkorea = airkorea
         self._notifications = notifications
 
-    async def get_today(self, user: User, *, preference: Preference | None = None) -> CardResult:
+    async def get_today(
+        self,
+        user: User,
+        *,
+        preference: Preference | None = None,
+        ride_id: UUID | None = None,
+    ) -> CardResult:
         """
         오늘의 카드를 돌려준다. 이미 있으면 그대로, 취향 칩(preference)이 오면 다시 만든다.
 
         :param user: 로그인 사용자
         :param preference: 취향 칩. None 이면 동선의 기본 취향, 캐시가 있으면 캐시 반환
-        :raises AppException: COMMUTE_NOT_FOUND · ROUTES_NOT_READY
+        :param ride_id: 오늘 탄 노선의 탑승 계획 (#90). None 이면 전체 계획을 합친 기본 카드.
+            계획별 카드는 (사용자, 날짜, 계획) 로 따로 캐시한다
+        :raises AppException: COMMUTE_NOT_FOUND · ROUTES_NOT_READY · RIDE_NOT_FOUND
         """
-        # 1. 동선·경로
+        # 1. 동선·경로. 탑승 계획은 이 동선의 것이어야 한다
         commute = await self._commutes.get_commute(user.id)
+        if ride_id is not None and ride_id not in {ride.id for ride in commute.rides}:
+            raise AppException(ErrorCode.RIDE_NOT_FOUND)
         routes = await self._routes.list_routes(commute.id)
         if not routes:
             raise AppException(ErrorCode.ROUTES_NOT_READY)
@@ -124,13 +134,13 @@ class CardService:
 
         # 2. 오늘 카드 캐시. 취향 칩이면 건너뛰고 다시 만든다
         if preference is None:
-            cached = await self._find_card(user.id, today)
+            cached = await self._find_card(user.id, today, ride_id)
             if cached is not None:
                 return await self._result_from_card(cached, commute, routes, user)
 
         # 3. 새로 만들어 저장
         return await self._build_and_save(
-            user, commute, routes, today, preference or commute.preference
+            user, commute, routes, today, preference or commute.preference, ride_id=ride_id
         )
 
     async def prewarm(self, now: datetime) -> int:
@@ -172,11 +182,36 @@ class CardService:
                 card = result.card
                 built += 1
 
-            # 3. 알림은 하루 한 번. FCM 이 설정돼 있을 때만 보낸 것으로 친다
+            # 3. 탑승 계획이 2개 이상이면 계획별 카드도 미리 (#90). 홈에서 노선을 고르면 바로 뜬다.
+            #    알림은 기본 카드로만 보낸다
+            if len(commute.rides) >= 2:
+                built += await self._prewarm_rides(commute, local.date())
+
+            # 4. 알림은 하루 한 번. FCM 이 설정돼 있을 때만 보낸 것으로 친다
             if card.notified_at is None and self._notifications and self._notifications.enabled:
                 await self._notifications.notify(commute.user_id, title=CARD_TITLE, body=card.text)
                 card.notified_at = now
                 await self._session.commit()
+        return built
+
+    async def _prewarm_rides(self, commute: Commute, today: date) -> int:
+        """계획별 카드 중 없는 것을 만든다. 한 계획의 실패가 나머지를 막지 않는다."""
+        built = 0
+        for ride in commute.rides:
+            if await self._find_card(commute.user_id, today, ride.id) is not None:
+                continue
+            user = await self._users.get_user(commute.user_id)
+            routes = await self._routes.list_routes(commute.id)
+            if user is None or not routes:
+                return built
+            try:
+                await self._build_and_save(
+                    user, commute, routes, today, Preference(commute.preference), ride_id=ride.id
+                )
+                built += 1
+            except AppException as exc:
+                logger.warning("계획별 카드 미리 만들기 실패: %s", exc.code.name)
+                await self._session.rollback()
         return built
 
     async def _prewarm_targets(self, user_ids: list[UUID]) -> set[UUID]:
@@ -236,8 +271,18 @@ class CardService:
     # --- 조립 ----------------------------------------------------------------
 
     async def _build_and_save(
-        self, user: User, commute: Commute, routes: list[Route], today: date, preference: Preference
+        self,
+        user: User,
+        commute: Commute,
+        routes: list[Route],
+        today: date,
+        preference: Preference,
+        *,
+        ride_id: UUID | None = None,
     ) -> CardResult:
+        # 0. 계획별 카드면 그 계획의 구간과 계획이 없는 구간(도착 후)만 본다 (#90)
+        routes = _routes_for_ride(routes, ride_id)
+
         # 1. 오늘의 조건: 걷는 시각·일몰·날씨·미세먼지 (날씨는 실패해도 None 으로 진행)
         at = datetime.combine(today, commute.leave_time, tzinfo=LOCAL_TZ)
         weather, air = await self._weather(commute, at, user.city)
@@ -271,6 +316,7 @@ class CardService:
         values = {
             "user_id": user.id,
             "date": today,
+            "ride_id": ride_id,
             "route_id": chosen.route.id if chosen else None,
             "action_type": str(action),
             "fallback_level": decided.level,
@@ -288,11 +334,11 @@ class CardService:
         }
         stmt = insert(TodayCard).values(**values)
         stmt = stmt.on_conflict_do_update(
-            constraint="uq_today_cards_user_id_date",
-            set_={k: v for k, v in values.items() if k not in ("user_id", "date")},
+            constraint="uq_today_cards_user_date_ride",
+            set_={k: v for k, v in values.items() if k not in ("user_id", "date", "ride_id")},
         )
         await self._session.execute(stmt)
-        card = await self._find_card(user.id, today)
+        card = await self._find_card(user.id, today, ride_id)
         await self._session.commit()
         assert card is not None
         journeys = await self._routes.journeys(
@@ -328,6 +374,7 @@ class CardService:
     async def _card_input(self, context: CardContext, user: User) -> CardInput:
         """LLM 입력. 경로 UUID 대신 후보마다 최근 추천 여부만 넣는다 (#59)."""
         recent = set(await self._recent_route_ids(user.id, context.at.date()))
+        line_of: dict[UUID | None, str] = {ride.id: ride.line for ride in context.commute.rides}
         candidates: list[CandidateInput] = []
         for index, ranked in enumerate(context.decided.candidates):
             places = await self._routes.list_places(ranked.route.spots)
@@ -349,6 +396,8 @@ class CardService:
                     station=station.name if station else None,
                     skip_stops=ranked.route.skip_stops,
                     recent=ranked.route.id in recent,
+                    # 계획이 둘 이상일 때만 노선명을 준다. 하나면 문장에 노선을 말할 필요가 없다
+                    line=line_of.get(ranked.route.ride_id) if len(line_of) >= 2 else None,
                 )
             )
         return CardInput(
@@ -431,8 +480,14 @@ class CardService:
             logger.warning("에어코리아 실패, 미세먼지 없이 진행: %s", exc.code.name)
             return AirQuality()
 
-    async def _find_card(self, user_id: UUID, today: date) -> TodayCard | None:
-        stmt = select(TodayCard).where(TodayCard.user_id == user_id, TodayCard.date == today)
+    async def _find_card(
+        self, user_id: UUID, today: date, ride_id: UUID | None = None
+    ) -> TodayCard | None:
+        stmt = select(TodayCard).where(
+            TodayCard.user_id == user_id,
+            TodayCard.date == today,
+            TodayCard.ride_id.is_(None) if ride_id is None else TodayCard.ride_id == ride_id,
+        )
         return (await self._session.execute(stmt)).scalar_one_or_none()
 
     async def _recent_route_ids(self, user_id: UUID, today: date) -> list[UUID]:
@@ -453,6 +508,7 @@ class CardService:
         user: User,
     ) -> CardResult:
         """캐시된 카드에 오늘의 후보 목록을 붙인다 (LLM·날씨 재호출 없음)."""
+        routes = _routes_for_ride(routes, card.ride_id)
         at = datetime.combine(card.date, commute.leave_time, tzinfo=LOCAL_TZ)
         is_clear = card.sky == WeatherSky.CLEAR.value if card.sky else None
         ranked = self._routes.rank(
@@ -475,6 +531,13 @@ class CardService:
         return CardResult(
             card, chosen, decided.candidates, decided.shortest, journeys, list(commute.rides)
         )
+
+
+def _routes_for_ride(routes: list[Route], ride_id: UUID | None) -> list[Route]:
+    """계획별 카드가 보는 경로: 그 계획의 구간 + 계획 없는 구간(도보·도착 후). 기본 카드는 전부."""
+    if ride_id is None:
+        return routes
+    return [r for r in routes if r.ride_id is None or r.ride_id == ride_id]
 
 
 def _fit(full: str, short: str) -> str:
