@@ -139,3 +139,13 @@ create policy "records: 본인 폴더 삭제" on storage.objects for delete to a
 
 확인: 데모 계정 토큰으로 `POST {SUPABASE_URL}/storage/v1/object/records/{uid}/probe.png` 가 200 이고,
 그 경로로 `POST /records/suggest` 가 200 이면 된다 (작은 테스트 이미지는 `season: none` 이 정상). 일반 사용자 권한으로는 버킷 목록 조회가 빈 배열이라 그것으로 판단하지 않는다.
+
+## 배포가 빌드 단계에서 실패할 때
+
+Railway 빌드 도구(railpack)가 GitHub 에서 설치 파일을 받다가 `504 Gateway Timeout` 으로 실패하는 일이 있다
+(2026-11-09, #103). 코드·마이그레이션 문제가 아니라 일시적 네트워크 장애다. Deploy 단계가 "Not started" 이면
+DB 도 건드려지지 않았고 이전 버전이 그대로 서비스된다.
+
+- 빌드 실패 배포에는 Redeploy 메뉴가 없다. 서비스 → Deployments 상단의 **Deploy** 버튼이나 `Cmd+K → Deploy` 로 다시 시작한다
+- 그것도 없으면 main 에 커밋을 하나 더 넣어(문서 수정 등) GitHub 연동으로 다시 빌드시킨다
+- 같은 오류가 반복되면 GitHub 쪽 장애가 길어지는 것이라 10분쯤 뒤 다시 시도한다
