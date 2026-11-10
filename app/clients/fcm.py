@@ -52,12 +52,15 @@ class FcmClient:
     def configured(self) -> bool:
         return bool(self._account)
 
-    async def send(self, token: str, *, title: str, body: str, link: str | None) -> bool:
+    async def send(
+        self, token: str, *, title: str, body: str, link: str | None, icon: str | None = None
+    ) -> bool:
         """
         브라우저 하나에 웹 푸시 1건.
 
         :param token: 프론트가 Firebase getToken 으로 받은 등록 토큰
         :param link: 알림을 누르면 열 주소. https 가 아니면 넣지 않는다 (FCM 이 https 만 받음)
+        :param icon: 알림 아이콘 주소. 없으면 브라우저가 사이트 첫 글자를 보여준다 (#110). https 만
         :return: 보냈으면 True, 토큰이 무효(404 UNREGISTERED)면 False
         :raises AppException: EXTERNAL_API_FAILED - 미설정·인증 실패·네트워크·그 밖의 4xx/5xx
         """
@@ -66,6 +69,8 @@ class FcmClient:
 
         # 1. 메시지
         webpush: dict[str, Any] = {"notification": {"title": title, "body": body}}
+        if icon and icon.startswith("https://"):
+            webpush["notification"]["icon"] = icon
         if link and link.startswith("https://"):
             webpush["fcm_options"] = {"link": link}
         payload = {"message": {"token": token, "webpush": webpush}}
