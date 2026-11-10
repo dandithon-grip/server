@@ -49,7 +49,10 @@ class CandidateInput(BaseModel):
 
     index: int
     name: str
-    action_type: str = Field(..., description="detour · alight_early · board_late · after_arrival")
+    action_type: str = Field(
+        ...,
+        description="detour · alight_early · board_late · after_arrival · drop_by(들렀다 오기)",
+    )
     add_minutes: int
     green_pct: int
     event_score: int

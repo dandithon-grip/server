@@ -25,6 +25,11 @@ LEG_ACTION = {
 MOVING_LEGS = {leg for leg, action in LEG_ACTION.items() if action != ActionType.AFTER_ARRIVAL}
 
 
+def action_of(ranked: RankedRoute) -> ActionType:
+    """경로의 행동 유형. 잠깐 들르기(#116)는 구간 종류와 무관하게 drop_by."""
+    return ActionType.DROP_BY if ranked.drop_by else LEG_ACTION[ranked.leg_type]
+
+
 @dataclass(frozen=True)
 class FallbackResult:
     level: int
@@ -49,7 +54,7 @@ def decide_fallback(
     # 1. 이동 중 샛길: 돌아가기·먼저 내리기·늦게 타기가 점수로 경쟁. 행동은 1위의 구간이 정한다
     moving = [r for r in ranked.eligible if r.leg_type in MOVING_LEGS]
     if moving:
-        return _result(1, LEG_ACTION[moving[0].leg_type], moving, ranked)
+        return _result(1, action_of(moving[0]), moving, ranked)
 
     # 2. 기준선 자체에 이벤트(물가·다리·노을) 가 있음 → 곧 노을이면 늦추기, 아니면 고개 돌리기
     eventful = [r for r in ranked.shortest if r.event_score >= BASELINE_EVENT_MIN]
