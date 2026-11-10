@@ -71,6 +71,33 @@ async def test_send_posts_webpush_message_with_bearer_token() -> None:
     assert message["webpush"]["fcm_options"] == {"link": "https://saetgil.app"}
 
 
+async def test_icon_is_sent_in_the_webpush_notification() -> None:
+    # #110: 아이콘이 없으면 브라우저가 사이트 첫 글자("샛")를 대신 보여준다
+    recorder = Recorder()
+
+    await client(recorder).send(
+        "t",
+        title="a",
+        body="b",
+        link="https://saetgil.app",
+        icon="https://saetgil.app/icons/icon-192.png",
+    )
+
+    message = json.loads(recorder.requests[-1].content)["message"]
+    assert message["webpush"]["notification"]["icon"] == "https://saetgil.app/icons/icon-192.png"
+
+
+async def test_http_icon_is_not_sent_like_the_link() -> None:
+    recorder = Recorder()
+
+    await client(recorder).send(
+        "t", title="a", body="b", link=None, icon="http://localhost:3000/i.png"
+    )
+
+    message = json.loads(recorder.requests[-1].content)["message"]
+    assert "icon" not in message["webpush"]["notification"]
+
+
 async def test_access_token_request_is_a_signed_service_account_jwt() -> None:
     recorder = Recorder()
 
