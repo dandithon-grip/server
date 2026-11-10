@@ -17,6 +17,8 @@ from app.domain.notification.models import PushToken
 logger = logging.getLogger(__name__)
 
 CARD_TITLE = "오늘의 샛길"
+# 프론트가 /icons/ 아래에 두는 PNG. 없으면 기기가 사이트 첫 글자를 아이콘 자리에 보여준다 (#110)
+ICON_PATH = "/icons/icon-192.png"
 TEST_TITLE = "샛길 알림 테스트"
 TEST_BODY = "퇴근 10분 전에 이렇게 오늘의 샛길을 알려드려요."
 
@@ -80,11 +82,12 @@ class NotificationService:
         stmt = select(PushToken).where(PushToken.user_id == user_id)
         tokens = list((await self._session.execute(stmt)).scalars())
         link = get_settings().frontend_url or None
+        icon = f"{link.rstrip('/')}{ICON_PATH}" if link else None
         sent = 0
         for push_token in tokens:
             try:
                 delivered = await self._fcm.send(
-                    push_token.token, title=title, body=body, link=link
+                    push_token.token, title=title, body=body, link=link, icon=icon
                 )
             except AppException:
                 logger.warning("알림 발송 실패, 다음 기기로")
