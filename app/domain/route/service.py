@@ -78,7 +78,7 @@ MINUTE_PENALTY = 1.5
 RETRACE_MAX_M = 100
 # 후보가 0건일 때만: 걷는 구간 양 끝 이 반경 안 가장 가까운 자연 1곳으로 왕복 (#116)
 DROP_BY_RADIUS_M = 800
-DROP_BY_MAX_ADD_MINUTES = 8
+DROP_BY_MAX_ADD_MINUTES = 10  # 11/10: 400~500m 옆 공원(왕복 ≈10분)까지 들르기로 인정
 # 안에 있는 자연 지점을 가장자리로 옮기는 녹지 종류. 하천·가로수열은 선이라 해당 없음 (#82)
 AREA_GREEN_KINDS = [GreenKind.PARK.value, GreenKind.FOREST.value, GreenKind.GRASS.value]
 # 정거장을 건너뛰면 그만큼 덜 탄다. 노선별 실측 없이 정거장당 평균으로 뺀다 (#51)
