@@ -4,12 +4,17 @@
 그때만 양 끝 800m 안 가장 가까운 자연으로 왕복 경로 1개를 만들고, 8분 넘게 더 걸리면 버린다.
 """
 
+from uuid import uuid4
+
+from geoalchemy2.shape import from_shape
 from httpx import AsyncClient
+from shapely.geometry import Polygon
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.tmap import LatLng
-from app.domain.route.models import PlaceType, Route
+from app.core.config import get_settings
+from app.domain.route.models import GreenArea, GreenKind, PlaceType, Route
 from app.domain.route.service import DROP_BY_MAX_ADD_MINUTES, DROP_BY_RADIUS_M
 from tests.conftest import TokenFactory
 from tests.domain.route.test_routes import WALK_SPEED_M_PER_MIN, bearer, place, use_fake_tmap
@@ -78,12 +83,34 @@ async def test_only_round_trip_nature_becomes_a_drop_by_candidate(
     assert len(stored) == 1 and stored[0].name_reverse == "달성공원 서쪽 입구 잠깐 들르기"
 
 
+def green_square(lat: float, lng: float, half_m: float = 60) -> GreenArea:
+    """지점 둘레의 녹지 사각형. 경유 경로의 녹지 비율을 올려 보통 후보가 되게 한다."""
+    dlat, dlng = half_m / 110_540, half_m / M_PER_DEG_LNG
+    square = Polygon(
+        [
+            (lng - dlng, lat - dlat),
+            (lng + dlng, lat - dlat),
+            (lng + dlng, lat + dlat),
+            (lng - dlng, lat + dlat),
+        ]
+    )
+    return GreenArea(
+        id=uuid4(),
+        kind=GreenKind.PARK.value,
+        name="녹지",
+        geom=from_shape(square, srid=4326),
+        city=get_settings().default_city,
+    )
+
+
 async def test_drop_by_is_skipped_when_a_real_candidate_exists(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
-    # 구간 가운데에서 북쪽 300m 공원은 V 자로 지나갈 수 있어 보통 후보가 된다 → 들르기 없음
-    mid_lat, mid_lng = START.lat + 300 / 110_540, (START.lng + END.lng) / 2
-    db_session.add(place("가운데 공원", mid_lat, mid_lng, [PlaceType.PARK]))
+    # 구간 가운데 북쪽 60m 공원(녹지 있음)은 V 자로 지나갈 수 있어 보통 후보 → 들르기 없음
+    mid_lat, mid_lng = START.lat + 60 / 110_540, (START.lng + END.lng) / 2
+    db_session.add_all(
+        [place("가운데 공원", mid_lat, mid_lng, [PlaceType.PARK]), green_square(mid_lat, mid_lng)]
+    )
     await db_session.flush()
     fake = use_fake_tmap()
     headers = bearer(make_token())
@@ -128,3 +155,26 @@ async def test_no_nature_within_radius_keeps_level_4(
     assert response.status_code == 200
     assert response.json()["candidates"] == []
     assert len(leg_calls(fake.calls)) == 1  # 기준선뿐
+
+
+async def test_candidate_that_fails_the_green_rule_still_triggers_drop_by(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 2~3정거장 먼저 내리는 긴 구간처럼, 경유 경로는 만들어지지만 녹지 증가가 기준(5%) 아래라
+    # 어떤 취향으로도 후보가 못 되는 경우. 들르기가 켜져야 한다 (11/10 영남대 → 비산우체국)
+    mid_lat, mid_lng = START.lat + 300 / 110_540, (START.lng + END.lng) / 2
+    db_session.add(
+        place("녹지 없는 공터", mid_lat, mid_lng, [PlaceType.PARK])
+    )  # 녹지 폴리곤 없음 → 녹지 0%
+    await db_session.flush()
+    fake = use_fake_tmap()
+    headers = bearer(make_token())
+    await client.put("/commutes/me", json=short_walk_commute(), headers=headers)
+
+    response = await client.post("/commutes/me/routes", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [r["drop_by"] for r in body["candidates"]] == [True]
+    assert body["action_type"] == "drop_by"
+    assert len(leg_calls(fake.calls)) == 3  # 기준선 + 경유지(탈락) + 들르기
