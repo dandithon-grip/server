@@ -375,10 +375,6 @@ class RouteService:
             pending.append(
                 _PendingRoute(leg, walked, list(waypoint.places), extra, is_baseline=False)
             )
-        # 5-1. 자연을 지나는 후보가 하나도 없으면 가까운 자연 1곳 '잠깐 들르기' (#116).
-        #      자연이 구간 옆·너머에 있어 전부 왕복으로 걸러진 동선의 빈 카드를 막는다
-        if not any(p.places for p in pending):
-            pending += await self._drop_by_pending(walking, reference_minutes, city)
         for leg in legs:
             if leg.leg_type == LegType.AFTER_ARRIVAL:
                 pending += await self._after_arrival_pending(commute, leg, city)
@@ -389,6 +385,17 @@ class RouteService:
             self._build_route(commute, p, static, city=city)
             for p, static in zip(pending, scores, strict=True)
         ]
+
+        # 6-1. 이동 중 구간에 어떤 취향으로도 후보가 없으면 가까운 자연 1곳 '잠깐 들르기' (#116).
+        #      왕복으로 걸러졌거나 경유해도 녹지가 기준 미달인 동선의 빈 카드를 막는다
+        if not _has_moving_candidate(routes):
+            dropping = await self._drop_by_pending(walking, reference_minutes, city)
+            if dropping:
+                extra_scores = await self._score_many([p.walked.polyline for p in dropping], city)
+                routes += [
+                    self._build_route(commute, p, static, city=city)
+                    for p, static in zip(dropping, extra_scores, strict=True)
+                ]
 
         # 7. 저장
         self._session.add_all(routes)
@@ -982,6 +989,30 @@ def _static_of(route: Route, direction: Direction) -> StaticScore:
         sunset_ratio=route.sunset_ratio_for(direction),
         tags=[PlaceType(value) for value in route.tags],
     )
+
+
+MIN_GREEN_GAIN_ANY = min(rule.min_green_gain_pct for rule in PREFERENCE_RULES.values())
+
+
+def _has_moving_candidate(routes: list[Route]) -> bool:
+    """이동 중 구간(도착 후 제외)에 어떤 취향으로든 후보가 될 수 있는 경로가 있는가 (#116).
+
+    rank 의 후보 조건(추가 시간 상한, 녹지 증가 또는 이벤트)을 가장 느슨한 취향값으로 본다.
+    노을 가산은 날마다 달라 빼고 본다. 없으면 들르기를 만든다.
+    """
+    base_green = {(r.ride_id, LegType(r.leg_type)): r.green_pct for r in routes if r.is_baseline}
+    for route in routes:
+        leg = LegType(route.leg_type)
+        if route.is_baseline or leg == LegType.AFTER_ARRIVAL:
+            continue
+        reference = REFERENCE_LEG.get(leg, leg)
+        gain = route.green_pct - base_green.get((route.ride_id, reference), 0.0)
+        event = route.water_score + route.landmark_score
+        if route.add_minutes <= MAX_ADD_MINUTES and (
+            gain >= MIN_GREEN_GAIN_ANY or event >= EVENT_CANDIDATE_MIN
+        ):
+            return True
+    return False
 
 
 def _extra_minutes(

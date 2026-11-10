@@ -106,10 +106,14 @@ def green_square(lat: float, lng: float, half_m: float = 60) -> GreenArea:
 async def test_drop_by_is_skipped_when_a_real_candidate_exists(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
-    # 구간 가운데 북쪽 60m 공원(녹지 있음)은 V 자로 지나갈 수 있어 보통 후보 → 들르기 없음
-    mid_lat, mid_lng = START.lat + 60 / 110_540, (START.lng + END.lng) / 2
+    # 구간 가운데 북쪽 120m 공원(둘레 40m 녹지)은 V 자로 지나가며 녹지가 늘어 보통 후보
+    # 녹지는 기준선에서 30m 넘게 떨어져 있어 기준선 녹지는 0 이다
+    mid_lat, mid_lng = START.lat + 120 / 110_540, (START.lng + END.lng) / 2
     db_session.add_all(
-        [place("가운데 공원", mid_lat, mid_lng, [PlaceType.PARK]), green_square(mid_lat, mid_lng)]
+        [
+            place("가운데 공원", mid_lat, mid_lng, [PlaceType.PARK]),
+            green_square(mid_lat, mid_lng, half_m=40),
+        ]
     )
     await db_session.flush()
     fake = use_fake_tmap()
