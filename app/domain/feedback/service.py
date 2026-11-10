@@ -6,6 +6,7 @@
 """
 
 from collections import Counter
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -28,7 +29,7 @@ from app.domain.feedback.models import (
     Feedback,
 )
 from app.domain.feedback.schemas import PreferenceHint
-from app.domain.route.models import Direction, PlaceType, Route
+from app.domain.route.models import Direction, Place, PlaceType, Route
 from app.domain.route.scoring import TAG_RATIO_THRESHOLD
 from app.domain.route.service import RouteService, get_route_service
 from app.domain.user.models import User
@@ -43,12 +44,20 @@ HINT_MESSAGES = {
 }
 
 
-def route_feedback_tags(route: Route) -> list[PlaceType]:
+def route_feedback_tags(route: Route, places: Sequence[Place] = ()) -> list[PlaceType]:
     """가중치가 붙는 경로 태그. 저장된 정적 태그 + 퇴근 방향 일몰 비율이 높으면 sunset.
 
     평가는 퇴근 카드로 걸은 뒤에 한다 (#56).
+    정적 태그는 경로 선을 따라 녹지 비율이 기준을 넘는 종류에만 붙어서, 접근로가 길면 빈다.
+    그때는 경유한 자연 지점(places)의 종류로 대신한다 (#113). 둘 다 비면 가중치는 바뀌지 않는다.
     """
     tags = [PlaceType(value) for value in route.tags if PlaceType(value) in FEEDBACK_TAGS]
+    if not tags:
+        for place in places:
+            for value in place.types:
+                kind = PlaceType(value)
+                if kind in FEEDBACK_TAGS and kind not in tags:
+                    tags.append(kind)
     facing = route.sunset_ratio_for(Direction.TO_HOME)
     if facing >= TAG_RATIO_THRESHOLD and PlaceType.SUNSET not in tags:
         tags.append(PlaceType.SUNSET)
@@ -95,7 +104,9 @@ class FeedbackService:
         if route is None:
             raise AppException(ErrorCode.ROUTE_NOT_FOUND)
         today = datetime.now(LOCAL_TZ).date()
-        tags = route_feedback_tags(route)
+        #    태그가 비면 경유지 종류로 (#113). 태그가 있으면 조회하지 않는다
+        places = [] if route.tags else await self._routes.list_places(route.spots)
+        tags = route_feedback_tags(route, places)
 
         # 2. 같은 날 같은 경로에 이미 줬으면 이전 별점과의 차이만 반영한다
         stmt = select(Feedback).where(
