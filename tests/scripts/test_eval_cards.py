@@ -185,7 +185,10 @@ async def test_sunset_window_with_bad_air_requires_the_shortest_route() -> None:
     assert s.shortest and s.card_input.sunset_window_open and s.card_input.air_grade == "bad"
     llm = ScriptedLlm(
         CardChoice(
-            choice=0, reason_tag=ReasonTag.SUNSET, text="노을을 보며 걸어 보세요. 물이 붉어요.", deviation=None
+            choice=0,
+            reason_tag=ReasonTag.SUNSET,
+            text="노을을 보며 걸어 보세요. 물이 붉어요.",
+            deviation=None,
         )
     )
 
@@ -199,7 +202,10 @@ async def test_rain_forbids_sunset_reason_even_when_the_user_likes_sunsets() -> 
     assert "sunset" in s.card_input.top_tag_weights and s.card_input.sky == "rain"
     llm = ScriptedLlm(
         CardChoice(
-            choice=0, reason_tag=ReasonTag.SUNSET, text="노을을 보며 걸어 보세요. 물이 붉어요.", deviation=None
+            choice=0,
+            reason_tag=ReasonTag.SUNSET,
+            text="노을을 보며 걸어 보세요. 물이 붉어요.",
+            deviation=None,
         )
     )
 
