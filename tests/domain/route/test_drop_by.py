@@ -130,8 +130,8 @@ async def test_drop_by_is_skipped_when_a_real_candidate_exists(
 async def test_drop_by_beyond_the_minute_cap_leaves_the_card_empty(
     client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
 ) -> None:
-    # 도착점에서 400m 너머: 왕복 800m ≈ 10분 > 8분 → 들르기도 버린다
-    db_session.add(place("먼 공원", *east_of(END, 400), [PlaceType.PARK]))
+    # 도착점에서 500m 너머: 왕복 1,000m ≈ 12.5분 > 10분 → 들르기도 버린다
+    db_session.add(place("먼 공원", *east_of(END, 500), [PlaceType.PARK]))
     await db_session.flush()
     use_fake_tmap()
     headers = bearer(make_token())
@@ -142,7 +142,7 @@ async def test_drop_by_beyond_the_minute_cap_leaves_the_card_empty(
     assert response.status_code == 200
     assert response.json()["candidates"] == []
     assert not any(r.drop_by for r in await saved_routes(db_session))
-    assert 800 / WALK_SPEED_M_PER_MIN > DROP_BY_MAX_ADD_MINUTES
+    assert 1000 / WALK_SPEED_M_PER_MIN > DROP_BY_MAX_ADD_MINUTES
 
 
 async def test_no_nature_within_radius_keeps_level_4(
@@ -182,3 +182,19 @@ async def test_candidate_that_fails_the_green_rule_still_triggers_drop_by(
     assert [r["drop_by"] for r in body["candidates"]] == [True]
     assert body["action_type"] == "drop_by"
     assert len(leg_calls(fake.calls)) == 3  # 기준선 + 경유지(탈락) + 들르기
+
+
+async def test_round_trip_under_ten_minutes_is_accepted(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # 비산우체국 옆 달성공원처럼 400m 옆: 왕복 800m ≈ 10분. 상한 10분이라 들르기가 된다 (11/10 결정)
+    db_session.add(place("옆 공원", *east_of(END, 400), [PlaceType.PARK]))
+    await db_session.flush()
+    use_fake_tmap()
+    headers = bearer(make_token())
+    await client.put("/commutes/me", json=short_walk_commute(), headers=headers)
+
+    response = await client.post("/commutes/me/routes", headers=headers)
+
+    assert response.status_code == 200
+    assert [r["drop_by"] for r in response.json()["candidates"]] == [True]
