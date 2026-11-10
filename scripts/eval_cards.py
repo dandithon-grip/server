@@ -1,6 +1,7 @@
 """카드 LLM 오프라인 평가 (#61).
 
-실제 LLM 에 상황 24개를 넣고, 서비스와 같은 검증(reject_reason)과 상황별 기대값으로 잰다.
+실제 LLM 에 상황 30개(#61 24개 + #108 6개)를 넣고,
+서비스와 같은 검증(reject_reason)과 상황별 기대값으로 잰다.
 다른 LLM 을 검사관으로 쓰지 않는다. 규칙 검사는 매번 같은 결과를 내기 때문이다.
 
     uv run python -m scripts.eval_cards                 # 상황당 1회, docs/eval/cards.md 에 저장
@@ -85,6 +86,7 @@ def cand(
     station: str | None = None,
     skip: int = 0,
     recent: bool = False,
+    line: str | None = None,
 ) -> CandidateInput:
     return CandidateInput(
         index=index,
@@ -100,6 +102,7 @@ def cand(
         station=station,
         skip_stops=skip,
         recent=recent,
+        line=line,
     )
 
 
@@ -344,6 +347,124 @@ SCENARIOS: list[Scenario] = [
                 PARK,
                 RIVER.model_copy(update={"score": 38}),
                 BOARD.model_copy(update={"score": 37}),
+            ]
+        ),
+    ),
+    # --- #108: 운영에서 생기는데 평가에 없던 상황 ---------------------------------
+    Scenario(
+        "sunset_window_bad_air",
+        "노을 창 열림 + 미세먼지 나쁨. 건강이 먼저, 가장 짧은 길",
+        inp([SUNSET_RIVER, PARK, BOARD], leave="17:30", window_open=True, air="bad"),
+        shortest=True,
+    ),
+    Scenario(
+        "weights_sunset_rain",
+        "사용자가 노을을 좋아하지만 비. 노을 이유 금지가 취향보다 우선",
+        inp([SUNSET_RIVER, PARK, BOARD], leave="17:30", sky="rain", weights=("sunset",)),
+        forbid_reasons=NO_SUNSET,
+    ),
+    Scenario(
+        "same_park_three",
+        "후보 3개가 전부 같은 공원의 다른 입구 (11/10 데모 카드). 지어내지 않고 구분",
+        inp(
+            [
+                cand(
+                    0,
+                    "국채보상운동기념공원 샛길 (1정거장 걸어가서)",
+                    action="board_late",
+                    add=10,
+                    green=53,
+                    score=41,
+                    highlights=("동성로 옆 넓은 잔디와 느티나무길",),
+                    station="경대병원",
+                    skip=1,
+                ),
+                cand(
+                    1,
+                    "국채보상운동기념공원 북동쪽 입구 샛길 (1정거장 걸어가서)",
+                    action="board_late",
+                    add=11,
+                    green=48,
+                    score=37,
+                    highlights=("북동쪽 입구의 느티나무 그늘을 지나는 길",),
+                    station="경대병원",
+                    skip=1,
+                ),
+                cand(
+                    2,
+                    "국채보상운동기념공원 서쪽 입구 샛길",
+                    add=6,
+                    green=35,
+                    score=30,
+                    highlights=("서쪽 가장자리를 따라 걷는 길",),
+                ),
+            ]
+        ),
+    ),
+    Scenario(
+        "ride_line_board_late",
+        "노선 3개 등록 중 환승 노선의 걸어가서 타기 (#88). 노선·정류장 이름은 입력 그대로",
+        inp(
+            [
+                cand(
+                    0,
+                    "국채보상운동기념공원 샛길 (1정거장 걸어가서)",
+                    action="board_late",
+                    add=8,
+                    green=50,
+                    score=40,
+                    highlights=("동성로 옆 넓은 잔디와 느티나무길",),
+                    station="경대병원",
+                    skip=1,
+                    line="대구 1호선 → 724",
+                ),
+                PARK,
+            ]
+        ),
+    ),
+    Scenario(
+        "car_after_arrival_two",
+        "자동차 통근, 대체 3단계, 도착 후 산책 후보 2개",
+        inp(
+            [
+                cand(
+                    0,
+                    "2.28기념중앙공원 샛길 (도착 후)",
+                    action="after_arrival",
+                    add=4,
+                    green=50,
+                    score=44,
+                    highlights=("반월당 옆 작은 숲. 도심에서 가장 가까운 녹지",),
+                ),
+                cand(
+                    1,
+                    "경상감영공원 한 바퀴 (도착 후)",
+                    action="after_arrival",
+                    add=6,
+                    green=45,
+                    score=36,
+                    highlights=("감영 담장 안 소나무 사이를 도는 길",),
+                ),
+            ],
+            level=3,
+        ),
+    ),
+    Scenario(
+        "walk_all_near_cap",
+        "도보 통근 전체 우회. 추가 시간이 상한(15분) 바로 아래",
+        inp(
+            [
+                cand(
+                    0,
+                    "신천 둔치 따라 걷기 (전체 우회)",
+                    add=14,
+                    green=70,
+                    event=15,
+                    score=45,
+                    tags=("river", "trees"),
+                    highlights=("수성교에서 둔치로 내려가 물가를 따라 상동교까지",),
+                ),
+                PARK,
             ]
         ),
     ),
