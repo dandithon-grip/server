@@ -5,15 +5,16 @@ from uuid import UUID, uuid4
 
 from geoalchemy2.shape import from_shape
 from httpx import AsyncClient
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.exceptions import ErrorCode
 from app.domain.commute.models import Commute, Preference
 from app.domain.feedback.models import Feedback
 from app.domain.feedback.service import apply_delta, rating_delta, top_tags
-from app.domain.route.models import LegType, PlaceType, Route
+from app.domain.route.models import LegType, Place, PlaceType, Route
 from app.domain.route.service import RouteService
 from app.domain.user.models import User
 from tests.conftest import TokenFactory
@@ -50,6 +51,7 @@ def make_route(
     green_pct: float = 40,
     tags: list[PlaceType] | None = None,
     sunset_ratio: float = 0,
+    spots: list[UUID] | None = None,
 ) -> Route:
     return Route(
         id=uuid4(),
@@ -65,7 +67,7 @@ def make_route(
         landmark_score=0,
         sunset_ratio=sunset_ratio,
         tags=[t.value for t in (tags or [])],
-        spots=[],
+        spots=list(spots or []),
         highlights=[],
     )
 
@@ -306,3 +308,50 @@ async def test_routes_endpoint_applies_weights(
 
     assert plain.json()["candidates"][0]["id"] == str(park.id)
     assert boosted.json()["candidates"][0]["id"] == str(river.id)
+
+
+async def test_untagged_route_uses_its_waypoint_place_types(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    # #113: 접근로가 길어 녹지 비율이 기준 아래면 tags 가 빈다. 경유지가 공원이면 공원으로 반영한다
+    headers = bearer(make_token())
+    user, _ = await prepare(client, db_session, headers)
+    commute = (await db_session.execute(select(Commute))).scalar_one()
+    park = Place(
+        name="달성공원",
+        location=from_shape(Point(128.5830, 35.8740), srid=4326),
+        types=[PlaceType.PARK.value],
+        description="도심 서쪽의 넓은 공원",
+        city=get_settings().default_city,
+    )
+    db_session.add(park)
+    await db_session.flush()
+    untagged = make_route(commute.id, green_pct=12, tags=[], spots=[park.id])
+    db_session.add(untagged)
+    await db_session.flush()
+
+    body = await rate(client, headers, untagged, 5)
+
+    assert body["weights"]["park"] == 0.2
+    assert (await refreshed_weights(db_session, user))["park"] == 0.2
+    feedback = (
+        await db_session.execute(select(Feedback).where(Feedback.route_id == untagged.id))
+    ).scalar_one()
+    assert feedback.tags == ["park"]
+
+
+async def test_route_without_tags_or_waypoints_keeps_weights(
+    client: AsyncClient, make_token: TokenFactory, db_session: AsyncSession
+) -> None:
+    headers = bearer(make_token())
+    user, _ = await prepare(client, db_session, headers)
+    commute = (await db_session.execute(select(Commute))).scalar_one()
+    bare = make_route(commute.id, green_pct=5, tags=[])
+    db_session.add(bare)
+    await db_session.flush()
+
+    body = await rate(client, headers, bare, 5)
+
+    assert body["rating"] == 5
+    assert body["weights"] == {}
+    assert await refreshed_weights(db_session, user) == {}
