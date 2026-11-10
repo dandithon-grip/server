@@ -35,9 +35,10 @@ def scenario(name: str) -> Scenario:
     return next(s for s in SCENARIOS if s.name == name)
 
 
-def test_there_are_24_scenarios_with_unique_names() -> None:
-    assert len(SCENARIOS) == 24
-    assert len({s.name for s in SCENARIOS}) == 24
+def test_there_are_30_scenarios_with_unique_names() -> None:
+    # #108: 운영에서 생기는데 평가에 없던 상황 6개를 더했다
+    assert len(SCENARIOS) == 30
+    assert len({s.name for s in SCENARIOS}) == 30
 
 
 def test_scenario_candidates_are_score_ordered_like_the_service() -> None:
@@ -173,3 +174,74 @@ async def test_polite_endings_pass() -> None:
     result = await evaluate([scenario("clear_good")], llm)
 
     assert "polite_ending" not in result.rows[0].broken
+
+
+# --- #108 추가 상황 6개 -----------------------------------------------------
+
+
+async def test_sunset_window_with_bad_air_requires_the_shortest_route() -> None:
+    # 노을 창이 열려도 미세먼지가 나쁘면 건강이 먼저다. 노을 하천(추가 9분)을 고르면 어긴 것
+    s = scenario("sunset_window_bad_air")
+    assert s.shortest and s.card_input.sunset_window_open and s.card_input.air_grade == "bad"
+    llm = ScriptedLlm(
+        CardChoice(
+            choice=0, reason_tag=ReasonTag.SUNSET, text="노을을 보며 걸어 보세요. 물이 붉어요.", deviation=None
+        )
+    )
+
+    result = await evaluate([s], llm)
+
+    assert "shortest_on_bad_air" in result.rows[0].broken
+
+
+async def test_rain_forbids_sunset_reason_even_when_the_user_likes_sunsets() -> None:
+    s = scenario("weights_sunset_rain")
+    assert "sunset" in s.card_input.top_tag_weights and s.card_input.sky == "rain"
+    llm = ScriptedLlm(
+        CardChoice(
+            choice=0, reason_tag=ReasonTag.SUNSET, text="노을을 보며 걸어 보세요. 물이 붉어요.", deviation=None
+        )
+    )
+
+    result = await evaluate([s], llm)
+
+    assert "forbidden_reason" in result.rows[0].broken
+
+
+def test_same_park_three_entrances_share_the_park_name() -> None:
+    # 11/10 데모 카드: 후보 3개가 전부 같은 공원의 다른 입구였다
+    s = scenario("same_park_three")
+    assert len(s.card_input.candidates) == 3
+    assert all("국채보상운동기념공원" in c.name for c in s.card_input.candidates)
+
+
+async def test_ride_line_label_in_text_is_not_a_foreign_name() -> None:
+    # 노선 3개 등록(#88)의 환승 라벨은 입력에 있으므로 문장에 써도 거부하지 않는다
+    s = scenario("ride_line_board_late")
+    line = s.card_input.candidates[0].line
+    assert line and "→" in line
+    llm = ScriptedLlm(
+        CardChoice(
+            choice=0,
+            reason_tag=ReasonTag.PARK,
+            text=f"{line}을 타기 전에 공원을 지나 보세요. 맑아요.",
+            deviation=None,
+        )
+    )
+
+    result = await evaluate([s], llm)
+
+    assert result.rows[0].rejected is None
+    assert "numbers_from_input" not in result.rows[0].broken
+
+
+def test_car_after_arrival_scenario_is_level_3_with_two_walks() -> None:
+    s = scenario("car_after_arrival_two")
+    assert s.card_input.fallback_level == 3
+    assert [c.action_type for c in s.card_input.candidates] == ["after_arrival", "after_arrival"]
+
+
+def test_walk_all_cap_candidate_sits_near_the_detour_cap() -> None:
+    # 도보 통근 전체 우회. 상한(15분) 바로 아래라 "짧게" 취향이면 빠질 후보
+    s = scenario("walk_all_near_cap")
+    assert s.card_input.candidates[0].add_minutes == 14
