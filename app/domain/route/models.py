@@ -5,6 +5,7 @@ from geoalchemy2 import Geometry, WKBElement
 from geoalchemy2.shape import to_shape
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Float,
     ForeignKey,
@@ -146,6 +147,7 @@ class ActionType(StrEnum):
     DELAY = "delay"  # 늦추기 (곧 노을)
     GLANCE = "glance"  # 고개 돌리기 (기준선에 이벤트)
     AFTER_ARRIVAL = "after_arrival"  # 도착 후
+    DROP_BY = "drop_by"  # 후보가 없어 가까운 자연 1곳에 잠깐 들렀다 오기 (#116)
     NONE = "none"  # 오늘 동선엔 자연이 없다
 
 
@@ -189,6 +191,8 @@ class Route(TimestampMixin, Base):
     )
     # 먼저 내리기·늦게 타기에서 건너뛴 정거장 수 (1~3). 그 밖의 구간은 0
     skip_stops: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
+    # 후보가 없을 때 만든 '잠깐 들르기' 왕복 경로 (#116). 왕복 필터·녹지 기준을 건너뛴다
+    drop_by: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     # 저장된 경로선의 방향. 걷는 구간은 출근 방향 한 벌, 도착 후 구간만 방향마다 따로 (#56)
     direction: Mapped[Direction] = mapped_column(
         String(10), default=Direction.TO_WORK, server_default=Direction.TO_WORK.value

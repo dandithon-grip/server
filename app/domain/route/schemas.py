@@ -61,6 +61,9 @@ class RouteResponse(BaseModel):
         None, description="늦게 타기(board_late)일 때 걸어가서 탈 정류장"
     )
     skip_stops: int = Field(0, description="먼저 내리기·늦게 타기로 건너뛴 정거장 수 (1~3)")
+    drop_by: bool = Field(
+        False, description="후보가 없어 가까운 자연 1곳에 잠깐 들렀다 오는 왕복 경로 (#116)"
+    )
     ride_id: UUID | None = Field(
         None, description="어느 탑승 계획의 구간인지 (#88). rides[].id. 도보·자동차·도착 후는 null"
     )
@@ -107,6 +110,7 @@ def to_route_response(ranked: "RankedRoute", journey: list[Segment] | None = Non
         alight_station_id=ranked.alight_station_id,
         board_station_id=ranked.board_station_id,
         skip_stops=route.skip_stops,
+        drop_by=ranked.drop_by,
         ride_id=route.ride_id,
         journey=[_segment_response(segment) for segment in journey or []],
     )
