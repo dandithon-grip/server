@@ -2,11 +2,13 @@
 
 from dataclasses import dataclass, field
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.fcm import get_fcm_client
+from app.core.config import get_settings
 from app.core.exceptions import ErrorCode
 from app.domain.notification.models import PushToken
 from app.main import app
@@ -26,11 +28,15 @@ class FakeFcm:
     configured: bool = True
     dead: set[str] = field(default_factory=set)
     sent: list[tuple[str, str, str]] = field(default_factory=list)
+    icons: list[str | None] = field(default_factory=list)
 
-    async def send(self, token: str, *, title: str, body: str, link: str | None) -> bool:
+    async def send(
+        self, token: str, *, title: str, body: str, link: str | None, icon: str | None = None
+    ) -> bool:
         if token in self.dead:
             return False
         self.sent.append((token, title, body))
+        self.icons.append(icon)
         return True
 
 
@@ -117,3 +123,19 @@ async def test_test_push_without_fcm_settings_returns_503(
 
     assert response.status_code == 503
     assert response.json() == {"message": ErrorCode.NOTIFICATION_NOT_CONFIGURED.message}
+
+
+async def test_notification_carries_the_app_icon_from_the_frontend_url(
+    client: AsyncClient, make_token: TokenFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #110: 아이콘은 프론트 주소 아래 /icons/icon-192.png. 없으면 기기가 "샛" 글자를 보여준다
+    fake = use_fcm(FakeFcm())
+    settings = get_settings().model_copy(update={"frontend_url": "https://saetgil.app"})
+    monkeypatch.setattr("app.domain.notification.service.get_settings", lambda: settings)
+    headers = bearer(make_token())
+    await client.put("/users/me/push-tokens", json={"token": "device-a"}, headers=headers)
+
+    response = await client.post("/users/me/push-tokens/test", headers=headers)
+
+    assert response.status_code == 200
+    assert fake.icons == ["https://saetgil.app/icons/icon-192.png"]
