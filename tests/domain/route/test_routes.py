@@ -413,5 +413,8 @@ async def test_round_trip_into_park_is_not_stored(
     response = await client.post("/commutes/me/routes", headers=headers)
 
     assert response.status_code == 200
-    # 걷는 구간 후보가 없다 (도착 후 구간은 경유지 없이 한 방향이라 왕복이 아니다)
-    assert all(r["leg_type"] != "walk_all" for r in response.json()["candidates"])
+    # 왕복 경로는 보통 후보로 저장되지 않는다 (도착 후 구간은 경유지 없이 한 방향이라 왕복 아님).
+    # 다만 자연을 지나는 후보가 하나도 없으면 '잠깐 들르기'(#116) 로만 1개 남는다
+    walking = [r for r in response.json()["candidates"] if r["leg_type"] == "walk_all"]
+    assert all(r["drop_by"] for r in walking)
+    assert len(walking) <= 1

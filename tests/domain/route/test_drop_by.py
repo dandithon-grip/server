@@ -38,6 +38,11 @@ def short_walk_commute() -> dict[str, object]:
     }
 
 
+def leg_calls(fake_calls: list[list[LatLng]]) -> list[list[LatLng]]:
+    """걷는 구간(START → END) 의 TMAP 호출만. 도착 후 산책 호출은 뺀다."""
+    return [c for c in fake_calls if c[0] == START and c[-1] == END]
+
+
 async def saved_routes(session: AsyncSession) -> list[Route]:
     return list((await session.execute(select(Route))).scalars())
 
@@ -68,7 +73,7 @@ async def test_only_round_trip_nature_becomes_a_drop_by_candidate(
     assert body["action_type"] == "drop_by"
     assert body["fallback_level"] == 1
     # TMAP: 기준선 1 + 경유지 1(왕복이라 탈락) + 들르기 1
-    assert len([c for c in fake.calls if c[0] == START]) == 3
+    assert len(leg_calls(fake.calls)) == 3
     stored = [r for r in await saved_routes(db_session) if r.drop_by]
     assert len(stored) == 1 and stored[0].name_reverse == "달성공원 서쪽 입구 잠깐 들르기"
 
@@ -88,7 +93,7 @@ async def test_drop_by_is_skipped_when_a_real_candidate_exists(
 
     assert response.status_code == 200
     assert not any(r.drop_by for r in await saved_routes(db_session))
-    assert len([c for c in fake.calls if c[0] == START]) == 2  # 기준선 + 경유지, 들르기 호출 없음
+    assert len(leg_calls(fake.calls)) == 2  # 기준선 + 경유지, 들르기 호출 없음
 
 
 async def test_drop_by_beyond_the_minute_cap_leaves_the_card_empty(
@@ -122,4 +127,4 @@ async def test_no_nature_within_radius_keeps_level_4(
 
     assert response.status_code == 200
     assert response.json()["candidates"] == []
-    assert len([c for c in fake.calls if c[0] == START]) == 1  # 기준선뿐
+    assert len(leg_calls(fake.calls)) == 1  # 기준선뿐

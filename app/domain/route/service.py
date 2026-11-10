@@ -76,6 +76,9 @@ TAG_SUM_CLAMP = 2.0
 MINUTE_PENALTY = 1.5
 # 지나온 길을 이만큼 넘게 다시 밟으면 샛길이 아니라 왕복이라 저장하지 않는다 (#49)
 RETRACE_MAX_M = 100
+# 후보가 0건일 때만: 걷는 구간 양 끝 이 반경 안 가장 가까운 자연 1곳으로 왕복 (#116)
+DROP_BY_RADIUS_M = 800
+DROP_BY_MAX_ADD_MINUTES = 8
 # 안에 있는 자연 지점을 가장자리로 옮기는 녹지 종류. 하천·가로수열은 선이라 해당 없음 (#82)
 AREA_GREEN_KINDS = [GreenKind.PARK.value, GreenKind.FOREST.value, GreenKind.GRASS.value]
 # 정거장을 건너뛰면 그만큼 덜 탄다. 노선별 실측 없이 정거장당 평균으로 뺀다 (#51)
@@ -178,6 +181,7 @@ class _PendingRoute:
     places: list[Place]
     add_minutes: float
     is_baseline: bool
+    drop_by: bool = False  # 잠깐 들르기 (#116)
 
 
 @dataclass(frozen=True)
@@ -210,6 +214,7 @@ class RankedRoute:
     alight_station_id: UUID | None
     board_station_id: UUID | None
     sunset_ratio: float
+    drop_by: bool = False  # 가까운 자연에 잠깐 들렀다 오는 왕복 후보 (#116)
 
 
 def oriented(
@@ -230,6 +235,7 @@ def oriented(
         alight_station_id=route.alight_station_id if same else route.board_station_id,
         board_station_id=route.board_station_id if same else route.alight_station_id,
         sunset_ratio=route.sunset_ratio_for(direction),
+        drop_by=bool(route.drop_by),
     )
 
 
@@ -369,6 +375,10 @@ class RouteService:
             pending.append(
                 _PendingRoute(leg, walked, list(waypoint.places), extra, is_baseline=False)
             )
+        # 5-1. 자연을 지나는 후보가 하나도 없으면 가까운 자연 1곳 '잠깐 들르기' (#116).
+        #      자연이 구간 옆·너머에 있어 전부 왕복으로 걸러진 동선의 빈 카드를 막는다
+        if not any(p.places for p in pending):
+            pending += await self._drop_by_pending(walking, reference_minutes, city)
         for leg in legs:
             if leg.leg_type == LegType.AFTER_ARRIVAL:
                 pending += await self._after_arrival_pending(commute, leg, city)
@@ -384,6 +394,53 @@ class RouteService:
         self._session.add_all(routes)
         await self._session.commit()
         return routes
+
+    async def _drop_by_pending(
+        self,
+        walking: list[Leg],
+        reference: dict[tuple[UUID | None, LegType], float],
+        city: str,
+    ) -> list[_PendingRoute]:
+        """
+        후보가 0건일 때의 완충 (#116): 원래 계획의 걷는 구간마다 양 끝 DROP_BY_RADIUS_M 안
+        가장 가까운 자연 1곳을 경유하는 왕복 경로를 TMAP 으로 한 번 만든다.
+        왕복 필터는 적용하지 않고, 원래 구간보다 DROP_BY_MAX_ADD_MINUTES 넘게 더 걸리면 버린다.
+
+        :param walking: 걷는 구간 (도착 후 제외)
+        :param reference: 구간별 기준 소요 시간
+        :param city: 도시 코드
+        :return: 들르기 후보 (구간당 ≤1). 자연이 없거나 상한을 넘으면 비어 있다
+        """
+        # 1. 구간 양 끝에서 가장 가까운 자연 1곳
+        targets: list[tuple[Leg, Place]] = []
+        for leg in (leg for leg in walking if leg.skip_stops == 0):
+            best: Place | None = None
+            best_distance = math.inf
+            for anchor in (leg.end, leg.start):
+                found = await self.find_nearest_place(
+                    anchor.lat, anchor.lng, city=city, radius_m=DROP_BY_RADIUS_M
+                )
+                if found is None:
+                    continue
+                distance = distance_m(anchor, LatLng(lat=found.lat, lng=found.lng))
+                if distance < best_distance:
+                    best, best_distance = found, distance
+            if best is not None:
+                targets.append((leg, best))
+        if not targets:
+            return []
+
+        # 2. 들렀다 오는 경로 (구간당 TMAP 1회) → 추가 시간 상한
+        walked_all = await self._walk_all(
+            [(leg.start, leg.end, [LatLng(lat=p.lat, lng=p.lng)]) for leg, p in targets]
+        )
+        out: list[_PendingRoute] = []
+        for (leg, place), walked in zip(targets, walked_all, strict=True):
+            extra = _extra_minutes(leg, walked, reference)
+            if extra > DROP_BY_MAX_ADD_MINUTES:
+                continue
+            out.append(_PendingRoute(leg, walked, [place], extra, is_baseline=False, drop_by=True))
+        return out
 
     async def _walk_all(
         self, requests: list[tuple[LatLng, LatLng, list[LatLng] | None]]
@@ -586,7 +643,7 @@ class RouteService:
             commute_id=commute.id,
             leg_type=leg.leg_type,
             is_baseline=pending.is_baseline,
-            name=_route_name(leg, places),
+            name=_route_name(leg, places, drop_by=pending.drop_by),
             minutes=round(walked.minutes, 1),
             add_minutes=round(max(pending.add_minutes, 0.0), 1),
             polyline=from_shape(LineString([(p.lng, p.lat) for p in walked.polyline]), srid=4326),
@@ -601,9 +658,12 @@ class RouteService:
             board_station_id=leg.board_station_id,
             ride_id=leg.ride_id,
             skip_stops=leg.skip_stops,
+            drop_by=pending.drop_by,
             direction=leg.direction,
             sunset_ratio_reverse=static.sunset_ratio_reverse,
-            name_reverse=_route_name(replace(leg, leg_type=MIRROR_LEG[leg.leg_type]), places),
+            name_reverse=_route_name(
+                replace(leg, leg_type=MIRROR_LEG[leg.leg_type]), places, drop_by=pending.drop_by
+            ),
         )
 
     async def get_place(self, place_id: UUID) -> Place | None:
@@ -729,8 +789,10 @@ class RouteService:
             green_gain = route.green_pct - base_green.get((route.ride_id, reference), 0.0)
             if route.add_minutes > rule.max_add_minutes:
                 continue
+            # 들르기(#116)는 다른 후보가 없어서 만든 경로라 녹지·이벤트 기준을 묻지 않는다
             if (
-                green_gain < rule.min_green_gain_pct
+                not route.drop_by
+                and green_gain < rule.min_green_gain_pct
                 and score_today.event_score < EVENT_CANDIDATE_MIN
             ):
                 continue
@@ -934,7 +996,9 @@ def _at(station: Station) -> LatLng:
     return LatLng(lat=station.lat, lng=station.lng)
 
 
-def _route_name(leg: Leg, places: list[Place]) -> str:
+def _route_name(leg: Leg, places: list[Place], *, drop_by: bool = False) -> str:
+    if drop_by and places:
+        return f"{places[0].name.replace(' 진입', '').replace(' 진출', '')} 잠깐 들르기"
     if leg.leg_type == LegType.ALIGHT_EARLY:
         if not places:
             return f"{leg.station_name}에서 내려 걷기"

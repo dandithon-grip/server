@@ -42,7 +42,7 @@ from app.domain.notification.service import (
     NotificationService,
     get_notification_service,
 )
-from app.domain.route.fallback import LEG_ACTION, FallbackResult, decide_fallback
+from app.domain.route.fallback import FallbackResult, action_of, decide_fallback
 from app.domain.route.journey import Segment
 from app.domain.route.models import ActionType, Direction, PlaceType, Route
 from app.domain.route.scoring import sunset_window
@@ -312,7 +312,7 @@ class CardService:
 
         # 4. 행동 유형은 고른 후보의 구간이 정한다. 후보가 없는 단계는 대체 로직이 정한 값
         chosen = decided.candidates[choice.choice] if decided.candidates else None
-        action = LEG_ACTION[chosen.leg_type] if chosen else decided.action_type
+        action = action_of(chosen) if chosen else decided.action_type
 
         # 5. 저장 (user_id, date) upsert. LLM 비용도 함께 남긴다
         values = {
@@ -404,7 +404,7 @@ class CardService:
                 CandidateInput(
                     index=index,
                     name=ranked.name,
-                    action_type=str(LEG_ACTION[ranked.leg_type]),
+                    action_type=str(action_of(ranked)),
                     # 문장에 "8.0분", "37.0%" 가 그대로 나오지 않게 정수로 넘긴다
                     add_minutes=round(ranked.route.add_minutes),
                     green_pct=round(ranked.route.green_pct),
@@ -439,7 +439,7 @@ class CardService:
             route = top.route
             place = route.highlights[0] if route.highlights else top.name
             minutes = int(round(route.add_minutes))
-            action = LEG_ACTION[top.leg_type]
+            action = action_of(top)
             station_id = top.alight_station_id or top.board_station_id
             station = await self._commutes.get_station(station_id) if station_id else None
             station_name = station.name if station else ""
@@ -452,7 +452,15 @@ class CardService:
                 lead = f"도착 후 {minutes}분 걸으면"
             else:
                 lead = f"{minutes}분 돌아가면"
-            text = _fit(f"{lead} {top.name}. {place}", f"{lead} {top.name}.")
+            if action == ActionType.DROP_BY:
+                # 왕복임을 숨기지 않는다 (#116)
+                spot = top.name.removesuffix(" 잠깐 들르기")
+                text = _fit(
+                    f"{spot}에 잠깐 들렀다 와도 {minutes}분이면 돼요. {place}",
+                    f"{spot}에 잠깐 들렀다 와도 {minutes}분이면 돼요.",
+                )
+            else:
+                text = _fit(f"{lead} {top.name}. {place}", f"{lead} {top.name}.")
             return CardChoice(
                 choice=0,
                 reason_tag=_reason_from_tags(top.tags),
