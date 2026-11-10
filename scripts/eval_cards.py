@@ -1,6 +1,7 @@
 """카드 LLM 오프라인 평가 (#61).
 
-실제 LLM 에 상황 30개(#61 24개 + #108 6개)를 넣고, 서비스와 같은 검증(reject_reason)과 상황별 기대값으로 잰다.
+실제 LLM 에 상황 30개(#61 24개 + #108 6개)를 넣고,
+서비스와 같은 검증(reject_reason)과 상황별 기대값으로 잰다.
 다른 LLM 을 검사관으로 쓰지 않는다. 규칙 검사는 매번 같은 결과를 내기 때문이다.
 
     uv run python -m scripts.eval_cards                 # 상황당 1회, docs/eval/cards.md 에 저장
